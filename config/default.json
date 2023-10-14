@@ -1,0 +1,10 @@
+{
+  "db_config" : {
+		"protocol" : "mysql",
+		"host" : "127.0.0.1",
+		"database" : "vue-shop",
+		"user" : "root",
+		"password" : "winter",
+		"port" : 3306
+	}
+}
