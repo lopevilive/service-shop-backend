@@ -1,3 +1,5 @@
+// ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY '123456';
+
 require('mysql');
 var fs = require("fs");
 var orm = require("orm");

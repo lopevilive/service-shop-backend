@@ -14,7 +14,7 @@ router.get('/GetGoodTypes',
   async (req, res, next) => {
     const ret = goodTypeSrv.getGoodTypes(1,
       (data) => {
-        res.sendResult({data}, 200, 'req ok hhh ')
+        res.sendResult(data, 0, 'req ok hhh ')
       })(req,res, next)
   }
 )

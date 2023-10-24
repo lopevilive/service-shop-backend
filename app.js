@@ -2,6 +2,8 @@ const express = require('express');
 const path = require('path')
 const bodyParser = require('body-parser')
 const resextra = require('./modules/resextra')
+const database = require('./modules/database')
+
 // 获取验证模块
 const authorization = require(path.join(process.cwd(), '/modules/authorization'))
 
@@ -17,6 +19,15 @@ authorization.setAuthFn(function(req, res, next, serviceName, actionName, passFn
 })
 
 const app = express();
+
+// 初始化数据库模块
+database.initialize(app, function(err) {
+  if (err) {
+    console.error('连接数据库失败失败 %s', err)
+  }
+})
+
+
 
 // 初始化统一响应机制
 app.use(resextra)

@@ -2,9 +2,9 @@
   "db_config" : {
 		"protocol" : "mysql",
 		"host" : "127.0.0.1",
-		"database" : "vue-shop",
+		"database" : "caca_test",
 		"user" : "root",
-		"password" : "winter",
+		"password" : "123456",
 		"port" : 3306
 	}
 }

@@ -6,10 +6,8 @@ module.exports = function(req, res, next){
 			res.json(
 			{
 				"data" : data, 
-				"meta" : {
-					"msg" 		: message,
-					"status" 	: code
-				}
+        "code": code,
+        "msg": message
 			});
 		}
 	};
