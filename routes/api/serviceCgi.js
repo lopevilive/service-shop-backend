@@ -8,14 +8,28 @@ const authorization = require(path.join(process.cwd(),"/modules/authorization"))
 const goodTypeSrv = authorization.getService('GoodTypeService')
 
 router.get('/GetGoodTypes',
-  function(req, res, next) {
-    next()
-  },
   async (req, res, next) => {
-    const ret = goodTypeSrv.getGoodTypes(1,
+    goodTypeSrv.getGoodTypes(null,
       (data) => {
         res.sendResult(data, 0, 'req ok hhh ')
       })(req,res, next)
+  }
+)
+
+router.post('/ModGoodType',
+  (req, res, next) => {
+    const {body} = req
+    if (!body.type_name) {
+      res.sendResult(null, 400, '参数有误')
+      return
+    } 
+    next()
+  },
+  (req, res, next) => {
+    goodTypeSrv.modGoodType(req.body,(ret) => {
+      res.sendResult(null, 0, 'req ok hhh ')
+    })(req, res, next)
+    
   }
 )
 

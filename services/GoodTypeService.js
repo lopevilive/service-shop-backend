@@ -7,18 +7,19 @@ module.exports.getGoodTypes = (params ,cb) => {
   dao.list('GoodTypeModel', null, (err, models) => {
     cb(models)
   })
-//   cb ([
-//     {
-//         "name": "全部商品",
-//         "id": 1
-//     },
-//     {
-//         "name": "母鸡啊1",
-//         "id": 2
-//     },
-//     {
-//         "name": "母鸡2",
-//         "id": 3
-//     }
-// ])
+};
+
+module.exports.modGoodType = (params, cb) => {
+  const {id} = params
+  if (id === -1) {
+    // 创建
+
+  } else {
+    // 先看看 id 是否存在
+    dao.findOne('GoodTypeModel', {id}, (err, data) => {
+      console.log(data, 'data')
+      cb(null)
+    })
+  }
+  // dao.update(GoodTypeModel, )
 }
