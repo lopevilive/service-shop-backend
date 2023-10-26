@@ -3,7 +3,7 @@ module.exports = function(db,callback){
 	db.define("GoodTypeModel",{
 		id : {type: 'serial', key: true},
 		type_name : String,
-		is_del : ['0','1'],	// 0: 正常 , 1: 删除
+		is_del : Number,	// 0: 正常 , 1: 删除
 		add_time : Number,
 		upd_time : Number,
 		delete_time : Number,
