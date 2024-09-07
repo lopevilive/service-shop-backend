@@ -2,12 +2,12 @@
   "db_config" : {
 		"protocol" : "mysql",
 		"host" : "127.0.0.1",
-		"database" : "caca_test",
+		"database" : "album",
 		"user" : "root",
 		"password" : "123456",
 		"port" : 3306
 	},
   "upload_config": {
-    "baseURL": "abc"
+    "baseURL": "www.album.com"
   }
 }

@@ -1,3 +1,4 @@
+// sudo chown -R username directory_name
 const express = require('express');
 const path = require('path')
 const bodyParser = require('body-parser')
@@ -31,6 +32,9 @@ database.initialize(app, function(err) {
 
 // 初始化统一响应机制
 app.use(resextra)
+
+// 静态资源
+app.use('/tmp_uploads',express.static('tmp_uploads')) 
 
 /**
  *
