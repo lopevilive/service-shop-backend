@@ -22,7 +22,7 @@ router.post("/",upload.single('file'),function(req,res,next) {
 		if(err) {
 			return res.sendResult(null,CODE_PARAMS_ERR,"上传文件失败");
 		}
-		res.sendResult({"tmp_path":targetPath,"url":upload_config.get("baseURL") + "/" + targetPath},CODE_SUCC,"上传成功");
+		res.sendResult({"path":`/${targetPath}`,"url":upload_config.get("baseURL") + "/" + targetPath},CODE_SUCC,"上传成功");
 	})
 });
 

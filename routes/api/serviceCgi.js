@@ -8,6 +8,18 @@ const authorization = require(path.join(process.cwd(),"/modules/authorization"))
 
 const albumService = authorization.getService('albumService')
 
+router.post('/GetShop',
+  async (req, res, next) => {
+    albumService.getShop(req.body, (err, data) => {
+      if (err) {
+        res.sendResult(null, CODE_UNKNOWN, err)
+      } else {
+        res.sendResult(data, CODE_SUCC, 'succ')
+      }
+    })(req, res, next)
+  }
+)
+
 router.post('/ShopMod',
   async (req, res, next) => {
     albumService.shopMod(req.body,
@@ -18,6 +30,125 @@ router.post('/ShopMod',
           res.sendResult(data, CODE_SUCC, 'succ')
         }
       })(req,res, next)
+  }
+)
+
+router.post('/ProductMod',
+  async (req, res, next) => {
+    albumService.productMod(req.body,
+      (err, data) => {
+        if (err) {
+          res.sendResult(null, CODE_UNKNOWN, err)
+        } else {
+          res.sendResult({id: data.id}, CODE_SUCC, 'succ')
+        }
+      })(req,res, next)
+  }
+)
+
+router.post('/ProductDel',
+  (req, res, next) => {
+    const {id} = req.body
+    if (!id) {
+      res.sendResult('null', CODE_PARAMS_ERR, '参数有误')
+      return
+    }
+    next()
+  },
+  async (req, res ,next) => {
+    albumService.productDel(req.body, 
+      (err, data) => {
+        if (err) {
+          res.sendResult(null, CODE_UNKNOWN, err)
+        } else {
+          res.sendResult(data, CODE_SUCC, 'succ')
+        }
+      }
+    )(req, res ,next)
+  }
+)
+
+router.post('/GetProduct',
+  (req, res, next) => {
+    const {shopId, productId} = req.body
+    if (!shopId && !productId) {
+      res.sendResult('null', CODE_PARAMS_ERR, '参数有误')
+      return
+    }
+    next()
+  },
+  async (req, res, next) => {
+    albumService.getProduct(req.body, (err, data) => {
+      if (err) {
+        res.sendResult(null, CODE_UNKNOWN, err)
+      } else {
+        res.sendResult(data, CODE_SUCC, 'succ')
+      }
+    })(req, res, next)
+  }
+)
+
+router.post('/GetProductTypes',
+  (req, res, next) => {
+    const {shopId} = req.body
+    if (!shopId) {
+      res.sendResult('null', CODE_PARAMS_ERR, '参数有误')
+      return
+    }
+    next()
+  },
+  async (req, res, next) => {
+    albumService.getProductTypes(req.body, (err, data) => {
+      if (err) {
+        res.sendResult(null, CODE_UNKNOWN, err)
+      } else {
+        res.sendResult(data, CODE_SUCC, 'succ')
+      }
+    })(req, res, next)
+  }
+)
+
+
+router.post('/ProductTypesMod',
+  (req, res, next) => {
+    const {shopId} = req.body
+    if (!shopId) {
+      res.sendResult('null', CODE_PARAMS_ERR, '参数有误')
+      return
+    }
+    next()
+  },
+  async (req, res, next) => {
+    albumService.productTypesMod(req.body, (err, data) => {
+      if (err) {
+        res.sendResult(null, CODE_UNKNOWN, err)
+      } else {
+        res.sendResult(data, CODE_SUCC, 'succ')
+      }
+    })(req, res, next)
+  }
+)
+
+
+router.post('/ProductTypesDel',
+  (req, res, next) => {
+    const {id} = req.body
+    if (!id) {
+      res.sendResult('null', CODE_PARAMS_ERR, '参数有误')
+      return
+    }
+    next()
+  },
+  async (req, res ,next) => {
+    albumService.productTypesDel(req.body, 
+      (err, data) => {
+        if (err) {
+          res.sendResult(null, CODE_UNKNOWN, err)
+        } else {
+          res.sendResult(data, CODE_SUCC, 'succ')
+        }
+      }
+    )(req, res ,next)
   }
 )
 

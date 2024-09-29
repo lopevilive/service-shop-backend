@@ -43,10 +43,9 @@ module.exports.list = function(modelName,conditions,cb) {
 	var db = databaseModule.getDatabase();
 
 	var model = db.models[modelName];
+  // console.log(db.driver.execQuery)
 
 	if(!model) return cb("模型不存在",null);
-
-
 
 	if(conditions) {
 		if(conditions["columns"]) {
@@ -54,6 +53,9 @@ module.exports.list = function(modelName,conditions,cb) {
 		} else {
 			model = model.find();
 		}
+
+    // console.log(model.where, 'likee')
+    // model.where('name LIKE ?', ['%喜坊%'])
 
 		if(conditions["offset"]) {
 			model = model.offset(parseInt(conditions["offset"]));
@@ -80,11 +82,21 @@ module.exports.list = function(modelName,conditions,cb) {
 	}
 
 	model.run(function(err,models) {
-		
 		if(err) {
 			console.log(err);
 			return cb("查询失败",null);
 		}
+    if (conditions?.["only"]) {
+      models = models.map((item) => {
+        let ret = {}
+        for (const key of Object.keys(item)) {
+          if (conditions["only"].includes(key)) {
+            ret[key] = item[key]
+          }
+        }
+        return ret
+      })
+    }
 		cb(null,models);
 	});
 };
@@ -221,4 +233,12 @@ module.exports.exists = function(modelName,conditions,cb) {
 module.exports.getModel = function(modelName) {
 	var db = databaseModule.getDatabase();
 	return db.models[modelName];
+}
+
+module.exports.execSql = function(sql, cb) {
+  var db = databaseModule.getDatabase();
+  return db.driver.execQuery(sql, (err, data) => {
+    if (err) return cb(err)
+    cb(null, data)
+  }) 
 }

@@ -1,7 +1,7 @@
 module.exports = function(db,callback){
-	// 用户模型
 	db.define("ShopModel",{
 		id : {type: 'serial', key: true},
+    userId: String,
 		name : String,
     desc: String,
     logo: String,
