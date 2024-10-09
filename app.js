@@ -4,6 +4,8 @@ const path = require('path')
 const bodyParser = require('body-parser')
 const resextra = require('./modules/resextra')
 const database = require('./modules/database')
+const  serviceCgiRoutes = require('./routes/api/serviceCgi.js')
+
 
 // 获取验证模块
 const authorization = require(path.join(process.cwd(), '/modules/authorization'))
@@ -44,8 +46,7 @@ app.use('/tmp_uploads',express.static('tmp_uploads'))
 app.use(bodyParser.json())
 app.use(bodyParser.urlencoded({ extended: true }))
 
-// 路由加载
-var mount = require('mount-routes')
+
 
 // 设置跨域和相应数据格式
 app.all('/api/*', function(req, res, next) {
@@ -60,11 +61,12 @@ app.all('/api/*', function(req, res, next) {
   /*让options请求快速返回*/ else next()
 })
 
+// 路由加载
+var mount = require('mount-routes')
 mount(app, path.join(process.cwd(), '/routes'), true)
 // mount(app, __dirname + '/routes1', true)
-app.get('/', function (req, res) {
-  res.send('Hello World');
-})
+
+// app.use('/api', serviceCgiRoutes)
 
 /**
  *
@@ -76,4 +78,4 @@ app.use(function(req, res, next) {
   console.log('not found~~~~')
   res.sendResult(null, 404, 'Not Found')
 })
-const server = app.listen(8082)
+app.listen(8082)

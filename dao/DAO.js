@@ -2,7 +2,6 @@ var path = require("path");
 
 // 获取数据库模型
 databaseModule = require(path.join(process.cwd(),"modules/database")); 
-// var logger = require('../modules/logger').logger(); // todo
 
 /**
  * 创建对象数据
@@ -11,10 +10,13 @@ databaseModule = require(path.join(process.cwd(),"modules/database"));
  * @param  {[type]}   obj       模型对象
  * @param  {Function} cb        回调函数
  */
-module.exports.create = function(modelName,obj,cb) {
+module.exports.create = async function(entityName,obj,cb) {
 	var db = databaseModule.getDatabase();
-	var Model = db.models[modelName];
-	Model.create(obj,cb);
+  var model = db.getRepository(entityName);
+  if(!model) return cb("模型不存在",null);
+  const res = await model.createQueryBuilder().insert().into(entityName).values(obj).execute();
+  const {identifiers} = res
+  cb(null, identifiers[0])
 }
 
 /**
@@ -39,118 +41,37 @@ module.exports.create = function(modelName,obj,cb) {
 	}
  * @param  {Function} cb         回调函数
  */
-module.exports.list = function(modelName,conditions,cb) {
+module.exports.list = async function(entityName,conditions,cb) {
 	var db = databaseModule.getDatabase();
+	var model = db.getRepository(entityName);
+  if(!model) return cb("模型不存在",null);
 
-	var model = db.models[modelName];
-  // console.log(db.driver.execQuery)
+  const execCondi = {}
 
-	if(!model) return cb("模型不存在",null);
+  if (!conditions) conditions = {}
+  if (conditions['columns']) {
+    execCondi.where = conditions['columns']
+  }
+  if (conditions['only']) {
+    execCondi.select = conditions['only']
+  }
+  if (conditions['skip']) {
+    execCondi.skip = conditions['skip']
+  }
+  if (conditions['take']) {
+    execCondi.take = conditions['take']
+  }
 
-	if(conditions) {
-		if(conditions["columns"]) {
-			model = model.find(conditions["columns"]);
-		} else {
-			model = model.find();
-		}
-
-    // console.log(model.where, 'likee')
-    // model.where('name LIKE ?', ['%喜坊%'])
-
-		if(conditions["offset"]) {
-			model = model.offset(parseInt(conditions["offset"]));
-		}
-
-		if(conditions["limit"]) {
-			model = model.limit(parseInt(conditions["limit"]));
-		}
-
-		if(conditions["only"]) {
-			model = model.only(conditions["only"]);
-		}
-
-		if(conditions["omit"]) {
-			model = model.omit(conditions["omit"]);
-		}
-
-		if(conditions["order"]) {
-			model = model.order(conditions["order"]);
-		}
-
-	} else {
-		model = model.find();
-	}
-
-	model.run(function(err,models) {
-		if(err) {
-			console.log(err);
-			return cb("查询失败",null);
-		}
-    if (conditions?.["only"]) {
-      models = models.map((item) => {
-        let ret = {}
-        for (const key of Object.keys(item)) {
-          if (conditions["only"].includes(key)) {
-            ret[key] = item[key]
-          }
-        }
-        return ret
-      })
-    }
-		cb(null,models);
-	});
-};
-
-module.exports.countByConditions = function(modelName,conditions,cb) {
-	var db = databaseModule.getDatabase();
-
-	var model = db.models[modelName];
-
-	if(!model) return cb("模型不存在",null);
-
-	var resultCB = function(err,count){
-		if(err) {
-			return cb("查询失败",null);
-		}
-		cb(null,count);
-	}
-
-	if(conditions) {
-		if(conditions["columns"]) {
-			model = model.count(conditions["columns"],resultCB);
-		} else {
-			model = model.count(resultCB);
-		}
-
-	} else {
-		model = model.count(resultCB);
-	}
+  try {
+    const res = await model.find(execCondi)
+    cb(null, res)
+  } catch(e) {
+    console.error(e)
+    cb(e, null)
+  }
 
 };
 
-/**
- * 获取一条数据
- * @param  {[type]}   modelName  模型名称
- * @param  {[数组]}   conditions  条件集合
- * @param  {Function} cb         回调函数
- */
-module.exports.findOne = function(modelName,conditions,cb) {
-	var db = databaseModule.getDatabase();
-
-	var Model = db.models[modelName];
-
-	if(!Model) return cb("模型不存在",null);
-
-	if(!conditions) return  cb("条件为空",null);
-
-	Model.one(conditions,function(err,obj){
-		// logger.debug(err);
-		if(err) {
-			return cb("查询失败",null);
-		}
-		return cb(null,obj);
-	});
-}
 
 /**
  * 更新对象数据
@@ -160,47 +81,14 @@ module.exports.findOne = function(modelName,conditions,cb) {
  * @param  {[type]}   updateObj 更新对象数据
  * @param  {Function} cb        回调函数
  */
-module.exports.update = function(modelName,id,updateObj,cb) {
-	var db = databaseModule.getDatabase();
-	var Model = db.models[modelName];
-	Model.get(id,function(err,obj){
-		if(err) return cb("更新失败",null);
-		obj.save(updateObj,cb);
-	});
+module.exports.update = async function(entityName,id,updateObj,cb) {
+  var db = databaseModule.getDatabase();
+  var model = db.getRepository(entityName);
+  if(!model) return cb("模型不存在",null);
+  await model.createQueryBuilder().update(entityName).set(updateObj).where('id = :id', {id}).execute();
+  cb(null,  null)
 }
 
-/**
- * 通过主键ID获取对象
- * @param  {[type]}   modelName 模型名称
- * @param  {[type]}   id        主键ID
- * @param  {Function} cb        回调函数
- */
-module.exports.show = function(modelName,id,cb) {
-	var db = databaseModule.getDatabase();
-	var Model = db.models[modelName];
-	Model.get(id,function(err,obj){
-		cb(err,obj);
-	});
-}
-
-/**
- * 通过主键ID删除对象
- * 
- * @param  {[type]}   modelName 模型名称
- * @param  {[type]}   id        主键ID
- * @param  {Function} cb        回调函数
- */
-module.exports.destroy = function(modelName,id,cb) {
-	var db = databaseModule.getDatabase();
-	var Model = db.models[modelName];
-	Model.get(id,function(err,obj){
-		if(err) return cb("无模型ID");
-		obj.remove(function(err) {
-			if(err) return cb("删除失败");
-			return cb(null);
-		});
-	});
-}
 
 /**
  * 通过模型名称获取数据库数量
@@ -208,37 +96,18 @@ module.exports.destroy = function(modelName,id,cb) {
  * @param  {[type]}   modelName 模型名称
  * @param  {Function} cb        回调函数
  */
-module.exports.count = function(modelName,cb) {
-	var db = databaseModule.getDatabase();
-	var Model = db.models[modelName];
-	Model.count(cb);
-}
-
-/**
- * 通过条件判断数据是否存在
- * 
- * @param  {[type]}   modelName  模块名
- * @param  {[type]}   conditions 条件
- * @param  {Function} cb         回调函数
- */
-module.exports.exists = function(modelName,conditions,cb) {
-	var db = databaseModule.getDatabase();
-	var Model = db.models[modelName];
-	Model.exists(conditions,function(err,isExists){
-		if(err) return cb("查询失败");
-		 cb(null,isExists);
-	});
-}
-
-module.exports.getModel = function(modelName) {
-	var db = databaseModule.getDatabase();
-	return db.models[modelName];
-}
-
-module.exports.execSql = function(sql, cb) {
+module.exports.count = async function(entityName,cb) {
   var db = databaseModule.getDatabase();
-  return db.driver.execQuery(sql, (err, data) => {
-    if (err) return cb(err)
-    cb(null, data)
-  }) 
+	var model = db.getRepository(entityName);
+  if(!model) return cb("模型不存在",null);
+  const count = await model.count()
+  cb(null, count)
+}
+
+module.exports.delete = async function(entityName, id, cb) {
+  var db = databaseModule.getDatabase();
+	var model = db.getRepository(entityName);
+  if(!model) return cb("模型不存在",null);
+  await model.createQueryBuilder().delete().from(entityName).where('id = :id', {id}).execute()
+  cb(null, null)
 }

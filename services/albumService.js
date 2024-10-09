@@ -13,7 +13,7 @@ module.exports.getShop = (params ,cb) => {
     cond = {columns: {id: shopId}}
   }
   cond.only = ['id', 'desc', 'logo', 'name']
-  dao.list('ShopModel', cond, (err, data) => {
+  dao.list('Shop', cond, (err, data) => {
     if (err) return cb('查询有误')
     cb(null, data)
   })
@@ -23,7 +23,7 @@ module.exports.shopMod = (params ,cb) => {
   const {id} = params
   if (id === 0) {
     // 创建
-    dao.create('ShopModel', {
+    dao.create('Shop', {
       ...params,
       add_time: util.getNowTime()
     }, (err, data) => {
@@ -33,7 +33,7 @@ module.exports.shopMod = (params ,cb) => {
     return
   }
   // 修改
-  dao.update('ShopModel', id, {
+  dao.update('Shop', id, {
     ...params,
     upd_time: util.getNowTime()
   }, (err, data) => {
@@ -46,7 +46,7 @@ module.exports.productMod = (params ,cb) => {
   const {id} = params
   if (id === 0) {
     // 创建
-    dao.create('ProductModel', {
+    dao.create('Product', {
       ...params,
       add_time: util.getNowTime()
     }, (err, data) => {
@@ -56,7 +56,7 @@ module.exports.productMod = (params ,cb) => {
     return
   }
   // 修改
-  dao.update('ProductModel', id, {
+  dao.update('Product', id, {
     ...params,
     upd_time: util.getNowTime()
   }, (err, data) => {
@@ -66,25 +66,37 @@ module.exports.productMod = (params ,cb) => {
 }
 
 module.exports.getProduct = (params ,cb) => {
-  const {shopId, productId} = params
-  let cond = null
+  const {shopId, productId, pageSize, currPage, productType} = params
+  let cond = {}
+  const columns = {}
   if (shopId) {
-    cond = {columns: {shopId}}
+    columns['shopId'] = shopId
   }
   if (productId) {
-    cond = {columns: {id: productId}}
+    columns['id'] = productId
   }
+  if (productType) {
+    columns['productType'] = productType
+  }
+  if (currPage > 0) {
+    cond.skip = currPage * pageSize
+  }
+  if (pageSize > 0) {
+    cond.take = pageSize
+  }
+  cond['columns'] = columns
   cond.only = ['id', 'desc', 'imgs', 'name', 'price', 'productType', 'shopId', 'url', 'type3D', 'model3D', 'modelUrl']
-  dao.list('ProductModel', cond, (err, data) => {
+  dao.list('Product', cond, (err, data) => {
     if (err) return cb('查询有误')
-    cb(null, data)
+    const ret = {list: data}
+    ret.finished = data.length === pageSize ? false: true
+    cb(null, ret)
   })
 }
 
 module.exports.productDel = (params, cb) => {
   const {id} = params
-  const sql = `delete from product where id = ${id}`
-  dao.execSql(sql, cb)
+  dao.delete('Product', id, cb)
 }
 
 
@@ -93,7 +105,7 @@ module.exports.getProductTypes = (params ,cb) => {
   let  cond = {columns: {shopId}}
 
   cond.only = ['id', 'name', 'shopId']
-  dao.list('ProductTypesModel', cond, (err, data) => {
+  dao.list('ProductTypes', cond, (err, data) => {
     if (err) return cb('查询有误')
     cb(null, data)
   })
@@ -103,7 +115,7 @@ module.exports.productTypesMod = (params ,cb) => {
   const {id} = params
   if (id === 0) {
     // 创建
-    dao.create('ProductTypesModel', {
+    dao.create('ProductTypes', {
       ...params,
       add_time: util.getNowTime()
     }, (err, data) => {
@@ -113,7 +125,7 @@ module.exports.productTypesMod = (params ,cb) => {
     return
   }
   // 修改
-  dao.update('ProductTypesModel', id, {
+  dao.update('ProductTypes', id, {
     ...params,
     upd_time: util.getNowTime()
   }, (err, data) => {
@@ -124,6 +136,5 @@ module.exports.productTypesMod = (params ,cb) => {
 
 module.exports.productTypesDel = (params, cb) => {
   const {id} = params
-  const sql = `delete from product_types where id = ${id}`
-  dao.execSql(sql, cb)
+  dao.delete('ProductTypes', id, cb)
 }
