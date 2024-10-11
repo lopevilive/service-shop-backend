@@ -12,21 +12,15 @@ var path = require("path");
 	callback: 回调
 */
 async function initialize(app,callback) {
+  const db_config = require('config').get("db_config");
   const connection = await typeorm.createConnection({
-    type: "mysql",
-    host: "localhost",
-    port: 3306,
-    username: "root",
-    password: "123456",
-    database: "album",
-    synchronize: true,
+    ...db_config,
     entities: [
         new EntitySchema(require(path.join(process.cwd(),"entity",'Shop'))),
         new EntitySchema(require(path.join(process.cwd(),"entity",'Product'))),
         new EntitySchema(require(path.join(process.cwd(),"entity",'ProductTypes'))),
     ]
   })
-  // console.log(connection, 'asdsa')
   global.database = connection
 }
 

@@ -4,7 +4,7 @@ const path = require('path')
 const bodyParser = require('body-parser')
 const resextra = require('./modules/resextra')
 const database = require('./modules/database')
-const  serviceCgiRoutes = require('./routes/api/serviceCgi.js')
+const serviceCgiRoutes = require('./routes/api/serviceCgi.js')
 
 
 // 获取验证模块
@@ -36,7 +36,7 @@ database.initialize(app, function(err) {
 app.use(resextra)
 
 // 静态资源
-app.use('/tmp_uploads',express.static('tmp_uploads')) 
+// app.use('/tmp_uploads',express.static('tmp_uploads')) 
 
 /**
  *
@@ -62,11 +62,8 @@ app.all('/api/*', function(req, res, next) {
 })
 
 // 路由加载
-var mount = require('mount-routes')
-mount(app, path.join(process.cwd(), '/routes'), true)
-// mount(app, __dirname + '/routes1', true)
 
-// app.use('/api', serviceCgiRoutes)
+app.use('/api/serviceCgi', serviceCgiRoutes)
 
 /**
  *

@@ -49,19 +49,14 @@ module.exports.getService = function(serviceName) {
 	}
 	global.service_caches[serviceName] = {};
 
-	console.log("*****************************************");
-	console.log("拦截服务 => %s",serviceName);
-	console.log("*****************************************");
 	for(actionName in serviceModule) {
 
 		if(serviceModule && serviceModule[actionName] && typeof(serviceModule[actionName]) == "function") {
 			var origFunc = serviceModule[actionName];
 			global.service_caches[serviceName][actionName] = Invocation(serviceName,actionName,serviceModule,origFunc);
-			console.log("action => %s",actionName);
 		}
 	}
 	// console.log(global.service_caches);
-	console.log("*****************************************\n");
 	return global.service_caches[serviceName];
 }
 

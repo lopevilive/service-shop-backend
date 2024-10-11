@@ -152,4 +152,20 @@ router.post('/ProductTypesDel',
   }
 )
 
+router.post(
+  '/GetCosTempKeys',
+  (req, res, next) => {
+    albumService.getCosTempKeys(
+      req,
+      (err, data) => {
+        if (err) {
+          res.sendResult(null, CODE_UNKNOWN, err)
+        } else {
+          res.sendResult(data, CODE_SUCC, 'succ')
+        }
+      }
+    )(req, res, next)
+  }
+)
+
 module.exports = router;

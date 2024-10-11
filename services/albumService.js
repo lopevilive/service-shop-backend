@@ -2,6 +2,7 @@ const path = require("path");
 const _ = require('lodash')
 const dao = require(path.join(process.cwd(),"dao/DAO"));
 const util = require(path.join(process.cwd(),"util/index"))
+const cos = require(path.join(process.cwd(),"modules/cos"))
 
 module.exports.getShop = (params ,cb) => {
   const {userId, shopId} = params
@@ -61,7 +62,7 @@ module.exports.productMod = (params ,cb) => {
     upd_time: util.getNowTime()
   }, (err, data) => {
     if (err) return cb('更新失败')
-    cb(null, data)
+    cb(null, {id})
   })
 }
 
@@ -137,4 +138,13 @@ module.exports.productTypesMod = (params ,cb) => {
 module.exports.productTypesDel = (params, cb) => {
   const {id} = params
   dao.delete('ProductTypes', id, cb)
+}
+
+module.exports.getCosTempKeys = async (req, cb) => {
+  try {
+    const data = await cos.getTempKeys()
+    cb(null, data)
+  } catch(e) {
+    cb(e)
+  }
 }
