@@ -1,11 +1,12 @@
 {
   "db_config" : {
-		"protocol" : "mysql",
-		"host" : "127.0.0.1",
-		"database" : "album",
-		"user" : "root",
-		"password" : "123456",
-		"port" : 3306
+		"type": "mysql",
+    "host": "localhost",
+    "port": 3306,
+    "username": "root",
+    "password": "123456",
+    "database": "album",
+    "synchronize": true
 	},
   "upload_config": {
     "baseURL": "www.album.com"

@@ -46,6 +46,18 @@ router.post('/ProductMod',
   }
 )
 
+router.post('/MoveTopProduct',
+  async (req, res, next) => {
+    albumService.moveTopProduct(req.body, (err, data) => {
+      if (err) {
+        res.sendResult(null, CODE_UNKNOWN, err)
+      } else {
+        res.sendResult(data, CODE_SUCC, 'succ')
+      }
+    })(req, res, next)
+  }
+)
+
 router.post('/ProductDel',
   (req, res, next) => {
     const {id} = req.body
@@ -110,14 +122,6 @@ router.post('/GetProductTypes',
 
 
 router.post('/ProductTypesMod',
-  (req, res, next) => {
-    const {shopId} = req.body
-    if (!shopId) {
-      res.sendResult('null', CODE_PARAMS_ERR, '参数有误')
-      return
-    }
-    next()
-  },
   async (req, res, next) => {
     albumService.productTypesMod(req.body, (err, data) => {
       if (err) {
@@ -129,6 +133,17 @@ router.post('/ProductTypesMod',
   }
 )
 
+router.post('/MoveTopProductType',
+  async (req, res, next) => {
+    albumService.moveTopProductType(req.body, (err, data) => {
+      if (err) {
+        res.sendResult(null, CODE_UNKNOWN, err)
+      } else {
+        res.sendResult(data, CODE_SUCC, 'succ')
+      }
+    })(req, res, next)
+  }
+)
 
 router.post('/ProductTypesDel',
   (req, res, next) => {

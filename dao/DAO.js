@@ -61,6 +61,9 @@ module.exports.list = async function(entityName,conditions,cb) {
   if (conditions['take']) {
     execCondi.take = conditions['take']
   }
+  if (conditions['order']) {
+    execCondi.order = conditions['order']
+  }
 
   try {
     const res = await model.find(execCondi)

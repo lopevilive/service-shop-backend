@@ -39,11 +39,11 @@ module.exports.shopMod = (params ,cb) => {
     upd_time: util.getNowTime()
   }, (err, data) => {
     if (err) return cb('更新失败')
-    cb(null, data.id)
+    cb(null, id)
   })
 }
 
-module.exports.productMod = (params ,cb) => {
+module.exports.productMod = async (params ,cb) => {
   const {id} = params
   if (id === 0) {
     // 创建
@@ -86,12 +86,30 @@ module.exports.getProduct = (params ,cb) => {
     cond.take = pageSize
   }
   cond['columns'] = columns
-  cond.only = ['id', 'desc', 'imgs', 'name', 'price', 'productType', 'shopId', 'url', 'type3D', 'model3D', 'modelUrl']
+  cond.only = ['id', 'desc', 'name', 'price', 'productType', 'shopId', 'url', 'type3D', 'model3D', 'modelUrl']
+  cond.order = {sort: 'DESC', id: 'DESC'}
   dao.list('Product', cond, (err, data) => {
     if (err) return cb('查询有误')
     const ret = {list: data}
     ret.finished = data.length === pageSize ? false: true
     cb(null, ret)
+  })
+}
+
+module.exports.moveTopProduct = async (params, cb) => {
+  const {shopId, id} = params
+  let sort = 0
+  let res = await new Promise((resolve) => {
+    dao.list('Product', {columns: {shopId}, order: {sort: 'DESC'}, take: 1}, (err, data) => {
+      resolve(data)
+    })
+  })
+  if (res.length === 1) {
+    sort = res[0].sort + 1
+  }
+  dao.update('Product', id, {sort}, (err, data) => {
+    if (err) return cb('调用失败')
+    cb(null, data)
   })
 }
 
@@ -106,30 +124,49 @@ module.exports.getProductTypes = (params ,cb) => {
   let  cond = {columns: {shopId}}
 
   cond.only = ['id', 'name', 'shopId']
+  cond.order = {sort: 'DESC', id: 'ASC'}
   dao.list('ProductTypes', cond, (err, data) => {
     if (err) return cb('查询有误')
     cb(null, data)
   })
 }
 
+module.exports.moveTopProductType = async (params, cb) => {
+  const {shopId, id} = params
+  let sort = 0
+  let res = await new Promise((resolve) => {
+    dao.list('ProductTypes', {columns: {shopId}, order: {sort: 'DESC'}, take: 1}, (err, data) => {
+      resolve(data)
+    })
+  })
+  if (res.length === 1) {
+    sort = res[0].sort + 1
+  }
+  dao.update('ProductTypes', id, {sort}, (err, data) => {
+    if (err) return cb('调用失败')
+    cb(null, data)
+  })
+}
+
 module.exports.productTypesMod = (params ,cb) => {
-  const {id} = params
-  if (id === 0) {
-    // 创建
-    dao.create('ProductTypes', {
-      ...params,
-      add_time: util.getNowTime()
-    }, (err, data) => {
+  let {data: payload} = params
+  let isMod = false
+  for (const item of payload) {
+    if (item.id) isMod = true
+    item['add_time'] = util.getNowTime()
+  }
+
+  if (!isMod) { // 创建
+    dao.create('ProductTypes', payload, (err, data) => {
       if (err) return cb('创建失败')
       cb(null, data)
     })
     return
   }
+
   // 修改
-  dao.update('ProductTypes', id, {
-    ...params,
-    upd_time: util.getNowTime()
-  }, (err, data) => {
+  payload = payload[0]
+  dao.update('ProductTypes', payload.id, payload, (err, data) => {
     if (err) return cb('更新失败')
     cb(null, data)
   })
