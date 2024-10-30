@@ -6,7 +6,12 @@ module.exports = {
     userId: {type: 'varchar'},
     name: {type: 'varchar'},
     desc: {type: 'varchar'},
-    logo: {type: 'varchar'},
+    url: {type: 'text'},
+    area: {type: 'varchar'},
+    address: {type: 'varchar'},
+    phone: {type: 'varchar'},
+    qrcodeUrl: {type: 'varchar'},
+    business: {type: 'int', nullable: true},
     add_time: {type: 'int', nullable: true},
     upd_time: {type: 'int', nullable: true},
   }

@@ -13,7 +13,7 @@ module.exports.getShop = (params ,cb) => {
   if (shopId) {
     cond = {columns: {id: shopId}}
   }
-  cond.only = ['id', 'desc', 'logo', 'name']
+  cond.only = ['id', 'desc', 'url', 'name', 'area', 'address', 'phone', 'qrcodeUrl', 'business']
   dao.list('Shop', cond, (err, data) => {
     if (err) return cb('查询有误')
     cb(null, data)
@@ -57,17 +57,19 @@ module.exports.productMod = async (params ,cb) => {
     return
   }
   // 修改
-  dao.update('Product', id, {
+  let payload = {
     ...params,
     upd_time: util.getNowTime()
-  }, (err, data) => {
+  }
+  delete payload.id
+  dao.update('Product', id, payload, (err, data) => {
     if (err) return cb('更新失败')
     cb(null, {id})
   })
 }
 
 module.exports.getProduct = (params ,cb) => {
-  const {shopId, productId, pageSize, currPage, productType} = params
+  const {shopId, productId, pageSize, currPage, productType, status} = params
   let cond = {}
   const columns = {}
   if (shopId) {
@@ -79,6 +81,12 @@ module.exports.getProduct = (params ,cb) => {
   if (productType) {
     columns['productType'] = productType
   }
+  if (productType === -1) { // 取未分类的产品
+    columns['productType'] = 0
+  }
+  if ([0,1].includes(status)) {
+    columns['status'] = status
+  }
   if (currPage > 0) {
     cond.skip = currPage * pageSize
   }
@@ -86,7 +94,7 @@ module.exports.getProduct = (params ,cb) => {
     cond.take = pageSize
   }
   cond['columns'] = columns
-  cond.only = ['id', 'desc', 'name', 'price', 'productType', 'shopId', 'url', 'type3D', 'model3D', 'modelUrl']
+  cond.only = ['id', 'desc', 'name', 'price', 'productType', 'shopId', 'url', 'type3D', 'model3D', 'modelUrl', 'status']
   cond.order = {sort: 'DESC', id: 'DESC'}
   dao.list('Product', cond, (err, data) => {
     if (err) return cb('查询有误')
@@ -108,6 +116,14 @@ module.exports.moveTopProduct = async (params, cb) => {
     sort = res[0].sort + 1
   }
   dao.update('Product', id, {sort}, (err, data) => {
+    if (err) return cb('调用失败')
+    cb(null, data)
+  })
+}
+
+module.exports.countProduct = async (params, cb) => {
+  const {shopId} = params
+  dao.count('Product', {shopId}, 'productType', ( err, data) => {
     if (err) return cb('调用失败')
     cb(null, data)
   })

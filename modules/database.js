@@ -5,6 +5,7 @@ require('mysql2');
 var typeorm = require("typeorm");
 var EntitySchema = typeorm.EntitySchema;
 var path = require("path");
+const util = require(path.join(process.cwd(),"util/index"))
 
 /*
 	app: 应用程序环境
@@ -12,7 +13,7 @@ var path = require("path");
 	callback: 回调
 */
 async function initialize(app,callback) {
-  const db_config = require('config').get("db_config");
+  const db_config = util.getConfig("db_config");
   const connection = await typeorm.createConnection({
     ...db_config,
     entities: [

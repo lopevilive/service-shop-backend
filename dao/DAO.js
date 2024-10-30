@@ -88,7 +88,10 @@ module.exports.update = async function(entityName,id,updateObj,cb) {
   var db = databaseModule.getDatabase();
   var model = db.getRepository(entityName);
   if(!model) return cb("模型不存在",null);
-  await model.createQueryBuilder().update(entityName).set(updateObj).where('id = :id', {id}).execute();
+  if (!Array.isArray(id)) {
+    id = [id]
+  }
+  await model.createQueryBuilder().update(entityName).set(updateObj).where('id in (:...id)', {id}).execute();
   cb(null,  null)
 }
 
@@ -99,18 +102,35 @@ module.exports.update = async function(entityName,id,updateObj,cb) {
  * @param  {[type]}   modelName 模型名称
  * @param  {Function} cb        回调函数
  */
-module.exports.count = async function(entityName,cb) {
+module.exports.count = async function(entityName,columns = {}, groupBy, cb) {
   var db = databaseModule.getDatabase();
 	var model = db.getRepository(entityName);
   if(!model) return cb("模型不存在",null);
-  const count = await model.count()
-  cb(null, count)
+  let sql = 'select'
+  if (groupBy) sql += ` ${groupBy},`
+  sql += ` count(*) as total from ${entityName}`
+
+  let where = ''
+  if (Object.keys(columns).length) {
+    for (const key of Object.keys(columns)) {
+      const val = columns[key]
+      if (where) where += ' and '
+      where += `${key} = ${val}`
+    }
+  }
+  if (where) sql += ` where ${where}`
+  if (groupBy) sql += ` group by ${groupBy}`
+  // console.log(sql, 'sql')
+  // select productType count(*) as total from Product where shopId = 5 group by productType
+  sql = `select productType, count(*) as total from  album.product where shopId = 5 group by productType`
+  const data = await model.query(sql)
+  cb(null, data)
 }
 
 module.exports.delete = async function(entityName, id, cb) {
   var db = databaseModule.getDatabase();
 	var model = db.getRepository(entityName);
   if(!model) return cb("模型不存在",null);
-  await model.createQueryBuilder().delete().from(entityName).where('id = :id', {id}).execute()
+  await model.delete(id)
   cb(null, null)
 }
