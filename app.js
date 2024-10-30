@@ -50,7 +50,8 @@ app.use(bodyParser.urlencoded({ extended: true }))
 
 // 设置跨域和相应数据格式
 app.all('/api/*', function(req, res, next) {
-  res.header('Access-Control-Allow-Origin', '*')
+  res.header('Access-Control-Allow-Origin', req.headers.origin)
+  res.setHeader("Access-Control-Allow-Credentials", true);  
   res.header('Access-Control-Allow-Headers', 'X-Requested-With, mytoken')
   res.header('Access-Control-Allow-Headers', 'X-Requested-With, Authorization')
   res.setHeader('Content-Type', 'application/json;charset=utf-8')
@@ -75,4 +76,4 @@ app.use(function(req, res, next) {
   console.log('not found~~~~')
   res.sendResult(null, 404, 'Not Found')
 })
-app.listen(8082)
+app.listen(9000)
