@@ -4,7 +4,7 @@ const dao = require(path.join(process.cwd(),"dao/DAO"));
 const util = require(path.join(process.cwd(),"util/index"))
 const cos = require(path.join(process.cwd(),"modules/cos"))
 
-module.exports.getShop = (params ,cb) => {
+module.exports.getShop = async (params ,cb) => {
   const {userId, shopId} = params
   let cond = {}
   if (userId) {
@@ -14,61 +14,59 @@ module.exports.getShop = (params ,cb) => {
     cond = {columns: {id: shopId}}
   }
   cond.only = ['id', 'desc', 'url', 'name', 'area', 'address', 'phone', 'qrcodeUrl', 'business']
-  dao.list('Shop', cond, (err, data) => {
-    if (err) return cb('查询有误')
+  try {
+    const data = await dao.list('Shop', cond)
     cb(null, data)
-  })
+  } catch(e) {
+    cb(e)
+  }
+  
 }
 
-module.exports.shopMod = (params ,cb) => {
+module.exports.shopMod = async (params ,cb) => {
   const {id} = params
-  if (id === 0) {
-    // 创建
-    dao.create('Shop', {
-      ...params,
-      add_time: util.getNowTime()
-    }, (err, data) => {
-      if (err) return cb('创建失败')
+  if (id === 0) { // 创建
+    try {
+      const data = await dao.create('Shop', {...params, add_time: util.getNowTime()})
       cb(null, data.id)
-    })
-    return
+    } catch(e) {
+      cb(e)
+    }
+  } else { // 修改
+    try {
+      await dao.update('Shop', id, {...params, upd_time: util.getNowTime()})
+      cb(null, id)
+    } catch(e) {
+      cb(e)
+    }
   }
-  // 修改
-  dao.update('Shop', id, {
-    ...params,
-    upd_time: util.getNowTime()
-  }, (err, data) => {
-    if (err) return cb('更新失败')
-    cb(null, id)
-  })
 }
 
 module.exports.productMod = async (params ,cb) => {
   const {id} = params
-  if (id === 0) {
-    // 创建
-    dao.create('Product', {
-      ...params,
-      add_time: util.getNowTime()
-    }, (err, data) => {
-      if (err) return cb('创建失败')
+  if (id === 0) { // 创建
+    try {
+      const data = await dao.create('Product', {...params, add_time: util.getNowTime()})
       cb(null, data)
-    })
-    return
+    } catch(e) {
+      cb(e)
+    }
+  } else { // 修改
+    let payload = {
+      ...params,
+      upd_time: util.getNowTime()
+    }
+    delete payload.id
+    try {
+      await dao.update('Product', id, payload)
+      cb(null, id)
+    } catch(e) {
+      cb(e)
+    }
   }
-  // 修改
-  let payload = {
-    ...params,
-    upd_time: util.getNowTime()
-  }
-  delete payload.id
-  dao.update('Product', id, payload, (err, data) => {
-    if (err) return cb('更新失败')
-    cb(null, {id})
-  })
 }
 
-module.exports.getProduct = (params ,cb) => {
+module.exports.getProduct = async (params ,cb) => {
   const {shopId, productId, pageSize, currPage, productType, status} = params
   let cond = {}
   const columns = {}
@@ -96,75 +94,82 @@ module.exports.getProduct = (params ,cb) => {
   cond['columns'] = columns
   cond.only = ['id', 'desc', 'name', 'price', 'productType', 'shopId', 'url', 'type3D', 'model3D', 'modelUrl', 'status']
   cond.order = {sort: 'DESC', id: 'DESC'}
-  dao.list('Product', cond, (err, data) => {
-    if (err) return cb('查询有误')
+  try {
+    const data = await dao.list('Product', cond)
     const ret = {list: data}
     ret.finished = data.length === pageSize ? false: true
     cb(null, ret)
-  })
+  } catch(e) {
+    cb(e)
+  }
 }
 
 module.exports.moveTopProduct = async (params, cb) => {
   const {shopId, id} = params
   let sort = 0
-  let res = await new Promise((resolve) => {
-    dao.list('Product', {columns: {shopId}, order: {sort: 'DESC'}, take: 1}, (err, data) => {
-      resolve(data)
-    })
-  })
-  if (res.length === 1) {
-    sort = res[0].sort + 1
-  }
-  dao.update('Product', id, {sort}, (err, data) => {
-    if (err) return cb('调用失败')
+  try {
+    let res = await dao.list('Product', {columns: {shopId}, order: {sort: 'DESC'}, take: 1})
+    if (res.length === 1) {
+      sort = res[0].sort + 1
+    }
+    const data = await dao.update('Product', id, {sort})
     cb(null, data)
-  })
+  } catch(e) {
+    cb(e)
+  }
 }
 
 module.exports.countProduct = async (params, cb) => {
   const {shopId} = params
-  dao.count('Product', {shopId}, 'productType', ( err, data) => {
-    if (err) return cb('调用失败')
+  try {
+    const data = await dao.count('Product', {shopId}, 'productType')
     cb(null, data)
-  })
+  } catch(e) {
+    cb(e)
+  }
 }
 
-module.exports.productDel = (params, cb) => {
+module.exports.productDel = async (params, cb) => {
   const {id} = params
-  dao.delete('Product', id, cb)
+  try {
+    await dao.delete('Product', id)
+    cb(null)
+  } catch(e) {
+    cb(e)
+  }
 }
 
 
-module.exports.getProductTypes = (params ,cb) => {
+module.exports.getProductTypes = async (params ,cb) => {
   const {shopId} = params
   let  cond = {columns: {shopId}}
 
   cond.only = ['id', 'name', 'shopId']
   cond.order = {sort: 'DESC', id: 'ASC'}
-  dao.list('ProductTypes', cond, (err, data) => {
-    if (err) return cb('查询有误')
+  try {
+    const data = await dao.list('ProductTypes', cond)
     cb(null, data)
-  })
+  } catch(e) {
+    cb(e)
+  }
 }
 
 module.exports.moveTopProductType = async (params, cb) => {
   const {shopId, id} = params
   let sort = 0
-  let res = await new Promise((resolve) => {
-    dao.list('ProductTypes', {columns: {shopId}, order: {sort: 'DESC'}, take: 1}, (err, data) => {
-      resolve(data)
-    })
-  })
-  if (res.length === 1) {
-    sort = res[0].sort + 1
-  }
-  dao.update('ProductTypes', id, {sort}, (err, data) => {
-    if (err) return cb('调用失败')
+  try {
+    let res = dao.list('ProductTypes', {columns: {shopId}, order: {sort: 'DESC'}, take: 1})
+    if (res.length === 1) {
+      sort = res[0].sort + 1
+    }
+    const data = dao.update('ProductTypes', id, {sort})
     cb(null, data)
-  })
+  } catch(e) {
+    cb(e)
+  }
 }
 
-module.exports.productTypesMod = (params ,cb) => {
+module.exports.productTypesMod = async (params ,cb) => {
   let {data: payload} = params
   let isMod = false
   for (const item of payload) {
@@ -173,24 +178,31 @@ module.exports.productTypesMod = (params ,cb) => {
   }
 
   if (!isMod) { // 创建
-    dao.create('ProductTypes', payload, (err, data) => {
-      if (err) return cb('创建失败')
+    try {
+      const data = await dao.create('ProductTypes', payload)
       cb(null, data)
-    })
-    return
+    } catch(e) {
+      cb(e)
+    }
+  } else { // 修改
+    payload = payload[0]
+    try {
+      const data = await dao.update('ProductTypes', payload.id, payload)
+      cb(null, data)
+    } catch(e) {
+      cb(e)
+    }
   }
-
-  // 修改
-  payload = payload[0]
-  dao.update('ProductTypes', payload.id, payload, (err, data) => {
-    if (err) return cb('更新失败')
-    cb(null, data)
-  })
 }
 
-module.exports.productTypesDel = (params, cb) => {
+module.exports.productTypesDel = async (params, cb) => {
   const {id} = params
-  dao.delete('ProductTypes', id, cb)
+  try {
+    await dao.delete('ProductTypes', id)
+    cb(null)
+  } catch(e) {
+    cb(e)
+  }
 }
 
 module.exports.getCosTempKeys = async (req, cb) => {

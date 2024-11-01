@@ -3,7 +3,7 @@ module.exports = {
   name: 'Shop',
   columns: {
     id: {type: 'int', generated: true, primary: true},
-    userId: {type: 'varchar'},
+    userId: {type: 'varchar'}, // 创建者
     name: {type: 'varchar'},
     desc: {type: 'varchar'},
     url: {type: 'text'},

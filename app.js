@@ -4,7 +4,8 @@ const path = require('path')
 const bodyParser = require('body-parser')
 const resextra = require('./modules/resextra')
 const database = require('./modules/database')
-const serviceCgiRoutes = require('./routes/api/serviceCgi.js')
+const albumRoutes = require('./routes/api/album.js')
+const userRoutes = require('./routes/api/user.js')
 
 
 // 获取验证模块
@@ -64,7 +65,8 @@ app.all('/api/*', function(req, res, next) {
 
 // 路由加载
 
-app.use('/api/serviceCgi', serviceCgiRoutes)
+app.use('/api/album', albumRoutes)
+app.use('/api/user', userRoutes)
 
 /**
  *

@@ -1,7 +1,15 @@
 var path = require("path");
 
 // 获取数据库模型
-databaseModule = require(path.join(process.cwd(),"modules/database")); 
+databaseModule = require(path.join(process.cwd(),"modules/database"));
+
+const getModel = (entityName) => {
+  var db = databaseModule.getDatabase();
+  var model = db.getRepository(entityName);
+  if(!model) return new Error('模型不存在')
+  return model
+}
+
 
 /**
  * 创建对象数据
@@ -10,13 +18,11 @@ databaseModule = require(path.join(process.cwd(),"modules/database"));
  * @param  {[type]}   obj       模型对象
  * @param  {Function} cb        回调函数
  */
-module.exports.create = async function(entityName,obj,cb) {
-	var db = databaseModule.getDatabase();
-  var model = db.getRepository(entityName);
-  if(!model) return cb("模型不存在",null);
+module.exports.create = async function(entityName,obj) {
+  var model = getModel(entityName)
   const res = await model.createQueryBuilder().insert().into(entityName).values(obj).execute();
   const {identifiers} = res
-  cb(null, identifiers[0])
+  return identifiers[0]
 }
 
 /**
@@ -41,10 +47,8 @@ module.exports.create = async function(entityName,obj,cb) {
 	}
  * @param  {Function} cb         回调函数
  */
-module.exports.list = async function(entityName,conditions,cb) {
-	var db = databaseModule.getDatabase();
-	var model = db.getRepository(entityName);
-  if(!model) return cb("模型不存在",null);
+module.exports.list = async function(entityName,conditions) {
+	var model = getModel(entityName)
 
   const execCondi = {}
 
@@ -65,14 +69,8 @@ module.exports.list = async function(entityName,conditions,cb) {
     execCondi.order = conditions['order']
   }
 
-  try {
-    const res = await model.find(execCondi)
-    cb(null, res)
-  } catch(e) {
-    console.error(e)
-    cb(e, null)
-  }
-
+  const res = await model.find(execCondi)
+  return res
 };
 
 
@@ -84,15 +82,12 @@ module.exports.list = async function(entityName,conditions,cb) {
  * @param  {[type]}   updateObj 更新对象数据
  * @param  {Function} cb        回调函数
  */
-module.exports.update = async function(entityName,id,updateObj,cb) {
-  var db = databaseModule.getDatabase();
-  var model = db.getRepository(entityName);
-  if(!model) return cb("模型不存在",null);
+module.exports.update = async function(entityName,id,updateObj) {
+  var model = getModel(entityName)
   if (!Array.isArray(id)) {
     id = [id]
   }
   await model.createQueryBuilder().update(entityName).set(updateObj).where('id in (:...id)', {id}).execute();
-  cb(null,  null)
 }
 
 
@@ -102,10 +97,8 @@ module.exports.update = async function(entityName,id,updateObj,cb) {
  * @param  {[type]}   modelName 模型名称
  * @param  {Function} cb        回调函数
  */
-module.exports.count = async function(entityName,columns = {}, groupBy, cb) {
-  var db = databaseModule.getDatabase();
-	var model = db.getRepository(entityName);
-  if(!model) return cb("模型不存在",null);
+module.exports.count = async function(entityName,columns = {}, groupBy) {
+  var model = getModel(entityName)
   let sql = 'select'
   if (groupBy) sql += ` ${groupBy},`
   sql += ` count(*) as total from ${entityName}`
@@ -124,13 +117,16 @@ module.exports.count = async function(entityName,columns = {}, groupBy, cb) {
   // select productType count(*) as total from Product where shopId = 5 group by productType
   sql = `select productType, count(*) as total from  album.product where shopId = 5 group by productType`
   const data = await model.query(sql)
-  cb(null, data)
+  return data
 }
 
-module.exports.delete = async function(entityName, id, cb) {
-  var db = databaseModule.getDatabase();
-	var model = db.getRepository(entityName);
-  if(!model) return cb("模型不存在",null);
+module.exports.delete = async function(entityName, id) {
+  var model = getModel(entityName)
   await model.delete(id)
-  cb(null, null)
+}
+
+module.exports.findOne = async (entityName, columns) => {
+  var model = getModel(entityName)
+  const res = await model.findOne(columns)
+  return res
 }
