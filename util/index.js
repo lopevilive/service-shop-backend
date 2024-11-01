@@ -13,18 +13,18 @@ module.exports.getConfig = (key) => {
   return ret
 }
 
-module.exports.encryptOpenId = (openId) => {
+module.exports.encryptAES = (str) => {
   const key = this.getConfig('aesKey')
   const cipher = crypto.createCipher('aes192', key);
-  var crypted = cipher.update(openId, 'utf8', 'hex');
+  var crypted = cipher.update(str, 'utf8', 'hex');
   crypted += cipher.final('hex');
   return crypted;
 }
 
-module.exports.deEncryptOpenId = (crypted) => {
+module.exports.deEncryptAES = (crypted) => {
   const key = this.getConfig('aesKey')
   const decipher = crypto.createDecipher('aes192', key);
-  var openId = decipher.update(crypted, 'hex', 'utf8');
-  openId += decipher.final('utf8');
-  return openId;
+  var str = decipher.update(crypted, 'hex', 'utf8');
+  str += decipher.final('utf8');
+  return str;
 }

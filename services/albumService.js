@@ -52,10 +52,7 @@ module.exports.productMod = async (params ,cb) => {
       cb(e)
     }
   } else { // 修改
-    let payload = {
-      ...params,
-      upd_time: util.getNowTime()
-    }
+    let payload = { ...params, upd_time: util.getNowTime() }
     delete payload.id
     try {
       await dao.update('Product', id, payload)

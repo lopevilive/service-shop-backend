@@ -17,13 +17,34 @@ const getAppInfo = async (payload) => {
 module.exports.login = async (params, cb) => {
   try {
     const {unionid, openid} = await getAppInfo()
-    const res = await dao.list('User', {unionid})
+    const res = await dao.list('User', {columns: {unionid}})
     if (res.length === 0) { // 新用户,先创建
       await dao.create('User', {unionid, openid, add_time: util.getNowTime()})
     }
-    const token = util.encryptOpenId(unionid)
+    const token = util.encryptAES(unionid)
     cb(null, token)
   } catch(e) {
     cb(e)
+  }
+}
+
+module.exports.getUserInfo = async (params, cb) => {
+  const {token} = params
+  try {
+    const unionid = util.deEncryptAES(token)
+    let userInfo = await dao.list('User', {columns: {unionid}})
+    if (userInfo.length !== 1) {
+      throw new Error('登录失效')
+    }
+    const {id: userId} = userInfo[0]
+    const ret = {userId}
+    const ownerList = await dao.list('Shop', {columns: {userId}})
+    const adminList = [] // todo
+    ret['ownerList'] = ownerList.map((item) => item.id)
+    ret['adminList'] = adminList.map((item) => item.id)
+    cb(null, ret)
+  } catch(e) {
+    console.error(e)
+    cb('登录失效，请重新登录')
   }
 }

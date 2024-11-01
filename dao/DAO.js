@@ -125,8 +125,3 @@ module.exports.delete = async function(entityName, id) {
   await model.delete(id)
 }
 
-module.exports.findOne = async (entityName, columns) => {
-  var model = getModel(entityName)
-  const res = await model.findOne(columns)
-  return res
-}
