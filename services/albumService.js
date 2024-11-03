@@ -20,25 +20,27 @@ module.exports.getShop = async (params ,cb) => {
   } catch(e) {
     cb(e)
   }
-  
 }
 
-module.exports.shopMod = async (params ,cb) => {
+module.exports.shopCreate = async (req ,cb) => {
+  const {userInfo} = req
+  const params = {...req.body}
+  try {
+    const data = await dao.create('Shop', {...params, userId: userInfo.id, add_time: util.getNowTime()})
+    cb(null, data.id)
+  } catch(e) {
+    cb(e)
+  }
+}
+
+module.exports.shopMod = async (req ,cb) => {
+  const params = {...req.body}
   const {id} = params
-  if (id === 0) { // 创建
-    try {
-      const data = await dao.create('Shop', {...params, add_time: util.getNowTime()})
-      cb(null, data.id)
-    } catch(e) {
-      cb(e)
-    }
-  } else { // 修改
-    try {
-      await dao.update('Shop', id, {...params, upd_time: util.getNowTime()})
-      cb(null, id)
-    } catch(e) {
-      cb(e)
-    }
+  try {
+    await dao.update('Shop', id, {...params, upd_time: util.getNowTime()})
+    cb(null, id)
+  } catch(e) {
+    cb(e)
   }
 }
 

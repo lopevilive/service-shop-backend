@@ -12,7 +12,7 @@ router.post('/Login',
   async(req, res, next) => {
     userService.login(req.body, (err, data) => {
       if (err) {
-        res.sendResult(null, CODE_UNKNOWN, err)
+        res.sendResult(null, CODE_UNKNOWN, err.message)
       } else {
         res.sendResult(data, CODE_SUCC, 'succ')
       }
@@ -22,9 +22,9 @@ router.post('/Login',
 
 router.post('/GetUserInfo',
   async(req, res, next) => {
-    userService.getUserInfo(req.body, (err, data) => {
+    userService.getUserInfo(req, (err, data) => {
       if (err) {
-        res.sendResult(null, CODE_UNKNOWN, err)
+        res.sendResult(null, CODE_UNKNOWN, err.message)
       } else {
         res.sendResult(data, CODE_SUCC, 'succ')
       }

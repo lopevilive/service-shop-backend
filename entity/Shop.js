@@ -4,6 +4,7 @@ module.exports = {
   columns: {
     id: {type: 'int', generated: true, primary: true},
     userId: {type: 'varchar'}, // 创建者
+    admins: {type: 'varchar'}, // 管理员 , 分隔
     name: {type: 'varchar'},
     desc: {type: 'varchar'},
     url: {type: 'text'},

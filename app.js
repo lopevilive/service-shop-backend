@@ -6,20 +6,40 @@ const resextra = require('./modules/resextra')
 const database = require('./modules/database')
 const albumRoutes = require('./routes/api/album.js')
 const userRoutes = require('./routes/api/user.js')
+const {ERR_CODE_MAP: {CODE_SUCC, CODE_PARAMS_ERR, CODE_UNKNOWN}} = require(path.join(process.cwd(),"util/errCode"))
 
 
 // 获取验证模块
 const authorization = require(path.join(process.cwd(), '/modules/authorization'))
 
 // 设置全局权限
-authorization.setAuthFn(function(req, res, next, serviceName, actionName, passFn) {
+authorization.setAuthFn(async function(req, res, next, serviceName, actionName, passFn) {
+  const rule = authorization.rules[serviceName] && authorization.rules[serviceName][actionName]
+  if (rule) {
+    try {
+      const res = await authorization.execRule(rule, req, res, serviceName, actionName)
+      passFn(res)
+    } catch(err) {
+      res.sendResult(null, CODE_UNKNOWN, err.message)
+    }
+  } else {
+    passFn(true)
+  }
+  // if (ruleFn) {
+  //   try {
+  //     const ret = await ruleFn(req, res)
+  //     passFn(ret)
+  //   } catch(err) {
+  //     res.sendResult(null, CODE_UNKNOWN, err.message)
+  //   }
+  // } else {
+  //   passFn(true)
+  // }
   // if (!req.userInfo || isNaN(parseInt(req.userInfo.rid))) return res.sendResult('无角色ID分配')
   // 验证权限
   // roleService.authRight(req.userInfo.rid, serviceName, actionName, function(err, pass) {
   //   passFn(pass)
   // })
-  // todo 权限系统待完善
-  passFn(true)
 })
 
 const app = express();
@@ -30,8 +50,6 @@ database.initialize(app, function(err) {
     console.error('连接数据库失败失败 %s', err)
   }
 })
-
-
 
 // 初始化统一响应机制
 app.use(resextra)
@@ -46,7 +64,6 @@ app.use(resextra)
  */
 app.use(bodyParser.json())
 app.use(bodyParser.urlencoded({ extended: true }))
-
 
 
 // 设置跨域和相应数据格式

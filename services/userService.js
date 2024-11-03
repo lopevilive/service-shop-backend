@@ -28,15 +28,9 @@ module.exports.login = async (params, cb) => {
   }
 }
 
-module.exports.getUserInfo = async (params, cb) => {
-  const {token} = params
+module.exports.getUserInfo = async (req, cb) => {
   try {
-    const unionid = util.deEncryptAES(token)
-    let userInfo = await dao.list('User', {columns: {unionid}})
-    if (userInfo.length !== 1) {
-      throw new Error('登录失效')
-    }
-    const {id: userId} = userInfo[0]
+    const {id: userId} = req.userInfo
     const ret = {userId}
     const ownerList = await dao.list('Shop', {columns: {userId}})
     const adminList = [] // todo

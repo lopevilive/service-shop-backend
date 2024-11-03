@@ -12,7 +12,7 @@ router.post('/GetShop',
   async (req, res, next) => {
     albumService.getShop(req.body, (err, data) => {
       if (err) {
-        res.sendResult(null, CODE_UNKNOWN, err)
+        res.sendResult(null, CODE_UNKNOWN, err.message)
       } else {
         res.sendResult(data, CODE_SUCC, 'succ')
       }
@@ -20,12 +20,25 @@ router.post('/GetShop',
   }
 )
 
-router.post('/ShopMod',
+router.post('/ShopCreate',
   async (req, res, next) => {
-    albumService.shopMod(req.body,
+    albumService.shopCreate(req,
       (err, data) => {
         if (err) {
-          res.sendResult(null, CODE_UNKNOWN, err)
+          res.sendResult(null, CODE_UNKNOWN, err.message)
+        } else {
+          res.sendResult(data, CODE_SUCC, 'succ')
+        }
+      })(req,res, next)
+  }
+)
+
+router.post('/ShopMod',
+  async (req, res, next) => {
+    albumService.shopMod(req,
+      (err, data) => {
+        if (err) {
+          res.sendResult(null, CODE_UNKNOWN, err.message)
         } else {
           res.sendResult(data, CODE_SUCC, 'succ')
         }
@@ -38,7 +51,7 @@ router.post('/ProductMod',
     albumService.productMod(req.body,
       (err, data) => {
         if (err) {
-          res.sendResult(null, CODE_UNKNOWN, err)
+          res.sendResult(null, CODE_UNKNOWN, err.message)
         } else {
           res.sendResult({id: data.id}, CODE_SUCC, 'succ')
         }
@@ -51,7 +64,7 @@ router.post('/CountProduct',
     albumService.countProduct(req.body,
       (err, data) => {
         if (err) {
-          res.sendResult(null, CODE_UNKNOWN, err)
+          res.sendResult(null, CODE_UNKNOWN, err.message)
         } else {
           res.sendResult(data, CODE_SUCC, 'succ')
         }
@@ -63,7 +76,7 @@ router.post('/MoveTopProduct',
   async (req, res, next) => {
     albumService.moveTopProduct(req.body, (err, data) => {
       if (err) {
-        res.sendResult(null, CODE_UNKNOWN, err)
+        res.sendResult(null, CODE_UNKNOWN, err.message)
       } else {
         res.sendResult(data, CODE_SUCC, 'succ')
       }
@@ -84,7 +97,7 @@ router.post('/ProductDel',
     albumService.productDel(req.body, 
       (err, data) => {
         if (err) {
-          res.sendResult(null, CODE_UNKNOWN, err)
+          res.sendResult(null, CODE_UNKNOWN, err.message)
         } else {
           res.sendResult(data, CODE_SUCC, 'succ')
         }
@@ -105,7 +118,7 @@ router.post('/GetProduct',
   async (req, res, next) => {
     albumService.getProduct(req.body, (err, data) => {
       if (err) {
-        res.sendResult(null, CODE_UNKNOWN, err)
+        res.sendResult(null, CODE_UNKNOWN, err.message)
       } else {
         res.sendResult(data, CODE_SUCC, 'succ')
       }
@@ -125,7 +138,7 @@ router.post('/GetProductTypes',
   async (req, res, next) => {
     albumService.getProductTypes(req.body, (err, data) => {
       if (err) {
-        res.sendResult(null, CODE_UNKNOWN, err)
+        res.sendResult(null, CODE_UNKNOWN, err.message)
       } else {
         res.sendResult(data, CODE_SUCC, 'succ')
       }
@@ -138,7 +151,7 @@ router.post('/ProductTypesMod',
   async (req, res, next) => {
     albumService.productTypesMod(req.body, (err, data) => {
       if (err) {
-        res.sendResult(null, CODE_UNKNOWN, err)
+        res.sendResult(null, CODE_UNKNOWN, err.message)
       } else {
         res.sendResult(data, CODE_SUCC, 'succ')
       }
@@ -150,7 +163,7 @@ router.post('/MoveTopProductType',
   async (req, res, next) => {
     albumService.moveTopProductType(req.body, (err, data) => {
       if (err) {
-        res.sendResult(null, CODE_UNKNOWN, err)
+        res.sendResult(null, CODE_UNKNOWN, err.message)
       } else {
         res.sendResult(data, CODE_SUCC, 'succ')
       }
@@ -171,7 +184,7 @@ router.post('/ProductTypesDel',
     albumService.productTypesDel(req.body, 
       (err, data) => {
         if (err) {
-          res.sendResult(null, CODE_UNKNOWN, err)
+          res.sendResult(null, CODE_UNKNOWN, err.message)
         } else {
           res.sendResult(data, CODE_SUCC, 'succ')
         }
@@ -187,7 +200,7 @@ router.post(
       req,
       (err, data) => {
         if (err) {
-          res.sendResult(null, CODE_UNKNOWN, err)
+          res.sendResult(null, CODE_UNKNOWN, err.message)
         } else {
           res.sendResult(data, CODE_SUCC, 'succ')
         }
