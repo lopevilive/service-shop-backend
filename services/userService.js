@@ -35,7 +35,8 @@ module.exports.getUserInfo = async (req, cb) => {
     const ownerList = await dao.list('Shop', {columns: {userId}})
     const adminList = [] // todo
     ret['ownerList'] = ownerList.map((item) => item.id)
-    ret['adminList'] = adminList.map((item) => item.id)
+    ret['adminList'] = adminList
+    ret['isSup'] = util.getConfig('superAdmin').includes(userId)
     cb(null, ret)
   } catch(e) {
     console.error(e)

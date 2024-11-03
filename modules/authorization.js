@@ -96,10 +96,10 @@ const useIsOwner = async (req) => {
 
 // 是否管理员
 const useIsAdmin = async (req) => {
-  const {shopInfo} = req
-  if (shopInfo.admins) {
-    let admins = shopInfo.admins.split(',').map((item) => + item)
-    if (admins.includes(id)) return true
+  const {userInfo, shopInfo} = req
+  const res = await dao.list('Staff', {columns: {userId: userInfo.id,shopId: shopInfo.id}})
+  if (res.length) {
+    return true
   }
   return false
 }
@@ -122,7 +122,7 @@ module.exports.execRule = async (rule, req, res, serviceName, actionName) => {
   isAdmin = await useIsAdmin(req)
   if (rid === 2) return isOwner || isAdmin
   if (rid === 3) return isOwner
-  if (rid === 4) {
+  if (rid === 99) {
     const {id} = req.userInfo
     const sups = util.getConfig('superAdmin')
     if (sups.includes(id)) return true
@@ -134,7 +134,7 @@ module.exports.rules = {
   albumService: {
     shopMod: {rid: 2, shopIdKey: 'id'},
     /**
-     * rid:0-游客、1-需要登录、2-管理员或者创建者、3-创建者、4-超级管理员
+     * rid:0-游客、1-需要登录、2-管理员或者创建者、3-创建者、99-超级管理员
      * shopIdKey 图册id 的字段，默认 shopId
      */
     shopCreate: {rid: 1},
