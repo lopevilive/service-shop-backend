@@ -17,7 +17,7 @@ authorization.setAuthFn(async function(req, res, next, serviceName, actionName, 
   const rule = authorization.rules[serviceName] && authorization.rules[serviceName][actionName]
   if (rule) {
     try {
-      const res = await authorization.execRule(rule, req, res, serviceName, actionName)
+      const res = await authorization.execRule(rule, req, next, serviceName, actionName)
       passFn(res)
     } catch(err) {
       res.sendResult(null, CODE_UNKNOWN, err.message)
@@ -25,21 +25,6 @@ authorization.setAuthFn(async function(req, res, next, serviceName, actionName, 
   } else {
     passFn(true)
   }
-  // if (ruleFn) {
-  //   try {
-  //     const ret = await ruleFn(req, res)
-  //     passFn(ret)
-  //   } catch(err) {
-  //     res.sendResult(null, CODE_UNKNOWN, err.message)
-  //   }
-  // } else {
-  //   passFn(true)
-  // }
-  // if (!req.userInfo || isNaN(parseInt(req.userInfo.rid))) return res.sendResult('无角色ID分配')
-  // 验证权限
-  // roleService.authRight(req.userInfo.rid, serviceName, actionName, function(err, pass) {
-  //   passFn(pass)
-  // })
 })
 
 const app = express();

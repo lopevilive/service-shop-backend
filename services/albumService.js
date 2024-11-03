@@ -172,10 +172,13 @@ module.exports.productTypesMod = async (params ,cb) => {
   let {data: payload} = params
   let isMod = false
   for (const item of payload) {
-    if (item.id) isMod = true
-    item['add_time'] = util.getNowTime()
+    if (item.id) { // 编辑
+      isMod = true
+      item['upd_time'] = util.getNowTime()
+    } else { // 新增
+      item['add_time'] = util.getNowTime()
+    }
   }
-
   if (!isMod) { // 创建
     try {
       const data = await dao.create('ProductTypes', payload)
