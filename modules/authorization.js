@@ -82,6 +82,7 @@ const useLogin = async (req) => {
 
 // 是否有图册信息
 const useShop = async (req, shopId) => {
+  if (!shopId) throw new Error('缺少图册信息')
   let info = await dao.list('Shop', {columns: {id: shopId}})
   if (info.length !== 1) throw new Error('图册获取失败')
   req.shopInfo = info[0]
@@ -120,13 +121,12 @@ module.exports.execRule = async (rule, req, res, serviceName, actionName) => {
   await useShop(req, shopId)
   isOwner = await useIsOwner(req)
   isAdmin = await useIsAdmin(req)
+
+  const {id} = req.userInfo
+  const sups = util.getConfig('superAdmin')
+  if (sups.includes(id)) return true
   if (rid === 2) return isOwner || isAdmin
   if (rid === 3) return isOwner
-  if (rid === 99) {
-    const {id} = req.userInfo
-    const sups = util.getConfig('superAdmin')
-    if (sups.includes(id)) return true
-  }
   return false
 }
 
@@ -144,7 +144,8 @@ module.exports.rules = {
     moveTopProductType: {rid: 2},
     productTypesMod: {rid: 2},
     productTypesDel: {rid: 2},
-    getCosTempKeys: {rid: 1}
+    getCosTempKeys: {rid: 1},
+    getStaff: {rid: 3}
   },
   userService: {
     getUserInfo: {rid: 1}

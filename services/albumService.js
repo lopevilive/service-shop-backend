@@ -219,3 +219,28 @@ module.exports.getCosTempKeys = async (req, cb) => {
     cb(e)
   }
 }
+
+module.exports.getStaff = async (req, cb) => {
+  const {shopInfo: {id: shopId}} = req
+  const { type } = req.body
+  try {
+    const data = await dao.list('Staff', {
+      columns: {type, shopId},
+      only: ['id', 'nickName', 'type', 'phone', 'qrcodeUrl', 'shopId']
+    })
+    cb(null, data)
+  } catch(e) {
+    cb(e)
+  } 
+}
+
+
+module.exports.delStaff = async (req, cb) => {
+  const {id} = req.body
+  try {
+    await dao.delete('Staff', id)
+    cb(null)
+  } catch(e) {
+    cb(e)
+  }
+}
