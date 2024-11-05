@@ -13,18 +13,24 @@ module.exports.getConfig = (key) => {
   return ret
 }
 
-module.exports.encryptAES = (str) => {
-  const key = this.getConfig('aesKey')
-  const cipher = crypto.createCipher('aes192', key);
-  var crypted = cipher.update(str, 'utf8', 'hex');
-  crypted += cipher.final('hex');
-  return crypted;
+// expired 有效期，单位秒，例子：1天 = 60 * 60 * 24 * 1
+module.exports.encryptAES = (str, expired) => {
+  if (!expired) expired = 60 * 15 // 默认 15 分钟
+  const expiredTime = this.getNowTime() + expired
+  const aesKey = this.getConfig('aesKey')
+  const random = _.random(1, 10000) // 随机数
+  const salt = `${aesKey}${expiredTime}${random}`
+  const cipher = crypto.createCipher('aes192', salt);
+  var content = cipher.update(str, 'utf8', 'hex');
+  content += cipher.final('hex');
+  return { expiredTime, content, random }
 }
 
-module.exports.deEncryptAES = (crypted) => {
-  const key = this.getConfig('aesKey')
-  const decipher = crypto.createDecipher('aes192', key);
-  var str = decipher.update(crypted, 'hex', 'utf8');
+module.exports.deEncryptAES = (content,random, expiredTime) => {
+  const aesKey = this.getConfig('aesKey')
+  const salt = `${aesKey}${expiredTime}${random}`
+  const decipher = crypto.createDecipher('aes192', salt);
+  var str = decipher.update(content, 'hex', 'utf8');
   str += decipher.final('utf8');
   return str;
 }

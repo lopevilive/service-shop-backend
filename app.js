@@ -6,7 +6,7 @@ const resextra = require('./modules/resextra')
 const database = require('./modules/database')
 const albumRoutes = require('./routes/api/album.js')
 const userRoutes = require('./routes/api/user.js')
-const {ERR_CODE_MAP: {CODE_SUCC, CODE_PARAMS_ERR, CODE_UNKNOWN}} = require(path.join(process.cwd(),"util/errCode"))
+const {ERR_CODE_MAP: {CODE_SUCC, CODE_PARAMS_ERR, CODE_UNKNOWN, CODE_LOGIN_ERR, CODE_PERMISSION_ERR}} = require(path.join(process.cwd(),"util/errCode"))
 
 
 // 获取验证模块
@@ -17,8 +17,14 @@ authorization.setAuthFn(async function(req, res, next, serviceName, actionName, 
   const rule = authorization.rules[serviceName] && authorization.rules[serviceName][actionName]
   if (rule) {
     try {
-      const res = await authorization.execRule(rule, req, next, serviceName, actionName)
-      passFn(res)
+      const ret = await authorization.execRule(rule, req, res, serviceName, actionName)
+      if (ret === CODE_SUCC) {
+        return passFn(true)
+      }
+      if (ret === CODE_PERMISSION_ERR) {
+        return passFn(false)
+      }
+      res.sendResult(null, ret)
     } catch(err) {
       res.sendResult(null, CODE_UNKNOWN, err.message)
     }

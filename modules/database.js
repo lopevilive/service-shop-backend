@@ -22,6 +22,7 @@ async function initialize(app,callback) {
         new EntitySchema(require(path.join(process.cwd(),"entity",'ProductTypes'))),
         new EntitySchema(require(path.join(process.cwd(),"entity",'User'))),
         new EntitySchema(require(path.join(process.cwd(),"entity",'Staff'))),
+        new EntitySchema(require(path.join(process.cwd(),"entity",'Ticket'))),
     ]
   })
   global.database = connection

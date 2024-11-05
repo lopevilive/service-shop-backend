@@ -2,6 +2,8 @@
 const path = require("path");
 const util = require(path.join(process.cwd(),"util/index"))
 const dao = require(path.join(process.cwd(),"dao/DAO"));
+const ticketManage = require(path.join(process.cwd(),"modules/ticketManage"));
+const {ERR_CODE_MAP: {CODE_SUCC, CODE_PARAMS_ERR, CODE_UNKNOWN, CODE_LOGIN_ERR, CODE_PERMISSION_ERR}} = require(path.join(process.cwd(),"util/errCode"))
 
 global.service_caches = {};
 
@@ -25,11 +27,11 @@ function Invocation(serviceName,actionName,serviceModule,origFunc) {
 					if(pass) {
 						origFunc.apply(serviceModule,origArguments);
 					} else {
-						res.sendResult(null,401,"权限验证失败");
+						res.sendResult(null,CODE_PERMISSION_ERR,"权限验证失败");
 					}
 				});
 			} else {
-				res.sendResult(null,401,"权限验证失败");
+				res.sendResult(null,CODE_PERMISSION_ERR,"权限验证失败");
 			}
 		}
 	}
@@ -71,10 +73,18 @@ module.exports.setAuthFn = function(authFn) {
 const useLogin = async (req) => {
   const {headers: {authorization}} = req
   if (!authorization) return false
-  const unionid = util.deEncryptAES(authorization)
+  let unionid
+  try {
+    const {status, rawStr} = await ticketManage.verifyTicket(authorization)
+    if (status !== 0) return false
+    unionid = rawStr
+  } catch(e) {
+    return false
+  }
+  
   let userInfo = await dao.list('User', {columns: {unionid}})
   if (userInfo.length !== 1) {
-    throw new Error('登录失效')
+    return false
   }
   req['userInfo'] = userInfo[0]
   return true
@@ -98,7 +108,7 @@ const useIsOwner = async (req) => {
 // 是否管理员
 const useIsAdmin = async (req) => {
   const {userInfo, shopInfo} = req
-  const res = await dao.list('Staff', {columns: {userId: userInfo.id,shopId: shopInfo.id}})
+  const res = await dao.list('Staff', {columns: {userId: userInfo.id,shopId: shopInfo.id, status: 4}})
   if (res.length) {
     return true
   }
@@ -109,25 +119,27 @@ module.exports.execRule = async (rule, req, res, serviceName, actionName) => {
   let {rid, shopIdKey} = rule
   if (!shopIdKey) shopIdKey = 'shopId'
   const shopId = +req.body[shopIdKey]
-  if (rid === 0) return true
+  if (rid === 0) return CODE_SUCC
   let isLogin = false
   let isOwner = false
   let isAdmin = false
 
   isLogin = await useLogin(req)
-  if (rid === 1) {
-    return isLogin
-  }
+  if (!isLogin) return CODE_LOGIN_ERR
+  if (rid === 1) return CODE_SUCC
   await useShop(req, shopId)
   isOwner = await useIsOwner(req)
   isAdmin = await useIsAdmin(req)
 
   const {id} = req.userInfo
   const sups = util.getConfig('superAdmin')
-  if (sups.includes(id)) return true
-  if (rid === 2) return isOwner || isAdmin
-  if (rid === 3) return isOwner
-  return false
+  if (sups.includes(id)) return CODE_SUCC
+  if (rid === 2) {
+    if (isOwner || isAdmin) return CODE_SUCC
+    return CODE_PERMISSION_ERR
+  }
+  if (rid === 3) return isOwner ? CODE_SUCC : CODE_PERMISSION_ERR;
+  return CODE_PERMISSION_ERR
 }
 
 module.exports.rules = {
@@ -145,10 +157,10 @@ module.exports.rules = {
     productTypesMod: {rid: 2},
     productTypesDel: {rid: 2},
     getCosTempKeys: {rid: 1},
-    getStaff: {rid: 3}
+    getStaff: {rid: 3},
+    delStaff: {rid: 3}
   },
   userService: {
     getUserInfo: {rid: 1}
   }
 }
-

@@ -14,6 +14,7 @@ module.exports.getShop = async (params ,cb) => {
     cond = {columns: {id: shopId}}
   }
   cond.only = ['id', 'desc', 'url', 'name', 'area', 'address', 'phone', 'qrcodeUrl', 'business']
+  cond.take = 100 // 限制数量
   try {
     const data = await dao.list('Shop', cond)
     cb(null, data)
@@ -97,6 +98,8 @@ module.exports.getProduct = async (params ,cb) => {
   cond['columns'] = columns
   cond.only = ['id', 'desc', 'name', 'price', 'productType', 'shopId', 'url', 'type3D', 'model3D', 'modelUrl', 'status']
   cond.order = {sort: 'DESC', id: 'DESC'}
+
+  if (!cond.take) cond.take = 100 // 限制数量
   try {
     const data = await dao.list('Product', cond)
     const ret = {list: data}
@@ -149,6 +152,7 @@ module.exports.getProductTypes = async (params ,cb) => {
 
   cond.only = ['id', 'name', 'shopId']
   cond.order = {sort: 'DESC', id: 'ASC'}
+  cond.take = 100 // 限制数量
   try {
     const data = await dao.list('ProductTypes', cond)
     cb(null, data)
@@ -226,12 +230,17 @@ module.exports.getStaff = async (req, cb) => {
   try {
     const data = await dao.list('Staff', {
       columns: {type, shopId},
-      only: ['id', 'nickName', 'type', 'phone', 'qrcodeUrl', 'shopId']
+      only: ['id', 'nickName', 'type', 'phone', 'qrcodeUrl', 'shopId'],
+      take: 100, // 限制数量
     })
     cb(null, data)
   } catch(e) {
     cb(e)
   } 
+}
+
+module.exports.createStaff = async (req, cb) => {
+  
 }
 
 
