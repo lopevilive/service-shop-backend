@@ -22,8 +22,7 @@ module.exports.login = async (params, cb) => {
     if (res.length === 0) { // 新用户,先创建
       await dao.create('User', {unionid, openid, add_time: util.getNowTime()})
     }
-    const {content} = await ticketManage.createTicket(unionid, 60 * 60 * 24 * 180)
-    const token = content
+    const token = await ticketManage.createTicket(unionid, 60 * 60 * 24 * 180)
     cb(null, token)
   } catch(e) {
     cb(e)
