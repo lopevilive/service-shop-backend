@@ -158,7 +158,8 @@ module.exports.rules = {
     productTypesDel: {rid: 2},
     getCosTempKeys: {rid: 1},
     getStaff: {rid: 3},
-    delStaff: {rid: 3}
+    delStaff: {rid: 3},
+    createStaff: {rid: 3}
   },
   userService: {
     getUserInfo: {rid: 1}

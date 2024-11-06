@@ -2,7 +2,7 @@ module.exports = {
   name: 'Staff',
   columns: {
     id: {type: 'int', generated: true, primary: true},
-    userId: {type: 'int'},
+    userId: {type: 'int', nullable: true},
     shopId: {type: 'int'},
     nickName: {type: 'varchar'}, // 昵称
     type: {type: 'int'}, // 1-管理员、2-分销员

@@ -3,6 +3,7 @@ const _ = require('lodash')
 const dao = require(path.join(process.cwd(),"dao/DAO"));
 const util = require(path.join(process.cwd(),"util/index"))
 const cos = require(path.join(process.cwd(),"modules/cos"))
+const {createTicket, verifyTicket} = require(path.join(process.cwd(),"modules/ticketManage"));
 
 module.exports.getShop = async (params ,cb) => {
   const {userId, shopId} = params
@@ -230,7 +231,7 @@ module.exports.getStaff = async (req, cb) => {
   try {
     const data = await dao.list('Staff', {
       columns: {type, shopId},
-      only: ['id', 'nickName', 'type', 'phone', 'qrcodeUrl', 'shopId'],
+      only: ['id', 'nickName', 'type', 'phone', 'qrcodeUrl', 'shopId', 'status'],
       take: 100, // 限制数量
     })
     cb(null, data)
@@ -240,7 +241,24 @@ module.exports.getStaff = async (req, cb) => {
 }
 
 module.exports.createStaff = async (req, cb) => {
-  
+  const {shopInfo} = req
+  const {nickName, type} = req.body
+
+  try {
+    const ticket = await createTicket('', 60 * 15) // 15 分钟有效
+    const params = {
+      shopId: shopInfo.id,
+      nickName,
+      type,
+      status: 1,
+      add_time: util.getNowTime(),
+      ticket
+    }
+    const res = await dao.create('Staff', params)
+    cb(null, res)
+  } catch(e) {
+    cb(e)
+  }
 }
 
 
