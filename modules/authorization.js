@@ -159,7 +159,9 @@ module.exports.rules = {
     getCosTempKeys: {rid: 1},
     getStaff: {rid: 3},
     delStaff: {rid: 3},
-    createStaff: {rid: 3}
+    createStaff: {rid: 3},
+    verfiyStaff: {rid: 1},
+    acceptStaff: {rid: 1},
   },
   userService: {
     getUserInfo: {rid: 1}

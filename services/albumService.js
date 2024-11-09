@@ -1,5 +1,5 @@
 const path = require("path");
-const _ = require('lodash')
+const _ = require('lodash');
 const dao = require(path.join(process.cwd(),"dao/DAO"));
 const util = require(path.join(process.cwd(),"util/index"))
 const cos = require(path.join(process.cwd(),"modules/cos"))
@@ -266,6 +266,64 @@ module.exports.delStaff = async (req, cb) => {
   const {id} = req.body
   try {
     await dao.delete('Staff', id)
+    cb(null)
+  } catch(e) {
+    cb(e)
+  }
+}
+
+
+/**
+ * @returns 
+ * status: 0-验证通过、1-ticket过期、2-已失效、3-已经是管理员、4-创建者打开链接、5-获取不到信息
+ */
+module.exports.verfiyStaff = async (req, cb) => {
+  const {id} = req.body
+  const {userInfo} = req
+  try {
+    let res = await dao.list('Staff', {columns: {id}})
+    if (res.length !== 1) {
+      return cb(null, {status: 5})
+    }
+    res = res[0]
+    const {ticket, status, shopId, type} = res
+    if ([2,3,4].includes(status)) { // 这几种情况直接判定已失效
+      return cb(null, {status: 2})
+    }
+    let admins = await dao.list('Staff', {columns: {shopId, userId: userInfo.id, type}})
+    if (admins.length !== 0) return cb(null, {status: 3}) // 管理员打开了这个链接
+    let shopInfo = await dao.list('Shop', {columns: {id: shopId}})
+    shopInfo = shopInfo[0]
+    if (shopInfo.userId === userInfo.id) { // 创建者自己打开了这个链接
+      return cb(null, {status: 4})
+    }
+    const ticketRes = await verifyTicket(ticket)
+    if (ticketRes.status === -2) { // 过期
+      return cb(null, {status: 1})
+    }
+    if (ticketRes.status === -1) {
+      return cb(null, {status: 2})
+    }
+    if (ticketRes.status === 0) {
+      return cb(null, {status: 0})
+    }
+    cb(null, {status: 2})
+  } catch(e) {
+    cb(e)
+  }
+}
+
+
+module.exports.acceptStaff = async (req, cb) => {
+  const {id} = req.body
+  const {userInfo} = req
+  try {
+    let res = await dao.list('Staff', {columns: {id}})
+    res = res[0]
+    if (res.status !== 1) {
+      throw new Error('未知错误')
+    }
+    await dao.update('Staff', id, {userId: userInfo.id, status: 4, upd_time: util.getNowTime()})
     cb(null)
   } catch(e) {
     cb(e)

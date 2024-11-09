@@ -15,7 +15,7 @@ module.exports.createTicket = async (str, expired) => {
 module.exports.verifyTicket = async (ticket) => {
   try {
     let res = await dao.list('Ticket', {columns: {content: ticket}})
-    if (res.length !== 1) throw new Error('无效')
+    if (res.length !== 1) return {status: -1}
     const {content, random, expiredTime} = res[0]
     if (util.getNowTime() >= expiredTime) return {status: -2} // 过期
     const rawStr = util.deEncryptAES(content, random, expiredTime)

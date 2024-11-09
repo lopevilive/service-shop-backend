@@ -258,4 +258,37 @@ router.post(
   }
 )
 
+router.post(
+  '/VerfiyStaff',
+  (req, res, next) => {
+    albumService.verfiyStaff(
+      req,
+      (err, data) => {
+        if (err) {
+          res.sendResult(null, CODE_UNKNOWN, err.message)
+        } else {
+          res.sendResult(data, CODE_SUCC, 'succ')
+        }
+      }
+    )(req, res, next)
+  }
+)
+
+
+router.post(
+  '/AcceptStaff',
+  (req, res, next) => {
+    albumService.acceptStaff(
+      req,
+      (err, data) => {
+        if (err) {
+          res.sendResult(null, CODE_UNKNOWN, err.message)
+        } else {
+          res.sendResult(data, CODE_SUCC, 'succ')
+        }
+      }
+    )(req, res, next)
+  }
+)
+
 module.exports = router;
