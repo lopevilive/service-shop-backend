@@ -231,7 +231,8 @@ module.exports.getStaff = async (req, cb) => {
   try {
     const data = await dao.list('Staff', {
       columns: {type, shopId},
-      only: ['id', 'nickName', 'type', 'phone', 'qrcodeUrl', 'shopId', 'status'],
+      only: ['id', 'nickName', 'type', 'phone', 'qrcodeUrl', 'shopId', 'status', 'ticket'],
+      order: {status: 'ASC'},
       take: 100, // 限制数量
     })
     let needUpdate = []
