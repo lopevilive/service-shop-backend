@@ -234,6 +234,20 @@ module.exports.getStaff = async (req, cb) => {
       only: ['id', 'nickName', 'type', 'phone', 'qrcodeUrl', 'shopId', 'status'],
       take: 100, // 限制数量
     })
+    let needUpdate = []
+    for (const item of data) {
+      const { status, ticket, id } = item
+      if (status === 1) { // 需要校验是否过了有效期
+        const ticketRes = await verifyTicket(ticket)
+        if (ticketRes.status !== 0) {
+          item.status = 3
+          needUpdate.push(id)
+        }
+      }
+    }
+    if (needUpdate.length) {
+      await dao.update('Staff', needUpdate, {status: 3, upd_time: util.getNowTime()})
+    }
     cb(null, data)
   } catch(e) {
     cb(e)
