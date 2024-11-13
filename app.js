@@ -47,6 +47,7 @@ app.use(resextra)
 
 // 静态资源
 // app.use('/tmp_uploads',express.static('tmp_uploads')) 
+app.use('/dist',express.static('dist')) 
 
 /**
  *
@@ -84,6 +85,10 @@ app.use('/api/user', userRoutes)
 // 如果没有路径处理就返回 Not Found
 app.use(function(req, res, next) {
   console.log('not found~~~~')
-  res.sendResult(null, 404, 'Not Found')
+  if (/dist/.test(req.path)) {
+    res.sendfile('./dist/index.html')
+  } else {
+    res.sendResult(null, 404, 'Not Found')
+  }
 })
 app.listen(9000)

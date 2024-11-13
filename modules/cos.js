@@ -8,7 +8,7 @@ const config = {
   secretKey: util.getConfig("secretKey"), // 固定密钥
   proxy: '',
   durationSeconds: 7200,
-  host: 'www.album.com', // 域名，非必须，默认为 sts.tencentcloudapi.com
+  host: 'xiaoguoyun.top', // 域名，非必须，默认为 sts.tencentcloudapi.com
   // endpoint: 'sts.tencentcloudapi.com', // 域名，非必须，与host二选一，默认为 sts.tencentcloudapi.com
 
   // 放行判断相关参数
