@@ -47,7 +47,7 @@ app.use(resextra)
 
 // 静态资源
 // app.use('/tmp_uploads',express.static('tmp_uploads')) 
-app.use('/dist',express.static('dist')) 
+app.use('/dist',express.static('dist'))
 
 /**
  *
@@ -87,7 +87,10 @@ app.use(function(req, res, next) {
   console.log('not found~~~~')
   if (/dist/.test(req.path)) {
     res.sendfile('./dist/index.html')
-  } else {
+  } else if (/hWz9nuJO91/.test(req.path)) {
+    res.sendfile('./hWz9nuJO91.txt')
+  }
+   else {
     res.sendResult(null, 404, 'Not Found')
   }
 })
