@@ -17,14 +17,14 @@ authorization.setAuthFn(async function(req, res, next, serviceName, actionName, 
   const rule = authorization.rules[serviceName] && authorization.rules[serviceName][actionName]
   if (rule) {
     try {
-      const ret = await authorization.execRule(rule, req, res, serviceName, actionName)
-      if (ret === CODE_SUCC) {
+      const retCode = await authorization.execRule(rule, req, res, serviceName, actionName)
+      if (retCode === CODE_SUCC) {
         return passFn(true)
       }
-      if (ret === CODE_PERMISSION_ERR) {
+      if (retCode === CODE_PERMISSION_ERR) {
         return passFn(false)
       }
-      res.sendResult(null, ret)
+      res.sendResult(null, retCode)
     } catch(err) {
       res.sendResult(null, CODE_UNKNOWN, err.message)
     }

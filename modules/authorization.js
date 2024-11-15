@@ -127,18 +127,29 @@ module.exports.execRule = async (rule, req, res, serviceName, actionName) => {
   isLogin = await useLogin(req)
   if (!isLogin) return CODE_LOGIN_ERR
   if (rid === 1) return CODE_SUCC
+  const {id, phone} = req.userInfo
+  if (rid === 10) {
+    if (phone) return CODE_SUCC
+    return CODE_PERMISSION_ERR
+  }
+
   await useShop(req, shopId)
   isOwner = await useIsOwner(req)
   isAdmin = await useIsAdmin(req)
 
-  const {id} = req.userInfo
+  
   const sups = util.getConfig('superAdmin')
   if (sups.includes(id)) return CODE_SUCC
   if (rid === 2) {
+    if (!phone) return CODE_PERMISSION_ERR
     if (isOwner || isAdmin) return CODE_SUCC
     return CODE_PERMISSION_ERR
   }
-  if (rid === 3) return isOwner ? CODE_SUCC : CODE_PERMISSION_ERR;
+  if (rid === 3) {
+    if (!phone) return CODE_PERMISSION_ERR
+    return isOwner ? CODE_SUCC : CODE_PERMISSION_ERR;
+  }
+    
   return CODE_PERMISSION_ERR
 }
 
@@ -157,7 +168,7 @@ module.exports.rules = {
     moveTopProductType: {rid: 2},
     productTypesMod: {rid: 2},
     productTypesDel: {rid: 2},
-    getCosTempKeys: {rid: 1},
+    getCosTempKeys: {rid: 10},
     getStaff: {rid: 3},
     delStaff: {rid: 3},
     createStaff: {rid: 3},
@@ -168,3 +179,4 @@ module.exports.rules = {
     getUserInfo: {rid: 1}
   }
 }
+
