@@ -73,16 +73,16 @@ module.exports.setAuthFn = function(authFn) {
 const useLogin = async (req) => {
   const {headers: {authorization}} = req
   if (!authorization) return false
-  let unionid
+  let openid
   try {
     const {status, rawStr} = await ticketManage.verifyTicket(authorization)
     if (status !== 0) return false
-    unionid = rawStr
+    openid = rawStr
   } catch(e) {
     return false
   }
   
-  let userInfo = await dao.list('User', {columns: {unionid}})
+  let userInfo = await dao.list('User', {columns: {openid}})
   if (userInfo.length !== 1) {
     return false
   }
@@ -146,10 +146,10 @@ module.exports.rules = {
   albumService: {
     shopMod: {rid: 2, shopIdKey: 'id'},
     /**
-     * rid:0-游客、1-需要登录、2-管理员或者创建者、3-创建者、99-超级管理员
+     * rid:0-游客、1-需要登录、2-管理员或者创建者、3-创建者、10-需要手机认证、99-超级管理员
      * shopIdKey 图册id 的字段，默认 shopId
      */
-    // shopCreate: {rid: 1},
+    // shopCreate: {rid: 10},
     shopCreate: {rid: 99}, // todo
     productMod: {rid: 2},
     moveTopProduct: {rid: 2},
@@ -161,8 +161,8 @@ module.exports.rules = {
     getStaff: {rid: 3},
     delStaff: {rid: 3},
     createStaff: {rid: 3},
-    verfiyStaff: {rid: 1},
-    acceptStaff: {rid: 1},
+    verfiyStaff: {rid: 10},
+    acceptStaff: {rid: 10},
   },
   userService: {
     getUserInfo: {rid: 1}

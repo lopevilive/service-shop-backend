@@ -47,7 +47,12 @@ app.use(resextra)
 
 // 静态资源
 // app.use('/tmp_uploads',express.static('tmp_uploads')) 
+app.use('/dist/assets', express.static('dist/assets', {
+  lastModified: false,
+  maxAge: '30 days'
+}))
 app.use('/dist',express.static('dist'))
+
 
 /**
  *

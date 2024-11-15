@@ -9,8 +9,16 @@ const authorization = require(path.join(process.cwd(),"/modules/authorization"))
 const userService = authorization.getService('userService')
 
 router.post('/Login',
+  (req, res, next) => {
+    const {code} = req.body
+    if (!code) {
+      res.sendResult('null', CODE_PARAMS_ERR, '缺失 code')
+      return
+    }
+    next()
+  },
   async(req, res, next) => {
-    userService.login(req.body, (err, data) => {
+    userService.login(req, (err, data) => {
       if (err) {
         res.sendResult(null, CODE_UNKNOWN, err.message)
       } else {
