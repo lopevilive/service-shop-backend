@@ -5,6 +5,7 @@ const bodyParser = require('body-parser')
 const resextra = require('./modules/resextra')
 const albumRoutes = require('./routes/api/album.js')
 const userRoutes = require('./routes/api/user.js')
+const compression = require('compression');
 const {ERR_CODE_MAP: {CODE_SUCC, CODE_PARAMS_ERR, CODE_UNKNOWN, CODE_LOGIN_ERR, CODE_PERMISSION_ERR}} = require(path.join(process.cwd(),"util/errCode"))
 
 
@@ -36,6 +37,8 @@ const app = express();
 
 // 初始化统一响应机制
 app.use(resextra)
+
+app.use(compression()); // 开启 gzip
 
 // 静态资源
 // app.use('/tmp_uploads',express.static('tmp_uploads')) 
