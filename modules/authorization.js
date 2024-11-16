@@ -160,8 +160,8 @@ module.exports.rules = {
      * rid:0-游客、1-需要登录、2-管理员或者创建者、3-创建者、10-需要手机认证、99-超级管理员
      * shopIdKey 图册id 的字段，默认 shopId
      */
-    // shopCreate: {rid: 10},
-    shopCreate: {rid: 99}, // todo
+    shopCreate: {rid: 10},
+    // shopCreate: {rid: 99}, // todo
     productMod: {rid: 2},
     moveTopProduct: {rid: 2},
     productDel: {rid: 2},

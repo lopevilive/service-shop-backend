@@ -40,4 +40,29 @@ router.post('/GetUserInfo',
   }
 )
 
+
+router.post('/BindPhone',
+  (req, res, next) => {
+    const {code, token} = req.body
+    if (!code) {
+      res.sendResult('null', CODE_PARAMS_ERR, '缺失 code')
+      return
+    }
+    if (!token) {
+      res.sendResult('null', CODE_PARAMS_ERR, '缺失 token')
+      return
+    }
+    next()
+  },
+  async(req, res, next) => {
+    userService.bindPhone(req, (err, data) => {
+      if (err) {
+        res.sendResult(null, CODE_UNKNOWN, err.message)
+      } else {
+        res.sendResult(data, CODE_SUCC, 'succ')
+      }
+    })(req, res, next)
+  }
+)
+
 module.exports = router;

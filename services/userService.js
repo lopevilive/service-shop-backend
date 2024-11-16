@@ -2,14 +2,13 @@ const path = require("path");
 const util = require(path.join(process.cwd(),"util/index"))
 const dao = require(path.join(process.cwd(),"dao/DAO"));
 const ticketManage = require(path.join(process.cwd(),"modules/ticketManage"));
-const axios = require('axios')
+const axios = require('axios');
 
 
 const getAppInfo = async (code) => {
   const {appid, secret} = util.getConfig('appInfo')
   const reqPayload = {appid, secret, js_code: code, grant_type: 'authorization_code'}
   const {data} = await axios.get('https://api.weixin.qq.com/sns/jscode2session', {params: reqPayload})
-  console.log(data, 'rrrrrr')
   return data
   // return {
   //   session_key: '123', // 会话密钥
@@ -41,14 +40,43 @@ module.exports.login = async (req, cb) => {
 
 module.exports.getUserInfo = async (req, cb) => {
   try {
-    const {id: userId} = req.userInfo
-    const ret = {userId}
+    const {id: userId, phone} = req.userInfo
+    const ret = {userId, hasPhone: false}
     const ownerList = await dao.list('Shop', {columns: {userId}})
     const adminList = await dao.list('Staff', {columns: {userId, type: 1, status: 4}})
     ret['ownerList'] = ownerList.map((item) => item.id)
     ret['adminList'] = adminList.map((item) => item.shopId)
     ret['isSup'] = util.getConfig('superAdmin').includes(userId)
+    if (phone) ret['hasPhone'] = true
     cb(null, ret)
+  } catch(e) {
+    console.error(e)
+    cb(e)
+  }
+}
+
+module.exports.bindPhone = async (req, cb) => {
+  try {
+    const {appid, secret} = util.getConfig('appInfo')
+    const { code, token } = req.body
+    // 获取 access_tokenRes
+    const access_tokenRes = await axios.get('https://api.weixin.qq.com/cgi-bin/token', {params: {appid, secret, grant_type: 'client_credential'}})
+    const {access_token, expires_in} = access_tokenRes.data
+    // 校验 token
+    const {status, rawStr} = await ticketManage.verifyTicket(token)
+    if (status !== 0) throw new Error('token 失效')
+    const openid = rawStr
+    let url = `https://api.weixin.qq.com/wxa/business/getuserphonenumber?access_token=${access_token}`
+    // 获取号码
+    const {data} = await axios.post(url, {code})
+    if (data.errcode !== 0) throw new Error(data.errmsg || '电话解析失败')
+    let {phone_info: {phoneNumber, purePhoneNumber, countryCode}} = data
+    if (!countryCode) countryCode = ''
+    let userInfo = await dao.list('User', {columns: {openid}})
+    if (userInfo.length !== 1) throw new Error('用户信息获取失败')
+    userInfo = userInfo[0]
+    await dao.update('User', userInfo.id, {phone: purePhoneNumber, countryCode})
+    cb(null)
   } catch(e) {
     console.error(e)
     cb(e)
