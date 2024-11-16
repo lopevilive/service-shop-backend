@@ -1,15 +1,7 @@
 var path = require("path");
 
 // 获取数据库模型
-databaseModule = require(path.join(process.cwd(),"modules/database"));
-
-const getModel = (entityName) => {
-  var db = databaseModule.getDatabase();
-  var model = db.getRepository(entityName);
-  if(!model) return new Error('模型不存在')
-  return model
-}
-
+const { db } = require(path.join(process.cwd(),"modules/database"));
 
 /**
  * 创建对象数据
@@ -19,7 +11,7 @@ const getModel = (entityName) => {
  * @param  {Function} cb        回调函数
  */
 module.exports.create = async function(entityName,obj) {
-  var model = getModel(entityName)
+  const model = await db.getModel(entityName)
   const res = await model.createQueryBuilder().insert().into(entityName).values(obj).execute();
   const {identifiers} = res
   return identifiers[0]
@@ -48,7 +40,7 @@ module.exports.create = async function(entityName,obj) {
  * @param  {Function} cb         回调函数
  */
 module.exports.list = async function(entityName,conditions) {
-	var model = getModel(entityName)
+  const model = await db.getModel(entityName)
 
   const execCondi = {}
 
@@ -83,7 +75,7 @@ module.exports.list = async function(entityName,conditions) {
  * @param  {Function} cb        回调函数
  */
 module.exports.update = async function(entityName,id,updateObj) {
-  var model = getModel(entityName)
+  const model = await db.getModel(entityName)
   if (!Array.isArray(id)) {
     id = [id]
   }
@@ -98,7 +90,7 @@ module.exports.update = async function(entityName,id,updateObj) {
  * @param  {Function} cb        回调函数
  */
 module.exports.count = async function(entityName,columns = {}, groupBy) {
-  var model = getModel(entityName)
+  const model = await db.getModel(entityName)
   let sql = 'select'
   if (groupBy) sql += ` ${groupBy},`
   sql += ` count(*) as total from ${entityName}`
@@ -121,7 +113,7 @@ module.exports.count = async function(entityName,columns = {}, groupBy) {
 }
 
 module.exports.delete = async function(entityName, id) {
-  var model = getModel(entityName)
+  const model = await db.getModel(entityName)
   await model.delete(id)
 }
 

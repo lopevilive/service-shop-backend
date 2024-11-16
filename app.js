@@ -3,7 +3,6 @@ const express = require('express');
 const path = require('path')
 const bodyParser = require('body-parser')
 const resextra = require('./modules/resextra')
-const database = require('./modules/database')
 const albumRoutes = require('./routes/api/album.js')
 const userRoutes = require('./routes/api/user.js')
 const {ERR_CODE_MAP: {CODE_SUCC, CODE_PARAMS_ERR, CODE_UNKNOWN, CODE_LOGIN_ERR, CODE_PERMISSION_ERR}} = require(path.join(process.cwd(),"util/errCode"))
@@ -34,13 +33,6 @@ authorization.setAuthFn(async function(req, res, next, serviceName, actionName, 
 })
 
 const app = express();
-
-// 初始化数据库模块
-database.initialize(app, function(err) {
-  if (err) {
-    console.error('连接数据库失败失败 %s', err)
-  }
-})
 
 // 初始化统一响应机制
 app.use(resextra)
