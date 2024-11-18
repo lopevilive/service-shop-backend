@@ -109,7 +109,7 @@ module.exports.getProduct = async (params ,cb) => {
     cond.take = pageSize
   }
   cond['columns'] = columns
-  cond.only = ['id', 'desc', 'name', 'price', 'productType', 'shopId', 'url', 'type3D', 'model3D', 'modelUrl', 'status', 'fields']
+  cond.only = ['id', 'desc', 'name', 'price', 'productType', 'shopId', 'url', 'type3D', 'model3D', 'modelUrl', 'status', 'fields', 'sort']
   cond.order = {sort: 'DESC', id: 'DESC'}
 
   if (!cond.take) cond.take = 100 // 限制数量
