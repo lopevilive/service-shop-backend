@@ -34,3 +34,14 @@ module.exports.deEncryptAES = (content,random, expiredTime) => {
   str += decipher.final('utf8');
   return str;
 }
+
+module.exports.vailCount = (level, count) => {
+  count = Number(count)
+  const levelCfg = this.getConfig('levelCfg')
+  const matchItem = levelCfg.find((item) => item.level === level)
+  return {
+    limit: matchItem.limit,
+    curr: count,
+    pass: matchItem.limit > count
+  }
+}

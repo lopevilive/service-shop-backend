@@ -105,9 +105,8 @@ module.exports.count = async function(entityName,columns = {}, groupBy) {
   }
   if (where) sql += ` where ${where}`
   if (groupBy) sql += ` group by ${groupBy}`
-  // console.log(sql, 'sql')
   // select productType count(*) as total from Product where shopId = 5 group by productType
-  sql = `select productType, count(*) as total from  album.product where shopId = 5 group by productType`
+  // sql = `select productType, count(*) as total from  album.product where shopId = 5 group by productType`
   const data = await model.query(sql)
   return data
 }

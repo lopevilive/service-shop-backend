@@ -50,12 +50,24 @@ module.exports.shopMod = async (req ,cb) => {
   }
 }
 
-module.exports.productMod = async (params ,cb) => {
-  const {id} = params
+module.exports.productMod = async (req ,cb) => {
+  const {shopInfo: {level}} = req
+  const params = req.body
+  const { id, shopId } = params
+
   if (id === 0) { // 创建
     try {
+      let countRes = await dao.count('Product', {shopId})
+      const count = countRes[0]['total']
+      const vailRes = util.vailCount(level, count)
+      if (!vailRes.pass) {
+        // 超过限制数量
+        cb(null, vailRes)
+        return
+      }
+
       const data = await dao.create('Product', {...params, add_time: util.getNowTime()})
-      cb(null, data)
+      cb(null, data.id)
     } catch(e) {
       cb(e)
     }
@@ -64,7 +76,7 @@ module.exports.productMod = async (params ,cb) => {
     delete payload.id
     try {
       await dao.update('Product', id, payload)
-      cb(null, id)
+      cb(null)
     } catch(e) {
       cb(e)
     }

@@ -48,12 +48,12 @@ router.post('/ShopMod',
 
 router.post('/ProductMod',
   async (req, res, next) => {
-    albumService.productMod(req.body,
+    albumService.productMod(req,
       (err, data) => {
         if (err) {
           res.sendResult(null, CODE_UNKNOWN, err.message)
         } else {
-          res.sendResult({id: data.id}, CODE_SUCC, 'succ')
+          res.sendResult(data, CODE_SUCC, 'succ')
         }
       })(req,res, next)
   }
