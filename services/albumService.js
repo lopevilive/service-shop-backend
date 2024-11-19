@@ -4,6 +4,7 @@ const dao = require(path.join(process.cwd(),"dao/DAO"));
 const util = require(path.join(process.cwd(),"util/index"))
 const cos = require(path.join(process.cwd(),"modules/cos"))
 const {createTicket, verifyTicket} = require(path.join(process.cwd(),"modules/ticketManage"));
+const { In } = require("typeorm");
 
 module.exports.getShop = async (params ,cb) => {
   const {userId, shopId} = params
@@ -13,7 +14,7 @@ module.exports.getShop = async (params ,cb) => {
   }
   if (shopId) {
     if (Array.isArray(shopId)) {
-      cond.columns = shopId.map((id) => ({id}))
+      cond = {columns: {id: In(shopId)}}
     } else {
       cond = {columns: {id: shopId}}
     }
@@ -95,7 +96,11 @@ module.exports.getProduct = async (params ,cb) => {
     columns['shopId'] = shopId
   }
   if (productId) {
-    columns['id'] = productId
+    if (Array.isArray(productId)) {
+      columns['id'] = In(productId)
+    } else {
+      columns['id'] = productId
+    }
   }
   if (productType) {
     columns['productType'] = productType
