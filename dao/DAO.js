@@ -2,6 +2,7 @@ var path = require("path");
 
 // 获取数据库模型
 const { db } = require(path.join(process.cwd(),"modules/database"));
+const { In } = require("typeorm");
 
 /**
  * 创建对象数据
@@ -41,7 +42,6 @@ module.exports.create = async function(entityName,obj) {
  */
 module.exports.list = async function(entityName,conditions) {
   const model = await db.getModel(entityName)
-
   const execCondi = {}
 
   if (!conditions) conditions = {}

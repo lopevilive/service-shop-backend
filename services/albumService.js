@@ -12,7 +12,11 @@ module.exports.getShop = async (params ,cb) => {
     cond = {columns: {userId}}
   }
   if (shopId) {
-    cond = {columns: {id: shopId}}
+    if (Array.isArray(shopId)) {
+      cond.columns = shopId.map((id) => ({id}))
+    } else {
+      cond = {columns: {id: shopId}}
+    }
   }
   cond.only = ['id', 'desc', 'url', 'name', 'area', 'address', 'phone', 'qrcodeUrl', 'business']
   cond.take = 100 // 限制数量
