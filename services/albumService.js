@@ -281,7 +281,7 @@ module.exports.createStaff = async (req, cb) => {
   const {nickName, type} = req.body
 
   try {
-    const ticket = await createTicket('', 60 * 15) // 15 分钟有效
+    const ticket = await createTicket('', 60 * 60) // 60 分钟内有效
     const params = {
       shopId: shopInfo.id,
       nickName,
@@ -359,6 +359,7 @@ module.exports.acceptStaff = async (req, cb) => {
     if (res.status !== 1) {
       throw new Error('未知错误')
     }
+    // 严格来说这里应该加锁
     await dao.update('Staff', id, {userId: userInfo.id, status: 4, upd_time: util.getNowTime()})
     cb(null)
   } catch(e) {
