@@ -366,3 +366,17 @@ module.exports.acceptStaff = async (req, cb) => {
     cb(e)
   }
 }
+
+module.exports.getAttrs = async (req, cb) => {
+  const {shopId} = req.body
+  const cond = {}
+  cond.only = ['attrs'],
+  cond.columns = {id: shopId}
+  try {
+    const data = await dao.list('Shop', cond)
+    let str = data && data[0] && data[0].attrs || ''
+    cb(null, str)
+  } catch(e) {
+    cb(e)
+  }
+}
