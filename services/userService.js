@@ -47,6 +47,7 @@ module.exports.getUserInfo = async (req, cb) => {
     ret['ownerList'] = ownerList.map((item) => item.id)
     ret['adminList'] = adminList.map((item) => item.shopId)
     ret['isSup'] = util.getConfig('superAdmin').includes(userId)
+    ret['demoShops'] = util.getConfig('demoShops')
     if (phone) ret['hasPhone'] = true
     cb(null, ret)
   } catch(e) {
