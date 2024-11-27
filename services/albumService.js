@@ -231,9 +231,17 @@ module.exports.productTypesMod = async (params ,cb) => {
 }
 
 module.exports.productTypesDel = async (params, cb) => {
-  const {id} = params
+  let {id} = params
   try {
     await dao.delete('ProductTypes', id)
+    if (!Array.isArray(id)) {
+      id = [id]
+    }
+    let list = await dao.list('Product', {columns: {productType: In(id)}})
+    if (list.length) {
+      list = list.map((item) => item.id)
+      await dao.update('Product', list, {'productType': ''})
+    }
     cb(null)
   } catch(e) {
     cb(e)
