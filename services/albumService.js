@@ -4,7 +4,7 @@ const dao = require(path.join(process.cwd(),"dao/DAO"));
 const util = require(path.join(process.cwd(),"util/index"))
 const cos = require(path.join(process.cwd(),"modules/cos"))
 const {createTicket, verifyTicket} = require(path.join(process.cwd(),"modules/ticketManage"));
-const { In } = require("typeorm");
+const { In, Like } = require("typeorm");
 
 module.exports.getShop = async (params ,cb) => {
   const {userId, shopId, demo} = params
@@ -92,7 +92,7 @@ module.exports.productMod = async (req ,cb) => {
 }
 
 module.exports.getProduct = async (params ,cb) => {
-  const {shopId, productId, pageSize, currPage, productType, status} = params
+  const {shopId, productId, pageSize, currPage, productType, status, searchStr} = params
   let cond = {}
   const columns = {}
   if (shopId) {
@@ -119,6 +119,9 @@ module.exports.getProduct = async (params ,cb) => {
   }
   if (pageSize > 0) {
     cond.take = pageSize
+  }
+  if (searchStr) {
+    columns['desc'] = Like(`%${searchStr}%`)
   }
   cond['columns'] = columns
   cond.only = ['id', 'desc', 'name', 'price', 'productType', 'shopId', 'url', 'type3D', 'model3D', 'modelUrl', 'status', 'fields', 'sort', 'attr']
