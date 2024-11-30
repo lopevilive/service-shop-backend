@@ -391,3 +391,20 @@ module.exports.getAttrs = async (req, cb) => {
     cb(e)
   }
 }
+
+module.exports.getAllShop = async (req, cb) => {
+  const { currPage, pageSize } = req.body
+  const cond = {
+    skip: currPage * pageSize,
+    take: pageSize,
+    order: {id: 'DESC'}
+  }
+  try {
+    const data = await dao.list('Shop', cond)
+    const ret = {list: data}
+    ret.finished = data.length === pageSize ? false: true
+    cb(null, ret)
+  } catch(e) {
+    cb(e)
+  }
+}

@@ -133,13 +133,13 @@ module.exports.execRule = async (rule, req, res, serviceName, actionName) => {
     return CODE_PERMISSION_ERR
   }
 
+  const sups = util.getConfig('superAdmin')
+  if (sups.includes(id)) return CODE_SUCC
+
   await useShop(req, shopId)
   isOwner = await useIsOwner(req)
   isAdmin = await useIsAdmin(req)
 
-  
-  const sups = util.getConfig('superAdmin')
-  if (sups.includes(id)) return CODE_SUCC
   if (rid === 2) {
     if (!phone) return CODE_PERMISSION_ERR
     if (isOwner || isAdmin) return CODE_SUCC
@@ -174,6 +174,7 @@ module.exports.rules = {
     createStaff: {rid: 3},
     verfiyStaff: {rid: 10},
     acceptStaff: {rid: 10},
+    getAllShop: {rid: 99},
   },
   userService: {
     getUserInfo: {rid: 1}
