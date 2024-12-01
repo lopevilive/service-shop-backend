@@ -115,3 +115,8 @@ module.exports.delete = async function(entityName, id) {
   await model.delete(id)
 }
 
+// 用于主动连接db
+module.exports.connect = async () => {
+  await db.getModel('Shop')
+}
+

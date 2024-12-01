@@ -20,7 +20,7 @@ class DbManage {
     ]
     this.connection = this.connectionManager.create({...this.db_config, entities: this.entities})
     this.timer = null
-    this.timeOut = 10  // 超时断开连接 单位秒
+    this.timeOut = 60 // 超时断开连接 单位秒
   }
 
   async refreshTimeOut() {
