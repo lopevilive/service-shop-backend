@@ -414,7 +414,8 @@ module.exports.getAllShop = async (req, cb) => {
 
 module.exports.activeSys = async (req, cb) => {
   try {
-    await dao.connect()
+    // await dao.connect()
+    dao.connect()
     cb(null)
   } catch(e) {
     cb(e)
