@@ -21,10 +21,7 @@ module.exports.verifyTicket = async (ticket) => {
     const rawStr = util.deEncryptAES(content, random, expiredTime)
     return { status: 0, rawStr}
   } catch(e) {
-    console.error(e)
-    return {
-      status: -1, // 无效ticket
-    }
+    throw e
   }
   
   

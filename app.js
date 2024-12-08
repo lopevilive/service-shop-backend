@@ -26,7 +26,7 @@ authorization.setAuthFn(async function(req, res, next, serviceName, actionName, 
       }
       res.sendResult(null, retCode)
     } catch(err) {
-      res.sendResult(null, CODE_UNKNOWN, err.message)
+      res.sendResult(null, CODE_UNKNOWN, err.message || err.msg || err)
     }
   } else {
     passFn(true)

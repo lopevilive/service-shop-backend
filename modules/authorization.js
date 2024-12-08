@@ -79,7 +79,7 @@ const useLogin = async (req) => {
     if (status !== 0) return false
     openid = rawStr
   } catch(e) {
-    return false
+    throw e
   }
   
   let userInfo = await dao.list('User', {columns: {openid}})
@@ -92,7 +92,16 @@ const useLogin = async (req) => {
 
 // 是否有图册信息
 const useShop = async (req, shopId) => {
-  if (!shopId) throw new Error('缺少图册信息')
+  if (!shopId) {
+    const {id} = req.userInfo
+    const sups = util.getConfig('superAdmin')
+    if (!sups.includes(id)) {
+      throw new Error('缺少图册信息')
+    } else {
+      return
+    }
+    
+  }
   let info = await dao.list('Shop', {columns: {id: shopId}})
   if (info.length !== 1) throw new Error('图册获取失败')
   req.shopInfo = info[0]
@@ -133,13 +142,13 @@ module.exports.execRule = async (rule, req, res, serviceName, actionName) => {
     return CODE_PERMISSION_ERR
   }
 
+  await useShop(req, shopId)
+
   const sups = util.getConfig('superAdmin')
   if (sups.includes(id)) return CODE_SUCC
 
-  await useShop(req, shopId)
   isOwner = await useIsOwner(req)
   isAdmin = await useIsAdmin(req)
-
   if (rid === 2) {
     if (!phone) return CODE_PERMISSION_ERR
     if (isOwner || isAdmin) return CODE_SUCC

@@ -30,9 +30,35 @@ class DbManage {
     }, this.timeOut * 1000)
   }
 
+  async connectDb() {
+    const {connection} = this
+    let retryNum = 2; // 重试次数
+    const timeO = 100; // 重试间隔，毫秒
+    const todo = async () => {
+      try {
+        await connection.connect()
+      } catch(e) {
+        if (retryNum > 0) {
+          retryNum -= 1;
+          await new Promise((resolve) => {
+            setTimeout(() => {
+              resolve()
+            }, timeO);
+          })
+          await todo()
+        } else {
+          throw e
+        }
+      }
+    }
+    await todo()
+  }
+
   async getModel(entityName) {
     const {connection} = this
-    if (!connection.isConnected) await connection.connect()
+    if (!connection.isConnected) {
+      await this.connectDb()
+    }
     this.refreshTimeOut()
     const model = connection.getRepository(entityName)
     if(!model) return new Error('模型不存在')
