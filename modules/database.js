@@ -32,8 +32,8 @@ class DbManage {
 
   async connectDb() {
     const {connection} = this
-    let retryNum = 2; // 重试次数
-    const timeO = 100; // 重试间隔，毫秒
+    let retryNum = 15; // 重试次数
+    const timeO = 500; // 重试间隔，毫秒
     const todo = async () => {
       try {
         await connection.connect()

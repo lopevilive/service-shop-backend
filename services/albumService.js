@@ -193,11 +193,11 @@ module.exports.moveTopProductType = async (params, cb) => {
   const {shopId, id} = params
   let sort = 0
   try {
-    let res = dao.list('ProductTypes', {columns: {shopId}, order: {sort: 'DESC'}, take: 1})
+    let res = await dao.list('ProductTypes', {columns: {shopId}, order: {sort: 'DESC'}, take: 1})
     if (res.length === 1) {
       sort = res[0].sort + 1
     }
-    const data = dao.update('ProductTypes', id, {sort})
+    const data = await dao.update('ProductTypes', id, {sort})
     cb(null, data)
   } catch(e) {
     cb(e)
