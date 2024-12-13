@@ -32,7 +32,7 @@ class DbManage {
 
   async connectDb() {
     const {connection} = this
-    let retryNum = 15; // 重试次数
+    let retryNum = 20; // 重试次数
     const timeO = 500; // 重试间隔，毫秒
     const todo = async () => {
       try {
