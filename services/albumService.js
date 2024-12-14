@@ -19,7 +19,7 @@ module.exports.getShop = async (params ,cb) => {
       cond.columns = {id: shopId}
     }
   }
-  cond.only = ['id', 'desc', 'url', 'name', 'area', 'address', 'phone', 'qrcodeUrl', 'business']
+  cond.only = ['id', 'desc', 'url', 'name', 'area', 'address', 'phone', 'qrcodeUrl', 'business', 'attrs', 'specCfg']
   cond.take = 100 // 限制数量
   try {
     const data = await dao.list('Shop', cond)
@@ -124,7 +124,7 @@ module.exports.getProduct = async (params ,cb) => {
     columns['desc'] = Like(`%${searchStr}%`)
   }
   cond['columns'] = columns
-  cond.only = ['id', 'desc', 'name', 'price', 'productType', 'shopId', 'url', 'type3D', 'model3D', 'modelUrl', 'status', 'fields', 'sort', 'attr']
+  cond.only = ['id', 'desc', 'name', 'price', 'productType', 'shopId', 'url', 'type3D', 'model3D', 'modelUrl', 'status', 'fields', 'sort', 'attr', 'isSpec', 'specs']
   cond.order = {sort: 'DESC', id: 'DESC'}
 
   if (!cond.take) cond.take = 100 // 限制数量
@@ -376,20 +376,6 @@ module.exports.acceptStaff = async (req, cb) => {
     // 严格来说这里应该加锁
     await dao.update('Staff', id, {userId: userInfo.id, status: 4, upd_time: util.getNowTime()})
     cb(null)
-  } catch(e) {
-    cb(e)
-  }
-}
-
-module.exports.getAttrs = async (req, cb) => {
-  const {shopId} = req.body
-  const cond = {}
-  cond.only = ['attrs'],
-  cond.columns = {id: shopId}
-  try {
-    const data = await dao.list('Shop', cond)
-    let str = data && data[0] && data[0].attrs || ''
-    cb(null, str)
   } catch(e) {
     cb(e)
   }

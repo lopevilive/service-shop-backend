@@ -291,23 +291,6 @@ router.post(
   }
 )
 
-
-router.post(
-  '/GetAttrs',
-  (req, res, next) => {
-    albumService.getAttrs(
-      req,
-      (err, data) => {
-        if (err) {
-          res.sendResult(null, CODE_UNKNOWN, err.message)
-        } else {
-          res.sendResult(data, CODE_SUCC, 'succ')
-        }
-      }
-    )(req, res, next)
-  }
-)
-
 router.post('/GetAllShop',
   async (req, res, next) => {
     albumService.getAllShop(req, (err, data) => {

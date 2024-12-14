@@ -7,6 +7,8 @@ module.exports = {
     name: {type: 'varchar'},
     url: {type: 'text'},
     price: {type: 'varchar'},
+    isSpec: {type: 'int', default: 0},// 是否多规格 0-否、1-是
+    specs: {type: 'varchar', nullable: true }, // 多规格配置
     productType: {type: 'varchar'},
     desc: {type: 'varchar'},
     type3D: {type: 'int', nullable: true}, // 0-无、1-默认、2-url
