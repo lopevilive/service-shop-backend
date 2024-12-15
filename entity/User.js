@@ -3,7 +3,7 @@ module.exports = {
   name: 'User',
   columns: {
     id: {type: 'int', generated: true, primary: true},
-    openid: {type: 'varchar', unique: true},
+    openid: {type: 'varchar', unique: true, index: true},
     unionid: {type: 'varchar', unique: true, nullable: true},
     phone: {type:'varchar', nullable: true}, // 手机号
     countryCode: {type:'varchar', nullable: true}, // 手机区号
