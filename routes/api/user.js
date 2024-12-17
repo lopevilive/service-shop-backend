@@ -65,4 +65,26 @@ router.post('/BindPhone',
   }
 )
 
+
+router.post('/VeriToken',
+  (req, res, next) => {
+    const {token} = req.body
+    if (!token) {
+      res.sendResult('null', CODE_PARAMS_ERR, '缺失 token')
+      return
+    }
+    next()
+  },
+  async(req, res, next) => {
+    userService.veriToken(req, (err, data) => {
+      if (err) {
+        res.sendResult(null, CODE_UNKNOWN, err.message)
+      } else {
+        res.sendResult(data, CODE_SUCC, 'succ')
+      }
+    })(req, res, next)
+  }
+)
+
+
 module.exports = router;

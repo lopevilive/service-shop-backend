@@ -7,7 +7,7 @@ module.exports = function(req, res, next){
 			{
 				"data" : data, 
         "code": code,
-        "msg": message
+        "msg": message || ''
 			});
 		}
 	};

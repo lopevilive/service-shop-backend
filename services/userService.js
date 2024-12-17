@@ -31,7 +31,7 @@ module.exports.login = async (req, cb) => {
     if (res.length === 0) { // 新用户,先创建
       await dao.create('User', {openid, openid, add_time: util.getNowTime()})
     }
-    const token = await ticketManage.createTicket(openid, 60 * 60 * 24 * 180)
+    const token = ticketManage.createTicket(openid, 60 * 60 * 24 * 180)
     cb(null, token)
   } catch(e) {
     cb(e)
@@ -64,7 +64,7 @@ module.exports.bindPhone = async (req, cb) => {
     const access_tokenRes = await axios.get('https://api.weixin.qq.com/cgi-bin/token', {params: {appid, secret, grant_type: 'client_credential'}})
     const {access_token, expires_in} = access_tokenRes.data
     // 校验 token
-    const {status, rawStr} = await ticketManage.verifyTicket(token)
+    const {status, rawStr} = ticketManage.verifyTicket(token)
     if (status !== 0) throw new Error('token 失效')
     const openid = rawStr
     let url = `https://api.weixin.qq.com/wxa/business/getuserphonenumber?access_token=${access_token}`
@@ -81,5 +81,18 @@ module.exports.bindPhone = async (req, cb) => {
   } catch(e) {
     console.error(e)
     cb(e)
+  }
+}
+
+module.exports.veriToken = async (req, cb) => {
+  try {
+    dao.connect() // 激活 db
+  } catch(e) {}
+  const {token} = req.body
+  const {status} = ticketManage.verifyTicket(token)
+  if (status === 0) {
+    cb(null)
+  } else {
+    cb(new Error(status))
   }
 }

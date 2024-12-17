@@ -75,7 +75,7 @@ const useLogin = async (req) => {
   if (!authorization) return false
   let openid
   try {
-    const {status, rawStr} = await ticketManage.verifyTicket(authorization)
+    const {status, rawStr} = ticketManage.verifyTicket(authorization)
     if (status !== 0) return false
     openid = rawStr
   } catch(e) {

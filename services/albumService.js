@@ -274,7 +274,7 @@ module.exports.getStaff = async (req, cb) => {
     for (const item of data) {
       const { status, ticket, id } = item
       if (status === 1) { // 需要校验是否过了有效期
-        const ticketRes = await verifyTicket(ticket)
+        const ticketRes = verifyTicket(ticket)
         if (ticketRes.status !== 0) {
           item.status = 3
           needUpdate.push(id)
@@ -295,7 +295,7 @@ module.exports.createStaff = async (req, cb) => {
   const {nickName, type} = req.body
 
   try {
-    const ticket = await createTicket('', 60 * 60) // 60 分钟内有效
+    const ticket = createTicket('createStaff', 60 * 60) // 60 分钟内有效
     const params = {
       shopId: shopInfo.id,
       nickName,
@@ -347,7 +347,7 @@ module.exports.verfiyStaff = async (req, cb) => {
     if (shopInfo.userId === userInfo.id) { // 创建者自己打开了这个链接
       return cb(null, {status: 4})
     }
-    const ticketRes = await verifyTicket(ticket)
+    const ticketRes = verifyTicket(ticket)
     if (ticketRes.status === -2) { // 过期
       return cb(null, {status: 1})
     }
@@ -393,16 +393,6 @@ module.exports.getAllShop = async (req, cb) => {
     const ret = {list: data}
     ret.finished = data.length === pageSize ? false: true
     cb(null, ret)
-  } catch(e) {
-    cb(e)
-  }
-}
-
-module.exports.activeSys = async (req, cb) => {
-  try {
-    // await dao.connect()
-    dao.connect()
-    cb(null)
   } catch(e) {
     cb(e)
   }
