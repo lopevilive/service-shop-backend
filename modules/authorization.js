@@ -170,7 +170,6 @@ module.exports.rules = {
      * shopIdKey 图册id 的字段，默认 shopId
      */
     shopCreate: {rid: 10},
-    // shopCreate: {rid: 99}, // todo
     productMod: {rid: 2},
     moveTopProduct: {rid: 2},
     productDel: {rid: 2},
@@ -184,6 +183,9 @@ module.exports.rules = {
     verfiyStaff: {rid: 10},
     acceptStaff: {rid: 10},
     getAllShop: {rid: 99},
+    getAddressList: {rid: 1},
+    addressMod: {rid: 1},
+    addressDel: {rid: 1}
   },
   userService: {
     getUserInfo: {rid: 1}

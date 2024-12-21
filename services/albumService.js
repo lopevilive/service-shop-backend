@@ -81,7 +81,7 @@ module.exports.productMod = async (req ,cb) => {
     }
   } else { // 修改
     let payload = { ...params, upd_time: util.getNowTime() }
-    delete payload.id
+    delete payload.id // 批量操作时，需要删除 id
     try {
       await dao.update('Product', id, payload)
       cb(null)
@@ -124,7 +124,7 @@ module.exports.getProduct = async (params ,cb) => {
     columns['desc'] = Like(`%${searchStr}%`)
   }
   cond['columns'] = columns
-  cond.only = ['id', 'desc', 'name', 'price', 'productType', 'shopId', 'url', 'type3D', 'model3D', 'modelUrl', 'status', 'fields', 'sort', 'attr', 'isSpec', 'specs']
+  cond.only = ['id', 'desc', 'name', 'price', 'productType', 'shopId', 'url', 'type3D', 'model3D', 'modelUrl', 'status', 'fields', 'sort', 'attr', 'isSpec', 'specs', 'upd_time']
   cond.order = {sort: 'DESC', id: 'DESC'}
 
   if (!cond.take) cond.take = 100 // 限制数量
@@ -393,6 +393,62 @@ module.exports.getAllShop = async (req, cb) => {
     const ret = {list: data}
     ret.finished = data.length === pageSize ? false: true
     cb(null, ret)
+  } catch(e) {
+    cb(e)
+  }
+}
+
+
+module.exports.getAddressList = async (req, cb) => {
+  const {userInfo: {id: userId}} = req
+  try {
+    const ret = await dao.list('Address', {
+      columns: {userId},
+      order: {isDefault: 'DESC'}
+    })
+    cb(null, ret)
+  } catch(e) {
+    cb(e)
+  }
+}
+
+module.exports.addressMod = async (req, cb) => {
+  const {userInfo: {id: userId}} = req
+  const params = {...req.body}
+  params.isDefault = params.isDefault ? 1 : 0
+  try {
+    if (params.isDefault === 1) {
+      const list = await dao.list('Address', {columns: {userId, isDefault: 1}})
+      let needResetList = []
+      for (const item of list) {
+        if (item.id === params.id) continue
+        needResetList.push(item.id)
+      }
+      if (needResetList.length) { // 把其他默认地址重置
+        await dao.update('Address', needResetList, {isDefault: 0})
+      }
+    }
+
+    if (!params.id) { // 新增
+      params.add_time = util.getNowTime()
+      params.userId = userId
+      const ret = await dao.create('Address', {...params})
+      cb(null, ret.id)
+    } else { // 编辑
+      params.upd_time = util.getNowTime()
+      await dao.update('Address', params.id, params)
+      cb(null)
+    }
+    
+  } catch(e) {
+    cb(e)
+  }
+}
+
+module.exports.addressDel = async (req, cb) => {
+  try {
+    const {id} = req.body
+    await dao.delete('Address', id)
   } catch(e) {
     cb(e)
   }

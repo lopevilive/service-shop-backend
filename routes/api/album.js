@@ -303,4 +303,42 @@ router.post('/GetAllShop',
   }
 )
 
+
+router.post('/GetAddressList',
+  async (req, res, next) => {
+    albumService.getAddressList(req, (err, data) => {
+      if (err) {
+        res.sendResult(null, CODE_UNKNOWN, err.message)
+      } else {
+        res.sendResult(data, CODE_SUCC, 'succ')
+      }
+    })(req, res, next)
+  }
+)
+
+router.post('/AddressMod',
+  async (req, res, next) => {
+    albumService.addressMod(req, (err, data) => {
+      if (err) {
+        res.sendResult(null, CODE_UNKNOWN, err.message)
+      } else {
+        res.sendResult(data, CODE_SUCC, 'succ')
+      }
+    })(req, res, next)
+  }
+)
+
+router.post('/AddressDel',
+  async (req, res, next) => {
+    albumService.addressDel(req, (err, data) => {
+      if (err) {
+        res.sendResult(null, CODE_UNKNOWN, err.message)
+      } else {
+        res.sendResult(data, CODE_SUCC, 'succ')
+      }
+    })(req, res, next)
+  }
+)
+
+
 module.exports = router;
