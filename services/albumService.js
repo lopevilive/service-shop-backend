@@ -449,6 +449,7 @@ module.exports.addressDel = async (req, cb) => {
   try {
     const {id} = req.body
     await dao.delete('Address', id)
+    cb(null)
   } catch(e) {
     cb(e)
   }
