@@ -185,7 +185,9 @@ module.exports.rules = {
     getAllShop: {rid: 99},
     getAddressList: {rid: 1},
     addressMod: {rid: 1},
-    addressDel: {rid: 1}
+    addressDel: {rid: 1},
+    createInventory: {rid: 1},
+    getInventory: {rid: 1}
   },
   userService: {
     getUserInfo: {rid: 1}

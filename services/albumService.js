@@ -454,3 +454,29 @@ module.exports.addressDel = async (req, cb) => {
     cb(e)
   }
 }
+
+module.exports.createInventory = async (req, cb) => {
+  try {
+    const {userInfo, body} = req
+    let params = {
+      userId: userInfo.id,
+      shopId: +body.shopId,
+      add_time: util.getNowTime(),
+      data: body.data
+    }
+    const ret = await dao.create('Enventory', params)
+    cb(null, ret.id)
+  } catch(e) {
+    cb(e)
+  }
+}
+
+module.exports.getInventory = async (req, cb) => {
+  const {id} = req.body
+  try {
+    const ret = await dao.list('Enventory', {columns: {id}})
+    cb(null, ret)
+  } catch(e) {
+    cb(e)
+  }
+}

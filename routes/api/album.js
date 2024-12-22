@@ -340,5 +340,29 @@ router.post('/AddressDel',
   }
 )
 
+router.post('/CreateInventory',
+  async (req, res, next) => {
+    albumService.createInventory(req, (err, data) => {
+      if (err) {
+        res.sendResult(null, CODE_UNKNOWN, err.message)
+      } else {
+        res.sendResult(data, CODE_SUCC, 'succ')
+      }
+    })(req, res, next)
+  }
+)
+
+router.post('/GetInventory',
+  async (req, res, next) => {
+    albumService.getInventory(req, (err, data) => {
+      if (err) {
+        res.sendResult(null, CODE_UNKNOWN, err.message)
+      } else {
+        res.sendResult(data, CODE_SUCC, 'succ')
+      }
+    })(req, res, next)
+  }
+)
+
 
 module.exports = router;
