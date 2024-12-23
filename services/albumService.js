@@ -5,6 +5,7 @@ const util = require(path.join(process.cwd(),"util/index"))
 const cos = require(path.join(process.cwd(),"modules/cos"))
 const {createTicket, verifyTicket} = require(path.join(process.cwd(),"modules/ticketManage"));
 const { In, Like } = require("typeorm");
+const axios = require('axios');
 
 module.exports.getShop = async (params ,cb) => {
   const {userId, shopId, demo} = params
@@ -479,4 +480,26 @@ module.exports.getInventory = async (req, cb) => {
   } catch(e) {
     cb(e)
   }
+}
+
+module.exports.getwxacodeunlimit = async (req, cb) => {
+  try {
+    const {appid, secret} = util.getConfig('appInfo');
+    const {scene} = req.body;
+
+    // 获取 access_token
+    const access_tokenRes = await axios.get('https://api.weixin.qq.com/cgi-bin/token', {params: {appid, secret, grant_type: 'client_credential'}})
+    const {access_token, expires_in} = access_tokenRes.data
+    let url = `https://api.weixin.qq.com/wxa/getwxacodeunlimit?access_token=${access_token}`
+    const {data} = await axios.post(url, { scene }, { responseType: 'arraybuffer'})
+    const base64 = data.toString('base64')
+    if (base64.length < 5000) {
+      // 不是图片
+      throw new Error('获取小程序二维码失败')
+    }
+    cb(null, base64)
+  }catch(e) {
+    cb(e)
+  }
+
 }

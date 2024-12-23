@@ -365,4 +365,19 @@ router.post('/GetInventory',
 )
 
 
+router.post('/Getwxacodeunlimit',
+  async (req, res, next) => {
+    albumService.getwxacodeunlimit(req, (err, data) => {
+      if (err) {
+        res.sendResult(null, CODE_UNKNOWN, err.message)
+      } else {
+        res.sendResult(data, CODE_SUCC, 'succ')
+        // res.send(data)
+      }
+    })(req, res, next)
+  }
+)
+
+
+
 module.exports = router;
