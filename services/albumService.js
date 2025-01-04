@@ -9,6 +9,7 @@ const axios = require('axios');
 const ExcelJS = require('exceljs/dist/es5');
 const dayjs = require('dayjs')
 const crypto = require('crypto');
+const fs = require('fs');
 
 module.exports.getShop = async (params ,cb) => {
   const {userId, shopId, demo} = params
@@ -564,9 +565,19 @@ module.exports.exportInventory = async (req, cb) => {
       cell.alignment = {vertical: 'middle'}
     })
 
-    const md5 = crypto.createHash('md5').update(`${id}`).digest('hex')
-    const fileName = path.join(process.cwd(),`tmp/报价单-${md5}.xlsx`)
+    const md5 = crypto.createHash('md5').update(`${id}-${util.getNowTime()}`).digest('hex')
+    const env = util.getConfig('env')
+    let fileName = `/tmp/报价单-${md5}.xlsx`
+    if (env === 'dev') {
+      fileName = path.join(process.cwd(),`tmp/报价单-${md5}.xlsx`)
+    }
+    
     await workbook.xlsx.writeFile(fileName)
+    setTimeout(() => {
+      fs.unlink(fileName, (err) => {
+        console.error(err)
+      })
+    }, 10000);
     cb(null, fileName)
   } catch (e) {
     cb(e)

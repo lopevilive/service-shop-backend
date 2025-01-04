@@ -371,6 +371,7 @@ router.get('/ExportInventory',
       if (err) {
         res.sendResult(null, CODE_UNKNOWN, err.message)
       } else {
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
         res.sendfile(data)
       }
     })(req, res, next)
