@@ -9,6 +9,7 @@ lerna-debug.log*
 
 config/default.json
 node_modules
+tmp/*
 .DS_Store
 dist
 dist-ssr

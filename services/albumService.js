@@ -6,6 +6,9 @@ const cos = require(path.join(process.cwd(),"modules/cos"))
 const {createTicket, verifyTicket} = require(path.join(process.cwd(),"modules/ticketManage"));
 const { In, Like } = require("typeorm");
 const axios = require('axios');
+const ExcelJS = require('exceljs/dist/es5');
+const dayjs = require('dayjs')
+const crypto = require('crypto');
 
 module.exports.getShop = async (params ,cb) => {
   const {userId, shopId, demo} = params
@@ -478,6 +481,94 @@ module.exports.getInventory = async (req, cb) => {
     const ret = await dao.list('Enventory', {columns: {id}})
     cb(null, ret)
   } catch(e) {
+    cb(e)
+  }
+}
+
+module.exports.exportInventory = async (req, cb) => {
+  const {id} = req.query
+  
+  try {
+    let info = await dao.list('Enventory', {columns: {id}})
+    info = info[0]
+    let data = JSON.parse(info.data)
+    let list = data.list
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet('报价清单', {views:[{state: 'frozen', xSplit: 0, ySplit:1}]});
+    sheet.columns = [
+      {header: '序号', key: 'idx', width: 5},
+      {header: '图片', key: 'url', width: 10},
+      {header: '产品描述', key: 'desc', width: 20},
+      {header: '规格', key: 'spec', width: 10},
+      {header: '数量', key: 'count', width: 8},
+      {header: '单价', key: 'price', width: 8},
+    ];
+    await util.loadImg(list)
+    sheet.getRow(1).height = 42.5
+    sheet.getRow(1).eachCell({includeEmpty: false}, (cell) => {
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: {argb: 'FFdddbb0'} }
+      cell.font = {size: 16, bold: true}
+      cell.alignment = {vertical: 'middle', horizontal: 'center'}
+    })
+    let idx = 1
+    for (const item of list) {
+      idx += 1
+      sheet.addRow({idx: idx - 1, url: '', desc: item.desc, spec: item.spec, count: item.count, price: item.price})
+      sheet.getRow(idx).height = 42.5
+      sheet.getRow(idx).eachCell({includeEmpty: false}, (cell, i) => {
+        cell.alignment = {vertical: 'middle'}
+        if (i === 1) {
+          cell.alignment = {vertical: 'middle', horizontal: 'center'}
+        }
+      })
+      if (!item.img) continue
+      const imageId = workbook.addImage({ buffer: item.img, extension: 'jpeg'});
+      sheet.addImage(imageId, { tl: { col: 1, row: idx - 1 }, ext: { width: 50, height: 50 }});
+    }
+    idx += 1
+    sheet.addRow([`总价格： ${data.totalPrice}`])
+    sheet.mergeCells(`A${idx}:F${idx}`)
+    sheet.getRow(idx).eachCell({includeEmpty: false}, (cell) => {
+      cell.alignment = {vertical: 'middle'}
+      cell.font = {size: 15, bold: true}
+    })
+
+    idx += 1
+    sheet.addRow([`总数量： ${data.totalCount}`])
+    sheet.mergeCells(`A${idx}:F${idx}`)
+    sheet.getRow(idx).eachCell({includeEmpty: false}, (cell) => {
+      cell.alignment = {vertical: 'middle'}
+      cell.font = {size: 15, bold: true}
+    })
+
+    idx += 1
+    sheet.addRow([`备注： ${data.remark}`])
+    sheet.mergeCells(`A${idx}:F${idx}`)
+    sheet.getRow(idx).eachCell({includeEmpty: false}, (cell) => {
+      cell.alignment = {vertical: 'middle'}
+      cell.font = {size: 15, bold: true}
+    })
+
+    idx += 1
+    sheet.addRow([`收货地址： ${data.address}`])
+    sheet.mergeCells(`A${idx}:F${idx}`)
+    sheet.getRow(idx).eachCell({includeEmpty: false}, (cell) => {
+      cell.alignment = {vertical: 'middle'}
+      cell.font = {size: 15, bold: true}
+    })
+
+    idx += 1
+    sheet.addRow([`创建时间： ${dayjs(info.add_time * 1000).format('YYYY/MM/DD HH:mm')}`])
+    sheet.mergeCells(`A${idx}:F${idx}`)
+    sheet.getRow(idx).eachCell({includeEmpty: false}, (cell) => {
+      cell.alignment = {vertical: 'middle'}
+    })
+
+    const md5 = crypto.createHash('md5').update(`${id}`).digest('hex')
+    const fileName = path.join(process.cwd(),`tmp/报价单-${md5}.xlsx`)
+    await workbook.xlsx.writeFile(fileName)
+    cb(null, fileName)
+  } catch (e) {
     cb(e)
   }
 }

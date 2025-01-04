@@ -365,6 +365,20 @@ router.post('/GetInventory',
 )
 
 
+router.get('/ExportInventory',
+  async (req, res, next) => {
+    albumService.exportInventory(req, (err, data) => {
+      if (err) {
+        res.sendResult(null, CODE_UNKNOWN, err.message)
+      } else {
+        res.sendfile(data)
+      }
+    })(req, res, next)
+  }
+)
+
+
+// 获取小程序码
 router.post('/Getwxacodeunlimit',
   async (req, res, next) => {
     albumService.getwxacodeunlimit(req, (err, data) => {

@@ -1,6 +1,7 @@
 const _ = require('lodash')
 const config = require('config')
 const crypto = require('crypto');
+const axios = require('axios');
 
 module.exports.getNowTime = () => {
   return Math.floor(_.now() / 1000)
@@ -38,4 +39,28 @@ module.exports.vailCount = (level, count) => {
     curr: count,
     pass: matchItem.limit > count
   }
+}
+
+module.exports.loadImg = async (list) => {
+  let reso
+  let p = new Promise((resolve) => {
+    reso = resolve
+  })
+  let num = 0
+  for (const item of list) {
+    let url = `http:${item.url}`
+    axios({
+      method: 'get', url, responseType: 'arraybuffer'
+    }).then((res) => {
+      num += 1
+      item.img = res.data
+      if (num === list.length) reso()
+    }).catch((e) => {
+      num += 1
+      item.img = ''
+      console.error(e)
+      if (num === list.length) reso()
+    })
+  }
+  return p
 }
