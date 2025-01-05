@@ -24,7 +24,7 @@ module.exports.getShop = async (params ,cb) => {
       cond.columns = {id: shopId}
     }
   }
-  cond.only = ['id', 'desc', 'url', 'name', 'area', 'address', 'phone', 'qrcodeUrl', 'business', 'attrs', 'specCfg']
+  cond.only = ['id', 'desc', 'url', 'name', 'area', 'address', 'phone', 'qrcodeUrl', 'business', 'attrs', 'specCfg', 'level']
   cond.take = 100 // 限制数量
   try {
     const data = await dao.list('Shop', cond)
@@ -53,10 +53,11 @@ module.exports.shopCreate = async (req ,cb) => {
 }
 
 module.exports.shopMod = async (req ,cb) => {
-  const params = {...req.body}
+  const params = {...req.body, upd_time: util.getNowTime()}
   const {id} = params
+  delete params.level
   try {
-    await dao.update('Shop', id, {...params, upd_time: util.getNowTime()})
+    await dao.update('Shop', id, params)
     cb(null, id)
   } catch(e) {
     cb(e)
@@ -518,7 +519,7 @@ module.exports.exportInventory = async (req, cb) => {
       sheet.getRow(idx).height = 42.5
       sheet.getRow(idx).eachCell({includeEmpty: false}, (cell, i) => {
         cell.alignment = {vertical: 'middle'}
-        if (i === 1) {
+        if ([1,5,6].includes(i)) {
           cell.alignment = {vertical: 'middle', horizontal: 'center'}
         }
       })
