@@ -170,6 +170,7 @@ module.exports.rules = {
      * shopIdKey 图册id 的字段，默认 shopId
      */
     shopCreate: {rid: 10},
+    updateLevel: {rid: 99},
     productMod: {rid: 2},
     moveTopProduct: {rid: 2},
     productDel: {rid: 2},

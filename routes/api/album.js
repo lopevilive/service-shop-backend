@@ -46,6 +46,20 @@ router.post('/ShopMod',
   }
 )
 
+
+router.post('/UpdateLevel',
+  async (req, res, next) => {
+    albumService.updateLevel(req,
+      (err, data) => {
+        if (err) {
+          res.sendResult(null, CODE_UNKNOWN, err.message)
+        } else {
+          res.sendResult(data, CODE_SUCC, 'succ')
+        }
+      })(req,res, next)
+  }
+)
+
 router.post('/ProductMod',
   async (req, res, next) => {
     albumService.productMod(req,

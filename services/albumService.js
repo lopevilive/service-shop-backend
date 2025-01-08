@@ -64,6 +64,17 @@ module.exports.shopMod = async (req ,cb) => {
   }
 }
 
+module.exports.updateLevel = async (req, cb) => {
+  const params = req.body
+  const {shopId, level, expiredTime} = params
+  try {
+    await dao.update('Shop', shopId, {level, expiredTime})
+    cb(null)
+  } catch(e) {
+    cb(e)
+  }
+}
+
 module.exports.productMod = async (req ,cb) => {
   const {shopInfo: {level}} = req
   const params = req.body
