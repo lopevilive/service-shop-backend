@@ -10,7 +10,7 @@ module.exports = {
     isSpec: {type: 'int', default: 0},// 是否多规格 0-否、1-是
     specs: {type: 'varchar', nullable: true }, // 多规格配置
     productType: {type: 'varchar'},
-    desc: {type: 'varchar'},
+    desc: {type: 'varchar', length: 800},
     type3D: {type: 'int', nullable: true}, // 0-无、1-默认、2-url
     model3D: {type: 'int', nullable: true}, // 1-衣柜、2-地板、3-瓷砖
     modelUrl: {type: 'varchar'},
