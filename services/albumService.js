@@ -594,7 +594,7 @@ module.exports.getwxacodeunlimit = async (req, cb) => {
     const access_tokenRes = await axios.get('https://api.weixin.qq.com/cgi-bin/token', {params: {appid, secret, grant_type: 'client_credential'}})
     const {access_token, expires_in} = access_tokenRes.data
     let url = `https://api.weixin.qq.com/wxa/getwxacodeunlimit?access_token=${access_token}`
-    const {data} = await axios.post(url, { scene }, { responseType: 'arraybuffer'})
+    const {data} = await axios.post(url, { scene, is_hyaline: true }, { responseType: 'arraybuffer'})
     const base64 = data.toString('base64')
     if (base64.length < 5000) {
       // 不是图片
