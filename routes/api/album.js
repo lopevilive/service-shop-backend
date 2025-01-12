@@ -408,5 +408,19 @@ router.post('/Getwxacodeunlimit',
 )
 
 
+// 封禁画册
+router.post('/BanAlbum',
+  async (req, res, next) => {
+    albumService.banAlbum(req, (err, data) => {
+      if (err) {
+        res.sendResult(null, CODE_UNKNOWN, err.message)
+      } else {
+        res.sendResult(data, CODE_SUCC, 'succ')
+      }
+    })(req, res, next)
+  }
+)
+
+
 
 module.exports = router;

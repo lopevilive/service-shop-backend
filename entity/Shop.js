@@ -15,6 +15,7 @@ module.exports = {
     specCfg: {type: 'varchar', nullable: true}, // 配置的规格历史
     level: {type: 'int',default: 0}, // 等级
     expiredTime: {type: 'int',default: 0}, // 过期时间
+    status: {type: 'int',default: 0}, // 0-正常、1-封禁状态
     business: {type: 'int', nullable: true},
     add_time: {type: 'int', nullable: true},
     upd_time: {type: 'int', nullable: true},

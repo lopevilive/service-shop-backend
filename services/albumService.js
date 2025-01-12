@@ -24,7 +24,7 @@ module.exports.getShop = async (params ,cb) => {
       cond.columns = {id: shopId}
     }
   }
-  cond.only = ['id', 'desc', 'url', 'name', 'area', 'address', 'phone', 'qrcodeUrl', 'business', 'attrs', 'specCfg', 'level']
+  cond.only = ['id', 'desc', 'url', 'name', 'area', 'address', 'phone', 'qrcodeUrl', 'business', 'attrs', 'specCfg', 'level', 'status']
   cond.take = 100 // 限制数量
   try {
     const data = await dao.list('Shop', cond)
@@ -56,6 +56,7 @@ module.exports.shopMod = async (req ,cb) => {
   const params = {...req.body, upd_time: util.getNowTime()}
   const {id} = params
   delete params.level
+  delete params.status
   try {
     await dao.update('Shop', id, params)
     cb(null, id)
@@ -312,7 +313,7 @@ module.exports.createStaff = async (req, cb) => {
   const {nickName, type} = req.body
 
   try {
-    const ticket = createTicket('createStaff', 60 * 60) // 60 分钟内有效
+    const ticket = createTicket('createStaff', 60 * 60 * 4) //4小时内有效
     const params = {
       shopId: shopInfo.id,
       nickName,
@@ -615,5 +616,14 @@ module.exports.getwxacodeunlimit = async (req, cb) => {
   }catch(e) {
     cb(e)
   }
+}
 
+module.exports.banAlbum = async (req, cb) => {
+  try {
+    const {shopId} = req.body
+    await dao.update('Shop', shopId, {status: 1, upd_time: util.getNowTime()})
+    cb(null)
+  } catch(e) {
+    cb(e)
+  }
 }
