@@ -109,7 +109,8 @@ module.exports.productMod = async (req ,cb) => {
   }
 }
 
-module.exports.getProduct = async (params ,cb) => {
+module.exports.getProduct = async (req ,cb) => {
+  const params = req.body
   const {shopId, productId, pageSize, currPage, productType, status, searchStr} = params
   let cond = {}
   const columns = {}
@@ -147,8 +148,20 @@ module.exports.getProduct = async (params ,cb) => {
 
   if (!cond.take) cond.take = 100 // 限制数量
   try {
+    let shopInfo = await dao.list('Shop', {columns: {id: shopId}})
+    shopInfo = shopInfo[0]
+    let total = 0
+    let limit = 0
+    // if ([1,2,3].includes(shopInfo.level)) {
+    const countRes = await dao.count('Product', {shopId})
+    if (countRes && countRes[0] && countRes[0].total) {
+      total = Number(countRes[0].total)
+    }
+    let vailRes = util.vailCount(shopInfo.level, total)
+    limit = vailRes.limit
+    // }
     const data = await dao.list('Product', cond)
-    const ret = {list: data}
+    const ret = {list: data, total, limit}
     ret.finished = data.length === pageSize ? false: true
     cb(null, ret)
   } catch(e) {

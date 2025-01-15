@@ -130,7 +130,7 @@ router.post('/GetProduct',
     next()
   },
   async (req, res, next) => {
-    albumService.getProduct(req.body, (err, data) => {
+    albumService.getProduct(req, (err, data) => {
       if (err) {
         res.sendResult(null, CODE_UNKNOWN, err.message)
       } else {
