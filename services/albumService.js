@@ -24,7 +24,7 @@ module.exports.getShop = async (params ,cb) => {
       cond.columns = {id: shopId}
     }
   }
-  cond.only = ['id', 'desc', 'url', 'name', 'area', 'address', 'phone', 'qrcodeUrl', 'business', 'attrs', 'specCfg', 'level', 'status']
+  cond.only = ['id', 'desc', 'url', 'name', 'area', 'address', 'phone', 'qrcodeUrl', 'business', 'attrs', 'specCfg', 'level', 'status', 'encry']
   cond.take = 100 // 限制数量
   try {
     const data = await dao.list('Shop', cond)
@@ -57,6 +57,7 @@ module.exports.shopMod = async (req ,cb) => {
   const {id} = params
   delete params.level
   delete params.status
+  delete params.encry
   try {
     await dao.update('Shop', id, params)
     cb(null, id)
@@ -636,6 +637,73 @@ module.exports.banAlbum = async (req, cb) => {
     const {shopId} = req.body
     await dao.update('Shop', shopId, {status: 1, upd_time: util.getNowTime()})
     cb(null)
+  } catch(e) {
+    cb(e)
+  }
+}
+
+function rand(min, max) {
+  return Math.floor(Math.random() * (max - min)) + min;
+}
+
+module.exports.encryAlbum = async (req, cb) => {
+  try {
+    const {shopId, encry} = req.body
+    let payload = { encry }
+    let encryCode = 0
+    if (encry === 1) {
+      let shopInfo = await dao.list('Shop', {columns: {id: shopId}})
+      shopInfo = shopInfo[0]
+      encryCode = shopInfo.encryCode
+      if (encryCode === 0) {
+        encryCode = rand(1000, 9999)
+        payload.encryCode = encryCode
+      }
+    }
+    await dao.update('Shop', shopId, payload)
+    cb(null, encryCode)
+  } catch(e) {
+    cb(e)
+  }
+}
+
+module.exports.getEncryCode = async (req, cb) => {
+  try {
+    const {shopId} = req.body
+    let shopInfo = await dao.list('Shop', {columns: {id: shopId}})
+    shopInfo = shopInfo[0]
+    cb(null, shopInfo.encryCode)
+  } catch(e) {
+    cb(e)
+  }
+}
+
+module.exports.updateEncryCode = async (req, cb) => {
+  try {
+    const {shopId} = req.body
+    let encryCode = rand(1000, 9999)
+    await dao.update('Shop', shopId, {encryCode})
+    cb(null, encryCode)
+  } catch(e) {
+
+  }
+}
+
+module.exports.valiEncryCode = async (req, cb) => {
+  const { shopId, passStr } = req.body
+  if (!shopId) {
+    cb(new Error('缺少参数'))
+    return
+  }
+  try {
+    let shopInfo = await dao.list('Shop', {columns: {id: shopId}})
+    shopInfo = shopInfo[0]
+    let encryCode = shopInfo.encryCode
+    if (String(encryCode) === String(passStr)) {
+      cb(null, true)
+    } else {
+      cb(null, false)
+    }
   } catch(e) {
     cb(e)
   }

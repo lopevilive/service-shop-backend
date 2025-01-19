@@ -421,6 +421,56 @@ router.post('/BanAlbum',
   }
 )
 
+// 画册加/解密
+router.post('/EncryAlbum',
+  async (req, res, next) => {
+    albumService.encryAlbum(req, (err, data) => {
+      if (err) {
+        res.sendResult(null, CODE_UNKNOWN, err.message)
+      } else {
+        res.sendResult(data, CODE_SUCC, 'succ')
+      }
+    })(req, res, next)
+  }
+)
+
+router.post('/GetEncryCode',
+  async (req, res, next) => {
+    albumService.getEncryCode(req, (err, data) => {
+      if (err) {
+        res.sendResult(null, CODE_UNKNOWN, err.message)
+      } else {
+        res.sendResult(data, CODE_SUCC, 'succ')
+      }
+    })(req, res, next)
+  }
+)
+
+router.post('/UpdateEncryCode',
+  async (req, res, next) => {
+    albumService.updateEncryCode(req, (err, data) => {
+      if (err) {
+        res.sendResult(null, CODE_UNKNOWN, err.message)
+      } else {
+        res.sendResult(data, CODE_SUCC, 'succ')
+      }
+    })(req, res, next)
+  }
+)
+
+router.post('/ValiEncryCode',
+  async (req, res, next) => {
+    albumService.valiEncryCode(req, (err, data) => {
+      if (err) {
+        res.sendResult(null, CODE_UNKNOWN, err.message)
+      } else {
+        res.sendResult(data, CODE_SUCC, 'succ')
+      }
+    })(req, res, next)
+  }
+)
+
+
 
 
 module.exports = router;

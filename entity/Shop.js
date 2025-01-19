@@ -16,6 +16,8 @@ module.exports = {
     level: {type: 'int',default: 0}, // 等级
     expiredTime: {type: 'int',default: 0}, // 过期时间
     status: {type: 'int',default: 0}, // 0-正常、1-封禁状态
+    encry: {type: 'int',default: 0}, // 0-正常、1-加密
+    encryCode: {type: 'int',default: 0}, // 加密密码
     business: {type: 'int', nullable: true},
     add_time: {type: 'int', nullable: true},
     upd_time: {type: 'int', nullable: true},

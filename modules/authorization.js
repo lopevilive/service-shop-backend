@@ -189,7 +189,10 @@ module.exports.rules = {
     addressDel: {rid: 1},
     createInventory: {rid: 1},
     getInventory: {rid: 1},
-    banAlbum: {rid: 99}
+    banAlbum: {rid: 99},
+    encryAlbum: {rid: 2},
+    getEncryCode: {rid: 2},
+    updateEncryCode: {rid: 2}
   },
   userService: {
     getUserInfo: {rid: 1}
