@@ -494,7 +494,8 @@ module.exports.createInventory = async (req, cb) => {
       userId: userInfo.id,
       shopId: +body.shopId,
       add_time: util.getNowTime(),
-      data: body.data
+      data: body.data,
+      type: body.type
     }
     const ret = await dao.create('Enventory', params)
     cb(null, ret.id)
@@ -505,6 +506,10 @@ module.exports.createInventory = async (req, cb) => {
 
 module.exports.getInventory = async (req, cb) => {
   const {id} = req.body
+  if (!id) {
+    cb(new Error('参数有误'))
+    return
+  }
   try {
     const ret = await dao.list('Enventory', {columns: {id}})
     cb(null, ret)
@@ -515,7 +520,10 @@ module.exports.getInventory = async (req, cb) => {
 
 module.exports.exportInventory = async (req, cb) => {
   const {id} = req.query
-  
+  if (!id) {
+    cb(new Error('参数有误'))
+    return
+  }
   try {
     let info = await dao.list('Enventory', {columns: {id}})
     info = info[0]
