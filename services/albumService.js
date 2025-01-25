@@ -78,9 +78,14 @@ module.exports.updateLevel = async (req, cb) => {
 }
 
 module.exports.productMod = async (req ,cb) => {
-  const {shopInfo: {level}} = req
+  const {shopInfo: {level, status}} = req
   const params = req.body
   const { id, shopId } = params
+
+  if (status === 1) {
+    cb(new Error('未知错误，请重启小程序'))
+    return
+  }
 
   if (id === 0) { // 创建
     try {
