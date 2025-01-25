@@ -129,7 +129,7 @@ module.exports.getProduct = async (req ,cb) => {
     columns['productType'] = productType
   }
   if (productType === -1) { // 取未分类的产品
-    columns['productType'] = 0
+    columns['productType'] = ''
   }
   if ([0,1].includes(status)) {
     columns['status'] = status
@@ -151,18 +151,27 @@ module.exports.getProduct = async (req ,cb) => {
   try {
     let total = 0
     let limit = 0
+    let unCateNum = 0;
+    let downNum = 0;
     if (shopId) {
       let shopInfo = await dao.list('Shop', {columns: {id: shopId}})
       shopInfo = shopInfo[0]
-      const countRes = await dao.count('Product', {shopId})
-      if (countRes && countRes[0] && countRes[0].total) {
-        total = Number(countRes[0].total)
+      const countRes = await dao.count('Product', {shopId}, 'productType')
+      for (const item of countRes) {
+        total += Number(item.total)
+        if (!item.productType) {
+          unCateNum += Number(item.total)
+        }
+      }
+      const downNumRes = await dao.count('Product', {shopId, status: 1})
+      if (downNumRes && downNumRes[0] && downNumRes[0].total) {
+        downNum = Number(downNumRes[0].total)
       }
       let vailRes = util.vailCount(shopInfo.level, total)
       limit = vailRes.limit
     }
     const data = await dao.list('Product', cond)
-    const ret = {list: data, total, limit}
+    const ret = {list: data, total, limit, unCateNum, downNum}
     ret.finished = data.length === pageSize ? false: true
     cb(null, ret)
   } catch(e) {

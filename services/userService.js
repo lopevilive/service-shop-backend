@@ -85,11 +85,36 @@ module.exports.bindPhone = async (req, cb) => {
 }
 
 module.exports.veriToken = async (req, cb) => {
+  let resolve = null;
+  let done = false
+  let p = new Promise((a) => {
+    resolve = a
+  })
+
+  const initDb = async () => {
+    await dao.connect() // 激活 db
+    if (!done) {
+      done = true
+      resolve()
+    }
+  }
+  const maxTime = () => {
+    setTimeout(() => {
+      if (!done) {
+        done = true
+        resolve()
+      }
+    }, 3000);
+  }
+
+  initDb()
+  maxTime()
+
   try {
-    dao.connect() // 激活 db
+    await p
   } catch(e) {}
   const {token} = req.body
-  const {status} = ticketManage.verifyTicket(token)
+  const {status} = ticketManage.verifyTicket(token, 60 * 60 * 24 * 1) // 提前 1 天刷新token
   if (status === 0) {
     cb(null)
   } else {

@@ -12,13 +12,17 @@ module.exports.createTicket = (str, expired) => {
   return ticket
 }
 
-module.exports.verifyTicket = (ticket) => {
+/**
+ * 
+ * advanceExpire 提前过期。单位秒
+ */
+module.exports.verifyTicket = (ticket, advanceExpire = 0) => {
   try {
     const res = util.deEncryptAES(ticket)
     let [rawStr, expiredTime] = res.split('/')
     expiredTime = +expiredTime
     if (Number.isNaN(expiredTime)) throw new Error('token 非法')
-    if (util.getNowTime() >= expiredTime) {
+    if ((util.getNowTime() + advanceExpire) >= expiredTime) {
       return {status: -2, err: new Error('已过期')}
     }
     return {status: 0, rawStr}
