@@ -156,7 +156,7 @@ module.exports.getProduct = async (req ,cb) => {
     if (shopId) {
       let shopInfo = await dao.list('Shop', {columns: {id: shopId}})
       shopInfo = shopInfo[0]
-      const countRes = await dao.count('Product', {shopId}, 'productType')
+      const countRes = await dao.count('Product', {shopId, status: 0}, 'productType')
       for (const item of countRes) {
         total += Number(item.total)
         if (!item.productType) {
@@ -165,7 +165,8 @@ module.exports.getProduct = async (req ,cb) => {
       }
       const downNumRes = await dao.count('Product', {shopId, status: 1})
       if (downNumRes && downNumRes[0] && downNumRes[0].total) {
-        downNum = Number(downNumRes[0].total)
+        downNum = Number(downNumRes[0].total);
+        total += downNum;
       }
       let vailRes = util.vailCount(shopInfo.level, total)
       limit = vailRes.limit
