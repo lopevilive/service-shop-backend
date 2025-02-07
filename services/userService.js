@@ -104,7 +104,7 @@ module.exports.veriToken = async (req, cb) => {
         done = true
         resolve()
       }
-    }, 3000);
+    }, 1500);
   }
 
   initDb()

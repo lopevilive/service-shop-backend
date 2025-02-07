@@ -192,7 +192,8 @@ module.exports.rules = {
     banAlbum: {rid: 99},
     encryAlbum: {rid: 2},
     getEncryCode: {rid: 2},
-    updateEncryCode: {rid: 2}
+    updateEncryCode: {rid: 2},
+    createFeedback: {rid: 2}
   },
   userService: {
     getUserInfo: {rid: 1}

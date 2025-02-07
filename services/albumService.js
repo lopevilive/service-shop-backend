@@ -731,3 +731,18 @@ module.exports.valiEncryCode = async (req, cb) => {
     cb(e)
   }
 }
+
+module.exports.createFeedback = async (req, cb) => {
+  const { userInfo: {id}, body } = req
+  const params = {
+    ...body,
+    userId: id,
+    add_time: util.getNowTime()
+  }
+  try {
+    const ret = await dao.create('Feedback', params)
+    cb(null, ret.id)
+  } catch(e) {
+    cb(e)
+  }
+}
