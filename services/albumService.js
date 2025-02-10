@@ -520,13 +520,24 @@ module.exports.createInventory = async (req, cb) => {
 }
 
 module.exports.getInventory = async (req, cb) => {
-  const {id} = req.body
-  if (!id) {
+  const {id, userId, shopId, limit} = req.body
+  const columns = {type: 0}
+  if (id) {
+    columns.id =  id
+  }
+  if (userId) {
+    columns.userId = userId
+  }
+  if (shopId) {
+    columns.shopId = shopId
+  }
+  if (!id && !userId) {
     cb(new Error('参数有误'))
     return
   }
+  const take = limit ? limit : 5
   try {
-    const ret = await dao.list('Enventory', {columns: {id}})
+    const ret = await dao.list('Enventory', {columns, take, order: {id: 'DESC'}})
     cb(null, ret)
   } catch(e) {
     cb(e)
