@@ -18,6 +18,7 @@ module.exports = {
     status: {type: 'int',default: 0}, // 0-正常、1-封禁状态
     encry: {type: 'int',default: 0}, // 0-正常、1-加密
     encryCode: {type: 'int',default: 0}, // 加密密码
+    waterMark: {type: 'int', default: 0}, // 是否开启水印 0-不开启、1-开启
     business: {type: 'int', nullable: true},
     add_time: {type: 'int', nullable: true},
     upd_time: {type: 'int', nullable: true},

@@ -482,6 +482,43 @@ router.post('/CreateFeedback',
   }
 )
 
+router.post('/ModWaterMark',
+  async (req, res, next) => {
+    albumService.modWaterMark(req, (err, data) => {
+      if (err) {
+        res.sendResult(null, CODE_UNKNOWN, err.message)
+      } else {
+        res.sendResult(data, CODE_SUCC, 'succ')
+      }
+    })(req, res, next)
+  }
+)
+
+router.post('/GetWatermarkCfg',
+  async (req, res, next) => {
+    albumService.getWatermarkCfg(req, (err, data) => {
+      if (err) {
+        res.sendResult(null, CODE_UNKNOWN, err.message)
+      } else {
+        res.sendResult(data, CODE_SUCC, 'succ')
+      }
+    })(req, res, next)
+  }
+)
+
+router.post('/SaveWatermarkCfg',
+  async (req, res, next) => {
+    albumService.saveWatermarkCfg(req, (err, data) => {
+      if (err) {
+        res.sendResult(null, CODE_UNKNOWN, err.message)
+      } else {
+        res.sendResult(data, CODE_SUCC, 'succ')
+      }
+    })(req, res, next)
+  }
+)
+
+
 
 
 

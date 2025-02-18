@@ -12,7 +12,7 @@ const crypto = require('crypto');
 const fs = require('fs');
 
 module.exports.getShop = async (params ,cb) => {
-  const {userId, shopId, demo} = params
+  const {userId, shopId} = params
   let cond = {}
   if (userId) {
     cond.columns = {userId}
@@ -24,7 +24,7 @@ module.exports.getShop = async (params ,cb) => {
       cond.columns = {id: shopId}
     }
   }
-  cond.only = ['id', 'desc', 'url', 'name', 'area', 'address', 'phone', 'qrcodeUrl', 'business', 'attrs', 'specCfg', 'level', 'status', 'encry']
+  cond.only = ['id', 'desc', 'url', 'name', 'area', 'address', 'phone', 'qrcodeUrl', 'business', 'attrs', 'specCfg', 'level', 'status', 'encry', 'waterMark']
   cond.take = 100 // 限制数量
   try {
     const data = await dao.list('Shop', cond)
@@ -58,6 +58,7 @@ module.exports.shopMod = async (req ,cb) => {
   delete params.level
   delete params.status
   delete params.encry
+  delete params.waterMark
   try {
     await dao.update('Shop', id, params)
     cb(null, id)
@@ -520,8 +521,9 @@ module.exports.createInventory = async (req, cb) => {
 }
 
 module.exports.getInventory = async (req, cb) => {
-  const {id, userId, shopId, limit} = req.body
+  const {id, userId, shopId, limit, type} = req.body
   const columns = {type: 0}
+  if (type) columns.type = type
   if (id) {
     columns.id =  id
   }
@@ -756,4 +758,52 @@ module.exports.createFeedback = async (req, cb) => {
   } catch(e) {
     cb(e)
   }
+}
+
+module.exports.modWaterMark = async (req, cb) => {
+  try {
+    const {shopId, waterMark} = req.body
+    let payload = { waterMark }
+    await dao.update('Shop', shopId, payload)
+    cb(null)
+  } catch(e) {
+    cb(e)
+  }
+}
+
+module.exports.getWatermarkCfg = async (req, cb) => {
+  try {
+    const {shopId} = req.body
+    if (!shopId) {
+      cb(new Error('缺少参数'))
+      return
+    }
+    let ret = await dao.list('WatermarkCfg', {columns: {shopId}})
+    cb(null, ret)
+  } catch(e) {
+    cb(e)
+  }
+}
+
+module.exports.saveWatermarkCfg = async (req, cb) => {
+  try {
+    const { shopId } = req.body
+    let ret = await dao.list('WatermarkCfg', {columns: {shopId}})
+    if (ret.length) { // 已存在配置
+      const id = ret[0].id
+      await dao.update('WatermarkCfg', id, {
+        ...req.body,
+        upd_time: util.getNowTime()
+      })
+    } else {
+      await dao.create('WatermarkCfg', {
+        ...req.body,
+        add_time: util.getNowTime()
+      })
+    }
+    cb(null)
+  } catch(e) {
+    cb(e)
+  }
+
 }

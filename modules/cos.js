@@ -1,6 +1,7 @@
 const STS = require('qcloud-cos-sts')
-var path = require("path");
+const path = require("path");
 const util = require(path.join(process.cwd(),"util/index"))
+const COS = require('cos-nodejs-sdk-v5');
 
 // 配置参数
 const config = {
@@ -68,3 +69,9 @@ const config = {
   })
   return res
  }
+
+module.exports.cosInstance = new COS({
+  SecretId: config.secretId, // 推荐使用环境变量获取；用户的 SecretId，建议使用子账号密钥，授权遵循最小权限指引，降低使用风险。子账号密钥获取可参考https://cloud.tencent.com/document/product/598/37140
+  SecretKey: config.secretKey, // 推荐使用环境变量获取；用户的 SecretKey，建议使用子账号密钥，授权遵循最小权限指引，降低使用风险。子账号密钥获取可参考https://cloud.tencent.com/document/product/598/37140
+});
+

@@ -193,7 +193,9 @@ module.exports.rules = {
     encryAlbum: {rid: 2},
     getEncryCode: {rid: 2},
     updateEncryCode: {rid: 2},
-    createFeedback: {rid: 2}
+    createFeedback: {rid: 2},
+    modWaterMark: {rid: 2},
+    saveWatermarkCfg: {rid: 2}
   },
   userService: {
     getUserInfo: {rid: 1}
