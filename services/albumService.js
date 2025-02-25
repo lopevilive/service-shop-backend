@@ -10,6 +10,7 @@ const ExcelJS = require('exceljs/dist/es5');
 const dayjs = require('dayjs')
 const crypto = require('crypto');
 const fs = require('fs');
+// const toolsScript = require(path.join(process.cwd(),"/services/toolsScript.js"))
 
 module.exports.getShop = async (params ,cb) => {
   const {userId, shopId} = params
