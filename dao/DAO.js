@@ -120,3 +120,8 @@ module.exports.connect = async () => {
   await db.getModel('Shop')
 }
 
+module.exports.createQueryBuilder = async (entityName) => {
+  const model = await db.getModel(entityName)
+  return model.createQueryBuilder()
+}
+

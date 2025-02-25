@@ -118,47 +118,50 @@ module.exports.productMod = async (req ,cb) => {
 
 module.exports.getProduct = async (req ,cb) => {
   const params = req.body
-  const {shopId, productId, pageSize, currPage, productType, status, searchStr} = params
-  let cond = {}
-  const columns = {}
-  if (shopId) {
-    columns['shopId'] = shopId
-  }
-  if (productId) {
-    if (Array.isArray(productId)) {
-      columns['id'] = In(productId)
-    } else {
-      columns['id'] = productId
-    }
-  }
-  if (productType) {
-    columns['productType'] = productType
-  }
-  if (productType === -1) { // 取未分类的产品
-    columns['productType'] = ''
-  }
-  if ([0,1].includes(status)) {
-    columns['status'] = status
-  }
-  if (currPage > 0) {
-    cond.skip = currPage * pageSize
-  }
-  if (pageSize > 0) {
-    cond.take = pageSize
-  }
-  if (searchStr) {
-    columns['desc'] = Like(`%${searchStr}%`)
-  }
-  cond['columns'] = columns
-  cond.only = ['id', 'desc', 'name', 'price', 'productType', 'shopId', 'url', 'type3D', 'model3D', 'modelUrl', 'status', 'fields', 'sort', 'attr', 'isSpec', 'specs', 'upd_time']
-  cond.order = {sort: 'DESC', id: 'DESC'}
+  const {
+    shopId, productId, pageSize, currPage, productType, status, searchStr, priceSort
+  } = params
 
-  if (!cond.take) cond.take = 100 // 限制数量
   try {
     let total = 0
     let limit = 0
     let unCateNum = 0;
     let downNum = 0;
+    const queryBuild = await dao.createQueryBuilder('Product')
+    queryBuild.select([
+      'Product.id', 'Product.desc', 'Product.name', 'Product.price', 'Product.productType', 'Product.shopId',
+      'Product.url', 'Product.type3D', 'Product.model3D', 'Product.modelUrl', 'Product.status', 'Product.fields',
+      'Product.sort', 'Product.attr', 'Product.isSpec', 'Product.specs', 'Product.upd_time',
+    ])
+    queryBuild.where('1 = 1')
+    if (shopId) queryBuild.andWhere('Product.shopId = :shopId', {shopId})
+    if (productId) {
+      let ids = productId
+      if (!Array.isArray(productId)) ids = [productId]
+      queryBuild.andWhere('Product.id IN (:...ids)', {ids})
+    }
+    if (productType) queryBuild.andWhere('Product.productType = :productType', {productType})
+    if (productType === -1) queryBuild.andWhere('Product.productType = :productType', {productType: ''})
+    if ([0,1].includes(status)) queryBuild.andWhere('Product.status = :status', {status})
+    if (searchStr) queryBuild.andWhere('Product.desc LIKE :searchStr', {searchStr: `%${searchStr}%`})
+    const sizeLimit = pageSize || 100;
+    queryBuild.limit(sizeLimit)
+    if (currPage > 0) queryBuild.offset(currPage * sizeLimit)
+    if (priceSort === 1) {
+      queryBuild.orderBy('CAST(Product.price AS DECIMAL(10,2))', 'ASC')
+    }
+    if (priceSort === 2) {
+      queryBuild.orderBy('CAST(Product.price AS DECIMAL(10,2))', 'DESC')
+    }
+    if ([1,2].includes(priceSort)) {
+      queryBuild.addOrderBy('Product.sort', 'DESC')
+    } else {
+      queryBuild.orderBy('Product.sort', 'DESC')
+    }
+    queryBuild.addOrderBy('Product.id', 'DESC')
+    
+    const data = await queryBuild.getMany()
+
     if (shopId) {
       let shopInfo = await dao.list('Shop', {columns: {id: shopId}})
       shopInfo = shopInfo[0]
@@ -177,9 +180,9 @@ module.exports.getProduct = async (req ,cb) => {
       let vailRes = util.vailCount(shopInfo.level, total)
       limit = vailRes.limit
     }
-    const data = await dao.list('Product', cond)
+
     const ret = {list: data, total, limit, unCateNum, downNum}
-    ret.finished = data.length === pageSize ? false: true
+    ret.finished = data.length === sizeLimit ? false: true
     cb(null, ret)
   } catch(e) {
     cb(e)
