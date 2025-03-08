@@ -25,7 +25,9 @@ module.exports.getShop = async (params ,cb) => {
       cond.columns = {id: shopId}
     }
   }
-  cond.only = ['id', 'desc', 'url', 'name', 'area', 'address', 'phone', 'qrcodeUrl', 'business', 'attrs', 'specCfg', 'level', 'status', 'encry', 'waterMark']
+  cond.only = [
+    'id', 'desc', 'url', 'name', 'area', 'address', 'phone', 'qrcodeUrl', 'business',
+    'attrs', 'specCfg', 'level', 'status', 'encry', 'waterMark', 'auditing']
   cond.take = 100 // 限制数量
   try {
     const data = await dao.list('Shop', cond)
@@ -39,6 +41,9 @@ module.exports.shopCreate = async (req ,cb) => {
   const {userInfo} = req
   const params = {...req.body}
   try {
+    if (userInfo.status === 1) { // 违规用户
+      throw new Error('请稍后重试*')
+    }
     const sups = util.getConfig('superAdmin')
     if (!sups.includes(userInfo.id)) {
       const res = await dao.list('Shop', {columns: {userId: userInfo.id}})
@@ -85,7 +90,7 @@ module.exports.productMod = async (req ,cb) => {
   const { id, shopId } = params
 
   if (status === 1) {
-    cb(new Error('未知错误，请重启小程序'))
+    cb(new Error('未知错误，请重启小程序*'))
     return
   }
 
@@ -305,6 +310,10 @@ module.exports.productTypesDel = async (params, cb) => {
 
 module.exports.getCosTempKeys = async (req, cb) => {
   try {
+    const { userInfo: {status} } = req
+    if (status === 1) { // 违规用户
+      throw new Error('请稍后重试*')
+    }
     const data = await cos.getTempKeys()
     cb(null, data)
   } catch(e) {
@@ -672,18 +681,15 @@ module.exports.getwxacodeunlimit = async (req, cb) => {
   }
 }
 
-module.exports.banAlbum = async (req, cb) => {
+module.exports.modShopStatus = async (req, cb) => {
   try {
-    const {shopId} = req.body
-    await dao.update('Shop', shopId, {status: 1, upd_time: util.getNowTime()})
+    const {shopId, status, auditing} = req.body
+    const payload = {status, auditing, upd_time: util.getNowTime()}
+    await dao.update('Shop', shopId, payload)
     cb(null)
   } catch(e) {
     cb(e)
   }
-}
-
-function rand(min, max) {
-  return Math.floor(Math.random() * (max - min)) + min;
 }
 
 module.exports.encryAlbum = async (req, cb) => {
@@ -696,7 +702,7 @@ module.exports.encryAlbum = async (req, cb) => {
       shopInfo = shopInfo[0]
       encryCode = shopInfo.encryCode
       if (encryCode === 0) {
-        encryCode = rand(1000, 9999)
+        encryCode = util.rand(1000, 9999)
         payload.encryCode = encryCode
       }
     }
@@ -721,7 +727,7 @@ module.exports.getEncryCode = async (req, cb) => {
 module.exports.updateEncryCode = async (req, cb) => {
   try {
     const {shopId} = req.body
-    let encryCode = rand(1000, 9999)
+    let encryCode = util.rand(1000, 9999)
     await dao.update('Shop', shopId, {encryCode})
     cb(null, encryCode)
   } catch(e) {
@@ -809,5 +815,22 @@ module.exports.saveWatermarkCfg = async (req, cb) => {
   } catch(e) {
     cb(e)
   }
+}
 
+module.exports.auditingImg = async (req, cb) => {
+  const {fileName, shopId} = req.body
+  const { userInfo: {id: userId} } = req
+  try {
+    const needAud = await util.isNeedAudImg(shopId)
+    if (needAud === false) { // 无需审核
+      cb(null, 0)
+      return
+    }
+
+    const audRes = await cos.getImageAuditing(fileName)
+    const ret = await util.handleAudRes(audRes, shopId, userId)
+    cb(null, ret)
+  } catch(e) {
+    cb(e)
+  }
 }

@@ -6,10 +6,15 @@ const axios = require('axios');
 
 
 const getAppInfo = async (code) => {
-  const {appid, secret} = util.getConfig('appInfo')
-  const reqPayload = {appid, secret, js_code: code, grant_type: 'authorization_code'}
-  const {data} = await axios.get('https://api.weixin.qq.com/sns/jscode2session', {params: reqPayload})
-  return data
+  try {
+    const {appid, secret} = util.getConfig('appInfo')
+    const reqPayload = {appid, secret, js_code: code, grant_type: 'authorization_code'}
+    const {data} = await axios.get('https://api.weixin.qq.com/sns/jscode2session', {params: reqPayload})
+    return data
+  } catch(e) {
+    console.log(`jscode2sessionErr:${e.message || e.msg}`)
+    throw e
+  }
   // return {
   //   session_key: '123', // 会话密钥
   //   unionid: '', // 未绑定公众平台，不返回

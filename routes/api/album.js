@@ -408,10 +408,10 @@ router.post('/Getwxacodeunlimit',
 )
 
 
-// 封禁画册
-router.post('/BanAlbum',
+// 修改画册状态
+router.post('/ModShopStatus',
   async (req, res, next) => {
-    albumService.banAlbum(req, (err, data) => {
+    albumService.modShopStatus(req, (err, data) => {
       if (err) {
         res.sendResult(null, CODE_UNKNOWN, err.message)
       } else {
@@ -509,6 +509,18 @@ router.post('/GetWatermarkCfg',
 router.post('/SaveWatermarkCfg',
   async (req, res, next) => {
     albumService.saveWatermarkCfg(req, (err, data) => {
+      if (err) {
+        res.sendResult(null, CODE_UNKNOWN, err.message)
+      } else {
+        res.sendResult(data, CODE_SUCC, 'succ')
+      }
+    })(req, res, next)
+  }
+)
+
+router.post('/AuditingImg',
+  async (req, res, next) => {
+    albumService.auditingImg(req, (err, data) => {
       if (err) {
         res.sendResult(null, CODE_UNKNOWN, err.message)
       } else {

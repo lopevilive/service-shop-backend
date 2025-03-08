@@ -9,7 +9,7 @@ const config = {
   secretKey: util.getConfig("secretKey"), // 固定密钥
   proxy: '',
   durationSeconds: 7200,
-  host: 'xiaoguo.afxa.cn', // 域名，非必须，默认为 sts.tencentcloudapi.com
+  host: 'xiaoguo.mkeg.cn', // 域名，非必须，默认为 sts.tencentcloudapi.com
   // endpoint: 'sts.tencentcloudapi.com', // 域名，非必须，与host二选一，默认为 sts.tencentcloudapi.com
 
   // 放行判断相关参数
@@ -75,3 +75,34 @@ module.exports.cosInstance = new COS({
   SecretKey: config.secretKey, // 推荐使用环境变量获取；用户的 SecretKey，建议使用子账号密钥，授权遵循最小权限指引，降低使用风险。子账号密钥获取可参考https://cloud.tencent.com/document/product/598/37140
 });
 
+
+module.exports.getImageAuditing = async (fileName) => {
+  let resolve;
+  let reject;
+  const p = new Promise((a, b) => {
+    resolve = a
+    reject = b
+  })
+  
+  this.cosInstance.request({
+    Bucket: config.bucket,
+    Region: config.region,
+    Method: 'GET',
+    Key: fileName,
+    Query: {
+      'ci-process': 'sensitive-content-recognition', // 固定值，必须
+      'biz-type': 'd0a0f625e85011efa07c525400b75156', // 审核类型，非必须
+      'interval': 5, // 审核 GIF 动图时，每隔 interval 帧截取一帧，非必须
+      'max-frames': 5,  // 审核 GIF 动图时，最大截帧数，非必须
+      'large-image-detect': 1, // 是否需要压缩图片后再审核，非必须
+    }
+  }, (err, data) => {
+    if (err) {
+      reject(err)
+    } else {
+      resolve(data)
+    }
+  })
+
+  return p
+}

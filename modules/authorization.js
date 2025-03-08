@@ -189,13 +189,14 @@ module.exports.rules = {
     addressDel: {rid: 1},
     createInventory: {rid: 1},
     getInventory: {rid: 1},
-    banAlbum: {rid: 99},
+    modShopStatus: {rid: 99},
     encryAlbum: {rid: 2},
     getEncryCode: {rid: 2},
     updateEncryCode: {rid: 2},
     createFeedback: {rid: 2},
     modWaterMark: {rid: 2},
-    saveWatermarkCfg: {rid: 2}
+    saveWatermarkCfg: {rid: 2},
+    auditingImg: {rid: 10}
   },
   userService: {
     getUserInfo: {rid: 1}

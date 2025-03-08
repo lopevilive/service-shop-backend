@@ -16,6 +16,7 @@ module.exports = {
     level: {type: 'int',default: 0}, // 等级
     expiredTime: {type: 'int',default: 0}, // 过期时间
     status: {type: 'int',default: 0}, // 0-正常、1-封禁状态
+    auditing: {type: 'int',default: 0}, // 图片审核策略 0-默认、1-概率审核、2-持续审核、99-永久放过
     encry: {type: 'int',default: 0}, // 0-正常、1-加密
     encryCode: {type: 'int',default: 0}, // 加密密码
     waterMark: {type: 'int', default: 0}, // 是否开启水印 0-不开启、1-开启
