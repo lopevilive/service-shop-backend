@@ -130,3 +130,8 @@ module.exports.handleAudRes = async (audRes, shopId, userId) => {
 
   return 0
 }
+
+// 判断是否数字
+module.exports.isIntegerString = (str) => {
+  return /^[+-]?\d+$/.test(str);
+}

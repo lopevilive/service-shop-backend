@@ -443,11 +443,23 @@ module.exports.acceptStaff = async (req, cb) => {
 }
 
 module.exports.getAllShop = async (req, cb) => {
-  const { currPage, pageSize } = req.body
+  const { currPage, pageSize, str, shopId, status, auditing } = req.body
+  const columns = {}
+  if (str) columns.name = Like(`%${str}%`)
+  if (util.isIntegerString(shopId)) {
+    columns.id = Number(shopId)
+  }
+  if (util.isIntegerString(status)) {
+    columns.status = Number(status)
+  }
+  if (util.isIntegerString(auditing))  {
+    columns.auditing = Number(auditing)
+  }
   const cond = {
     skip: currPage * pageSize,
     take: pageSize,
-    order: {id: 'DESC'}
+    order: {id: 'DESC'},
+    columns
   }
   try {
     const data = await dao.list('Shop', cond)
