@@ -94,33 +94,35 @@ module.exports.isNeedAudImg = async (shopId) => {
 
 module.exports.handleAudRes = async (audRes, shopId, userId) => {
   const dao = require(path.join(process.cwd(),"dao/DAO"));
-  let countRes = await dao.list('CusLogs', {columns: {logType: 2}})
+  let countRes = await dao.list('CusLogs', {columns: {logType: 1}})
   if (countRes.length === 0) {
-    await dao.create('CusLogs', {logType: 2, add_time: this.getNowTime(), content: '1'})
+    await dao.create('CusLogs', {logType: 1, add_time: this.getNowTime(), content: '1'})
   } else {
     const {id, content} = countRes[0]
     let count = Number(content) + 1
     await dao.update('CusLogs', id, {upd_time: this.getNowTime(), content: String(count)})
   }
   const {RecognitionResult: {PornInfo}} = audRes
+  let score = Number(PornInfo.Score)
 
-  if (Number(PornInfo.Score) >= 60) { // 记录本次审核
+  if (score >= 60) { // 记录本次审核
+    let logType = score < 80 ? 2 : 3
     await dao.create('CusLogs', {
-      logType: 1, userId,
+      logType, userId,
       add_time: this.getNowTime(),
       content: JSON.stringify(audRes),
-      shopId: shopId ? shopId : ''
+      shopId: shopId ? shopId : 0
     })
   }
 
-  if (Number(PornInfo.Score) >= 80) { // 违规了
+  if (score >= 80) { // 违规了
     await dao.update('User', userId, {status: 1}) // 用户加入黑名单
     if (shopId) {
       await dao.update('Shop', shopId, {status: 1, auditing: 2}) // 封禁画册
     }
     return 1
   }
-  if (Number(PornInfo.Score) >= 60) { // 敏感
+  if (score >= 60) { // 敏感
     if (shopId) {
       await dao.update('Shop', shopId, { auditing: 2}) // 画册持续审核
     }
