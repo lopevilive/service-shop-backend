@@ -106,7 +106,7 @@ module.exports.handleAudRes = async (audRes, shopId, userId) => {
   let score = Number(PornInfo.Score)
 
   if (score >= 60) { // 记录本次审核
-    let logType = score < 80 ? 2 : 3
+    let logType = score < 90 ? 2 : 3
     await dao.create('CusLogs', {
       logType, userId,
       add_time: this.getNowTime(),
@@ -115,7 +115,7 @@ module.exports.handleAudRes = async (audRes, shopId, userId) => {
     })
   }
 
-  if (score >= 80) { // 违规了
+  if (score >= 90) { // 违规了
     await dao.update('User', userId, {status: 1}) // 用户加入黑名单
     if (shopId) {
       await dao.update('Shop', shopId, {status: 1, auditing: 2}) // 封禁画册
