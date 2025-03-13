@@ -65,6 +65,7 @@ module.exports.shopMod = async (req ,cb) => {
   delete params.status
   delete params.encry
   delete params.waterMark
+  delete params.auditing
   try {
     await dao.update('Shop', id, params)
     cb(null, id)
