@@ -174,7 +174,7 @@ module.exports.rules = {
     productMod: {rid: 2},
     moveTopProduct: {rid: 2},
     productDel: {rid: 2},
-    moveTopProductType: {rid: 2},
+    modProdTypesSort: {rid: 2},
     productTypesMod: {rid: 2},
     productTypesDel: {rid: 2},
     getCosTempKeys: {rid: 10},

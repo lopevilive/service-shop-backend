@@ -59,13 +59,21 @@ module.exports.shopCreate = async (req ,cb) => {
 }
 
 module.exports.shopMod = async (req ,cb) => {
-  const params = {...req.body, upd_time: util.getNowTime()}
+  const params = {
+    id: req.body.id,
+    desc: req.body.desc,
+    url: req.body.url,
+    name: req.body.name,
+    area: req.body.area,
+    address: req.body.address,
+    phone: req.body.phone,
+    qrcodeUrl: req.body.qrcodeUrl,
+    business: req.body.business,
+    attrs: req.body.attrs,
+    specCfg: req.body.specCfg,
+    upd_time: util.getNowTime()
+  }
   const {id} = params
-  delete params.level
-  delete params.status
-  delete params.encry
-  delete params.waterMark
-  delete params.auditing
   try {
     await dao.update('Shop', id, params)
     cb(null, id)
@@ -147,8 +155,14 @@ module.exports.getProduct = async (req ,cb) => {
       if (!Array.isArray(productId)) ids = [productId]
       queryBuild.andWhere('Product.id IN (:...ids)', {ids})
     }
-    if (productType) queryBuild.andWhere('Product.productType = :productType', {productType})
-    if (productType === -1) queryBuild.andWhere('Product.productType = :productType', {productType: ''})
+    if (productType) {
+      if (productType === '-1') {
+        queryBuild.andWhere('Product.productType = :productType', {productType: ''})
+      } else if (productType !== '0') {
+        queryBuild.andWhere('Product.productType = :productType', {productType})
+      }
+    }
+    
     if ([0,1].includes(status)) queryBuild.andWhere('Product.status = :status', {status})
     if (searchStr) queryBuild.andWhere('Product.desc LIKE :searchStr', {searchStr: `%${searchStr}%`})
     const sizeLimit = pageSize || 100;
@@ -174,14 +188,14 @@ module.exports.getProduct = async (req ,cb) => {
       shopInfo = shopInfo[0]
       const countRes = await dao.count('Product', {shopId, status: 0}, 'productType')
       for (const item of countRes) {
-        total += Number(item.total)
+        total += Number(item.total) // 总数
         if (!item.productType) {
-          unCateNum += Number(item.total)
+          unCateNum += Number(item.total) // 未分类数量
         }
       }
       const downNumRes = await dao.count('Product', {shopId, status: 1})
       if (downNumRes && downNumRes[0] && downNumRes[0].total) {
-        downNum = Number(downNumRes[0].total);
+        downNum = Number(downNumRes[0].total); // 下架数量
         total += downNum;
       }
       let vailRes = util.vailCount(shopInfo.level, total)
@@ -236,7 +250,7 @@ module.exports.getProductTypes = async (params ,cb) => {
   const {shopId} = params
   let  cond = {columns: {shopId}}
 
-  cond.only = ['id', 'name', 'shopId']
+  cond.only = ['id', 'name', 'shopId', 'parentId']
   cond.order = {sort: 'DESC', id: 'ASC'}
   cond.take = 100 // 限制数量
   try {
@@ -247,16 +261,15 @@ module.exports.getProductTypes = async (params ,cb) => {
   }
 }
 
-module.exports.moveTopProductType = async (params, cb) => {
-  const {shopId, id} = params
-  let sort = 0
+module.exports.modProdTypesSort = async (params, cb) => {
+  const { list } = params
   try {
-    let res = await dao.list('ProductTypes', {columns: {shopId}, order: {sort: 'DESC'}, take: 1})
-    if (res.length === 1) {
-      sort = res[0].sort + 1
+    let idx = list.length
+    for (const item of list) {
+      await dao.update('ProductTypes', item.id, {sort: idx} )
+      idx -= 1;
     }
-    const data = await dao.update('ProductTypes', id, {sort})
-    cb(null, data)
+    cb(null)
   } catch(e) {
     cb(e)
   }
@@ -265,7 +278,9 @@ module.exports.moveTopProductType = async (params, cb) => {
 module.exports.productTypesMod = async (params ,cb) => {
   let {data: payload} = params
   let isMod = false
+  let parentId = null
   for (const item of payload) {
+    if (item.parentId) parentId = item.parentId
     if (item.id) { // 编辑
       isMod = true
       item['upd_time'] = util.getNowTime()
@@ -276,6 +291,13 @@ module.exports.productTypesMod = async (params ,cb) => {
   if (!isMod) { // 创建
     try {
       const data = await dao.create('ProductTypes', payload)
+      if (parentId) {
+        const list = await dao.list('Product', {columns: {productType: parentId}})
+        if (list.length) {
+          const ids = list.map((item) => item.id)
+          await dao.update('Product', ids, {productType: ''})
+        }
+      }
       cb(null, data)
     } catch(e) {
       cb(e)
@@ -294,15 +316,42 @@ module.exports.productTypesMod = async (params ,cb) => {
 module.exports.productTypesDel = async (params, cb) => {
   let {id} = params
   try {
+    let info = await dao.list('ProductTypes', {columns: {id}})
+    if (!info.length) {
+      cb(null)
+      return
+    }
+    info = info[0]
+    if (!info.parentId) { // 一级分类
+      const subTypes = await dao.list('ProductTypes', {columns: {parentId: id}})
+      if (subTypes.length) {
+        const ids = subTypes.map((item) => item.id)
+        await dao.delete('ProductTypes', ids)
+        const prodList = await dao.list('Product', {columns: {productType: Like(`%${id}-%`)}})
+        if (prodList.length) {
+          const ids = prodList.map((item) => item.id)
+          await dao.update('Product', ids, {productType: ''})
+        }
+      } else {
+        const prodList = await dao.list('Product', {columns: {productType: `${id}`}})
+        if (prodList.length) {
+          const ids = prodList.map((item) => item.id)
+          await dao.update('Product', ids, {productType: ''})
+        }
+      }
+    } else {
+      // 二级分类
+      let parent = await dao.list('ProductTypes', {columns: {id: info.parentId}})
+      if (parent.length) {
+        parent = parent[0]
+        const prodList = await dao.list('Product', {columns: {productType: `${parent.id}-${id}`}})
+        if (prodList.length) {
+          const ids = prodList.map((item) => item.id)
+          await dao.update('Product', ids, {productType: ''})
+        }
+      }
+    }
     await dao.delete('ProductTypes', id)
-    if (!Array.isArray(id)) {
-      id = [id]
-    }
-    let list = await dao.list('Product', {columns: {productType: In(id)}})
-    if (list.length) {
-      list = list.map((item) => item.id)
-      await dao.update('Product', list, {'productType': ''})
-    }
     cb(null)
   } catch(e) {
     cb(e)

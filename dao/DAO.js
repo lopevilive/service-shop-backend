@@ -1,4 +1,5 @@
 var path = require("path");
+const { In } = require("typeorm");
 
 // 获取数据库模型
 const { db } = require(path.join(process.cwd(),"modules/database"));
@@ -112,7 +113,11 @@ module.exports.count = async function(entityName,columns = {}, groupBy) {
 
 module.exports.delete = async function(entityName, id) {
   const model = await db.getModel(entityName)
-  await model.delete(id)
+  let ids = id
+  if (!Array.isArray(ids)) {
+    ids = [ids]
+  }
+  await model.delete({id: In(ids)})
 }
 
 // 用于主动连接db

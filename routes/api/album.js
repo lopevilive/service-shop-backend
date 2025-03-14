@@ -173,9 +173,9 @@ router.post('/ProductTypesMod',
   }
 )
 
-router.post('/MoveTopProductType',
+router.post('/ModProdTypesSort',
   async (req, res, next) => {
-    albumService.moveTopProductType(req.body, (err, data) => {
+    albumService.modProdTypesSort(req.body, (err, data) => {
       if (err) {
         res.sendResult(null, CODE_UNKNOWN, err.message)
       } else {
