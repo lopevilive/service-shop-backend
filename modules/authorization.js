@@ -199,7 +199,8 @@ module.exports.rules = {
     auditingImg: {rid: 10}
   },
   userService: {
-    getUserInfo: {rid: 1}
+    getUserInfo: {rid: 1},
+    setViewLogs: {rid: 1}
   }
 }
 

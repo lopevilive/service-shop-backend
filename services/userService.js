@@ -45,7 +45,7 @@ module.exports.login = async (req, cb) => {
 
 module.exports.getUserInfo = async (req, cb) => {
   try {
-    const {id: userId, phone} = req.userInfo
+    const {id: userId, phone, viewLogs} = req.userInfo
     const ret = {userId, hasPhone: false}
     const ownerList = await dao.list('Shop', {columns: {userId}})
     const adminList = await dao.list('Staff', {columns: {userId, type: 1, status: 4}})
@@ -53,6 +53,9 @@ module.exports.getUserInfo = async (req, cb) => {
     ret['adminList'] = adminList.map((item) => item.shopId)
     ret['isSup'] = util.getConfig('superAdmin').includes(userId)
     ret['demoShops'] = util.getConfig('demoShops')
+    let logs = viewLogs || '[]'
+    logs = JSON.parse(logs)
+    ret['viewLogs'] = logs
     if (phone) ret['hasPhone'] = true
     cb(null, ret)
   } catch(e) {
@@ -124,5 +127,16 @@ module.exports.veriToken = async (req, cb) => {
     cb(null)
   } else {
     cb(new Error(status))
+  }
+}
+
+module.exports.setViewLogs = async (req, cb) => {
+  const {id: userId} = req.userInfo
+  const {list} = req.body
+  try {
+    await dao.update('User', userId, {viewLogs: JSON.stringify(list)})
+    cb(null)
+  } catch(e) {
+    cb(e)
   }
 }
