@@ -292,7 +292,10 @@ module.exports.productTypesMod = async (params ,cb) => {
     try {
       const data = await dao.create('ProductTypes', payload)
       if (parentId) {
-        const list = await dao.list('Product', {columns: {productType: parentId}})
+        const queryBuild = await dao.createQueryBuilder('Product')
+        queryBuild.select(['Product.id', 'Product.productType'])
+        queryBuild.where('Product.productType = :parentId', {parentId: String(parentId)})
+        const list = await queryBuild.getMany()
         if (list.length) {
           const ids = list.map((item) => item.id)
           await dao.update('Product', ids, {productType: ''})
