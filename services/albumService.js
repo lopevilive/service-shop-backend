@@ -27,7 +27,7 @@ module.exports.getShop = async (params ,cb) => {
   }
   cond.only = [
     'id', 'desc', 'url', 'name', 'area', 'address', 'phone', 'qrcodeUrl', 'business',
-    'attrs', 'specCfg', 'level', 'status', 'encry', 'waterMark', 'auditing']
+    'attrs', 'specCfg', 'level', 'status', 'encry', 'waterMark', 'auditing', 'addressStatus']
   cond.take = 100 // 限制数量
   try {
     const data = await dao.list('Shop', cond)
@@ -132,6 +132,7 @@ module.exports.productMod = async (req ,cb) => {
 }
 
 module.exports.getProduct = async (req ,cb) => {
+  // toolsScript.modEnventory()
   const params = req.body
   const {
     shopId, productId, pageSize, currPage, productType, status, searchStr, priceSort
@@ -591,6 +592,9 @@ module.exports.createInventory = async (req, cb) => {
       data: body.data,
       type: body.type
     }
+    if (body.type === 0) {
+      params.orderId = util.createOrderId('DD', params.add_time)
+    }
     const ret = await dao.create('Enventory', params)
     cb(null, ret.id)
   } catch(e) {
@@ -616,8 +620,9 @@ module.exports.getInventory = async (req, cb) => {
     return
   }
   const take = limit ? limit : 5
+  const only = ['id', 'add_time', 'data', 'status', 'orderId']
   try {
-    const ret = await dao.list('Enventory', {columns, take, order: {id: 'DESC'}})
+    const ret = await dao.list('Enventory', {columns, only, take, order: {id: 'DESC'}})
     cb(null, ret)
   } catch(e) {
     cb(e)
@@ -895,6 +900,67 @@ module.exports.auditingImg = async (req, cb) => {
     const audRes = await cos.getImageAuditing(fileName)
     const ret = await util.handleAudRes(audRes, shopId, userId)
     cb(null, ret)
+  } catch(e) {
+    cb(e)
+  }
+}
+
+module.exports.getCusInventory = async (req, cb) => {
+  const {shopId, pageSize, currPage, status} = req.body
+  try {
+    const queryBuild = await dao.createQueryBuilder('Enventory')
+    queryBuild.select([
+      'Enventory.id', 'Enventory.add_time', 'Enventory.data', 'Enventory.status', 'Enventory.orderId'
+    ])
+    queryBuild.where('1 = 1')
+    queryBuild.andWhere('Enventory.shopId = :shopId', {shopId})
+    if (util.isIntegerString(status)) {
+      queryBuild.andWhere('Enventory.status = :status', {status})
+    }
+    queryBuild.andWhere('Enventory.type = 0')
+    const sizeLimit = pageSize || 10;
+    queryBuild.limit(sizeLimit);
+    if (currPage > 0) queryBuild.offset(currPage * sizeLimit);
+    queryBuild.orderBy('Enventory.id', 'DESC')
+    const list = await queryBuild.getMany()
+    const ret = {list}
+    ret.finished = list.length === sizeLimit ? false: true
+    cb(null, ret)
+  } catch(e) {
+    cb(e)
+  }
+}
+
+module.exports.modInventoryStatus = async (req, cb) => {
+  const { id, status, shopId, isAll } = req.body
+  try {
+    if (isAll) {
+      if (!shopId) {
+        cb(new Error('参数有误～'))
+        return
+      }
+      let queryBuild = await dao.createQueryBuilder('Enventory')
+      queryBuild = queryBuild.update('Enventory')
+      queryBuild.set({status, upd_time: util.getNowTime()})
+      queryBuild.where('Enventory.shopId = :shopId', {shopId})
+      queryBuild.andWhere('Enventory.status = 0')
+      queryBuild.andWhere('Enventory.type = 0')
+      await queryBuild.execute()
+    } else {
+      await dao.update('Enventory', id, {status, upd_time: util.getNowTime()})
+    }
+    cb(null)
+  } catch(e) {
+    cb(e)
+  }
+}
+
+module.exports.modAddressStatus = async (req, cb) => {
+  try {
+    const {shopId, addressStatus} = req.body
+    let payload = { addressStatus }
+    await dao.update('Shop', shopId, payload)
+    cb(null)
   } catch(e) {
     cb(e)
   }

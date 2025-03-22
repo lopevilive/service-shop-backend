@@ -530,6 +530,44 @@ router.post('/AuditingImg',
   }
 )
 
+router.post('/GetCusInventory',
+  async (req, res, next) => {
+    albumService.getCusInventory(req, (err, data) => {
+      if (err) {
+        res.sendResult(null, CODE_UNKNOWN, err.message)
+      } else {
+        res.sendResult(data, CODE_SUCC, 'succ')
+      }
+    })(req, res, next)
+  }
+)
+
+router.post('/ModInventoryStatus',
+  async (req, res, next) => {
+    albumService.modInventoryStatus(req, (err, data) => {
+      if (err) {
+        res.sendResult(null, CODE_UNKNOWN, err.message)
+      } else {
+        res.sendResult(data, CODE_SUCC, 'succ')
+      }
+    })(req, res, next)
+  }
+)
+
+router.post('/ModAddressStatus',
+  async (req, res, next) => {
+    albumService.modAddressStatus(req, (err, data) => {
+      if (err) {
+        res.sendResult(null, CODE_UNKNOWN, err.message)
+      } else {
+        res.sendResult(data, CODE_SUCC, 'succ')
+      }
+    })(req, res, next)
+  }
+)
+
+
+
 
 
 

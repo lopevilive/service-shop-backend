@@ -33,3 +33,11 @@ module.exports.modPrice = async () => {
   }
 
 }
+
+module.exports.modEnventory = async () => {
+  const list = await dao.list('Enventory', {columns: {type: 0, }})
+  for (const item of list) {
+    const orderId = util.createOrderId('DD', item.add_time)
+    await dao.update('Enventory', item.id, {orderId})
+  }
+}

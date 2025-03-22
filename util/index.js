@@ -3,6 +3,7 @@ const _ = require('lodash')
 const config = require('config')
 const crypto = require('crypto');
 const axios = require('axios');
+const dayjs = require('dayjs')
 
 module.exports.getNowTime = () => {
   return Math.floor(_.now() / 1000)
@@ -134,4 +135,11 @@ module.exports.handleAudRes = async (audRes, shopId, userId) => {
 // 判断是否数字
 module.exports.isIntegerString = (str) => {
   return /^[+-]?\d+$/.test(str);
+}
+
+module.exports.createOrderId = (type, add_time) => {
+  const timeStr = dayjs(add_time * 1000).format('YYYYMMDDHHmm')
+  const randNum = this.rand(1000, 9999)
+  const timeSub = String(add_time).slice(-6)
+  return `${type}${timeStr}${timeSub}${randNum}`
 }

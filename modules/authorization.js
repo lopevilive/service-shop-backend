@@ -196,7 +196,10 @@ module.exports.rules = {
     createFeedback: {rid: 2},
     modWaterMark: {rid: 2},
     saveWatermarkCfg: {rid: 2},
-    auditingImg: {rid: 10}
+    auditingImg: {rid: 10},
+    getCusInventory: {rid: 2},
+    modInventoryStatus: {rid: 2},
+    modAddressStatus: {rid: 2}
   },
   userService: {
     getUserInfo: {rid: 1},
