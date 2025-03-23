@@ -27,7 +27,9 @@ module.exports.getShop = async (params ,cb) => {
   }
   cond.only = [
     'id', 'desc', 'url', 'name', 'area', 'address', 'phone', 'qrcodeUrl', 'business',
-    'attrs', 'specCfg', 'level', 'status', 'encry', 'waterMark', 'auditing', 'addressStatus']
+    'attrs', 'specCfg', 'level', 'status', 'encry', 'waterMark', 'auditing', 'addressStatus',
+    'inveExportStatus'
+  ]
   cond.take = 100 // 限制数量
   try {
     const data = await dao.list('Shop', cond)
@@ -77,17 +79,6 @@ module.exports.shopMod = async (req ,cb) => {
   try {
     await dao.update('Shop', id, params)
     cb(null, id)
-  } catch(e) {
-    cb(e)
-  }
-}
-
-module.exports.updateLevel = async (req, cb) => {
-  const params = req.body
-  const {shopId, level, expiredTime} = params
-  try {
-    await dao.update('Shop', shopId, {level, expiredTime})
-    cb(null)
   } catch(e) {
     cb(e)
   }
@@ -751,17 +742,6 @@ module.exports.getwxacodeunlimit = async (req, cb) => {
   }
 }
 
-module.exports.modShopStatus = async (req, cb) => {
-  try {
-    const {shopId, status, auditing} = req.body
-    const payload = {status, auditing, upd_time: util.getNowTime()}
-    await dao.update('Shop', shopId, payload)
-    cb(null)
-  } catch(e) {
-    cb(e)
-  }
-}
-
 module.exports.encryAlbum = async (req, cb) => {
   try {
     const {shopId, encry} = req.body
@@ -835,17 +815,6 @@ module.exports.createFeedback = async (req, cb) => {
   try {
     const ret = await dao.create('Feedback', params)
     cb(null, ret.id)
-  } catch(e) {
-    cb(e)
-  }
-}
-
-module.exports.modWaterMark = async (req, cb) => {
-  try {
-    const {shopId, waterMark} = req.body
-    let payload = { waterMark }
-    await dao.update('Shop', shopId, payload)
-    cb(null)
   } catch(e) {
     cb(e)
   }
@@ -955,11 +924,17 @@ module.exports.modInventoryStatus = async (req, cb) => {
   }
 }
 
-module.exports.modAddressStatus = async (req, cb) => {
+module.exports.modShopStatus = async (req, cb) => {
   try {
-    const {shopId, addressStatus} = req.body
-    let payload = { addressStatus }
-    await dao.update('Shop', shopId, payload)
+    const params = {...req.body}
+    params.upd_time = util.getNowTime()
+    const { shopId } = params
+    delete params.shopId
+    if (!shopId) {
+      cb(new Error('参数有误~'))
+      return
+    }
+    await dao.update('Shop', shopId, params)
     cb(null)
   } catch(e) {
     cb(e)

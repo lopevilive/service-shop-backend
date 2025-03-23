@@ -46,20 +46,6 @@ router.post('/ShopMod',
   }
 )
 
-
-router.post('/UpdateLevel',
-  async (req, res, next) => {
-    albumService.updateLevel(req,
-      (err, data) => {
-        if (err) {
-          res.sendResult(null, CODE_UNKNOWN, err.message)
-        } else {
-          res.sendResult(data, CODE_SUCC, 'succ')
-        }
-      })(req,res, next)
-  }
-)
-
 router.post('/ProductMod',
   async (req, res, next) => {
     albumService.productMod(req,
@@ -482,18 +468,6 @@ router.post('/CreateFeedback',
   }
 )
 
-router.post('/ModWaterMark',
-  async (req, res, next) => {
-    albumService.modWaterMark(req, (err, data) => {
-      if (err) {
-        res.sendResult(null, CODE_UNKNOWN, err.message)
-      } else {
-        res.sendResult(data, CODE_SUCC, 'succ')
-      }
-    })(req, res, next)
-  }
-)
-
 router.post('/GetWatermarkCfg',
   async (req, res, next) => {
     albumService.getWatermarkCfg(req, (err, data) => {
@@ -553,21 +527,6 @@ router.post('/ModInventoryStatus',
     })(req, res, next)
   }
 )
-
-router.post('/ModAddressStatus',
-  async (req, res, next) => {
-    albumService.modAddressStatus(req, (err, data) => {
-      if (err) {
-        res.sendResult(null, CODE_UNKNOWN, err.message)
-      } else {
-        res.sendResult(data, CODE_SUCC, 'succ')
-      }
-    })(req, res, next)
-  }
-)
-
-
-
 
 
 

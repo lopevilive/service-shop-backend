@@ -170,7 +170,6 @@ module.exports.rules = {
      * shopIdKey 图册id 的字段，默认 shopId
      */
     shopCreate: {rid: 10},
-    updateLevel: {rid: 99},
     productMod: {rid: 2},
     moveTopProduct: {rid: 2},
     productDel: {rid: 2},
@@ -194,12 +193,10 @@ module.exports.rules = {
     getEncryCode: {rid: 2},
     updateEncryCode: {rid: 2},
     createFeedback: {rid: 2},
-    modWaterMark: {rid: 2},
     saveWatermarkCfg: {rid: 2},
     auditingImg: {rid: 10},
     getCusInventory: {rid: 2},
     modInventoryStatus: {rid: 2},
-    modAddressStatus: {rid: 2}
   },
   userService: {
     getUserInfo: {rid: 1},
