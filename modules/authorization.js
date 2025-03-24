@@ -188,7 +188,7 @@ module.exports.rules = {
     addressDel: {rid: 1},
     createInventory: {rid: 1},
     getInventory: {rid: 1},
-    modShopStatus: {rid: 99},
+    modShopStatus: {rid: 2},
     encryAlbum: {rid: 2},
     getEncryCode: {rid: 2},
     updateEncryCode: {rid: 2},
