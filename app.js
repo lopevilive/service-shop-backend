@@ -89,6 +89,8 @@ app.use(function(req, res, next) {
     res.sendfile('./dist/index.html')
   } else if (/hWz9nuJO91/.test(req.path)) {
     res.sendfile('./hWz9nuJO91.txt')
+  } else if (/tencent3622040499476384665/.test(req.path)) {
+    res.sendfile('./tencent3622040499476384665.txt')
   }
    else {
     res.sendResult(null, 404, 'Not Found')
