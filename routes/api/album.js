@@ -528,6 +528,18 @@ router.post('/ModInventoryStatus',
   }
 )
 
+router.post('/ModProductPos',
+  async (req, res, next) => {
+    albumService.modProductPos(req, (err, data) => {
+      if (err) {
+        res.sendResult(null, CODE_UNKNOWN, err.message)
+      } else {
+        res.sendResult(data, CODE_SUCC, 'succ')
+      }
+    })(req, res, next)
+  }
+)
+
 
 
 

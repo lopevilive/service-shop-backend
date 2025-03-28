@@ -16,7 +16,8 @@ module.exports = {
     modelUrl: {type: 'varchar'},
     fields: {type: 'varchar', nullable: true}, // 行业个性字段
     status: {type: 'int', default: 0}, // 0-正常、1-下架
-    sort: {type: 'int', default: 0}, // 排序，越大越在前面
+    sort: {type: 'int', default: 0}, // 置顶排序，越大越在前面
+    pos: {type: 'int', default: 0}, // 产品顺序，越大越在前面
     attr: {type: 'text', nullable: true}, // 产品的一些属性 json 字符串格式
     add_time: {type: 'int', nullable: true},
     upd_time: {type: 'int', nullable: true},

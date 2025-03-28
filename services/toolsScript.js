@@ -41,3 +41,15 @@ module.exports.modEnventory = async () => {
     await dao.update('Enventory', item.id, {orderId})
   }
 }
+
+module.exports.formatProductPos = async () => {
+  const shopList = await dao.list('Shop', {only: ['id']})
+  for(const {id: shopId} of shopList) {
+    const productList = await dao.list('Product', {columns: {shopId}, order: {id: 'DESC'}, only: ['id']})
+    let len = productList.length
+    for (const {id: productId} of productList) {
+      await dao.update('Product', productId, {pos: len * 10000})
+      len -= 1
+    }
+  }
+}

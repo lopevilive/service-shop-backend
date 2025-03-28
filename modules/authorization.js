@@ -197,6 +197,7 @@ module.exports.rules = {
     auditingImg: {rid: 10},
     getCusInventory: {rid: 2},
     modInventoryStatus: {rid: 2},
+    modProductPos: {rid: 2},
   },
   userService: {
     getUserInfo: {rid: 1},

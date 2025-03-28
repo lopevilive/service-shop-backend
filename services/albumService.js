@@ -104,8 +104,12 @@ module.exports.productMod = async (req ,cb) => {
         cb(null, vailRes)
         return
       }
-
-      const data = await dao.create('Product', {...params, add_time: util.getNowTime()})
+      let maxPos = 0
+      const res = await dao.list('Product', {columns: {shopId}, only: ['id', 'pos'], order: {pos: 'DESC'}, take: 1})
+      if (res.length === 1) {
+        maxPos = res[0].pos
+      }
+      const data = await dao.create('Product', {...params, add_time: util.getNowTime(), pos: maxPos + 10000})
       cb(null, data.id)
     } catch(e) {
       cb(e)
@@ -123,7 +127,7 @@ module.exports.productMod = async (req ,cb) => {
 }
 
 module.exports.getProduct = async (req ,cb) => {
-  // toolsScript.modEnventory()
+  // await toolsScript.formatProductPos()
   const params = req.body
   const {
     shopId, productId, pageSize, currPage, productType, status, searchStr, priceSort
@@ -171,6 +175,7 @@ module.exports.getProduct = async (req ,cb) => {
     } else {
       queryBuild.orderBy('Product.sort', 'DESC')
     }
+    queryBuild.addOrderBy('Product.pos', 'DESC')
     queryBuild.addOrderBy('Product.id', 'DESC')
     
     const data = await queryBuild.getMany()
@@ -937,6 +942,82 @@ module.exports.modShopStatus = async (req, cb) => {
     }
     await dao.update('Shop', shopId, params)
     cb(null)
+  } catch(e) {
+    cb(e)
+  }
+}
+
+module.exports.modProductPos = async (req, cb) => {
+  try {
+    const {shopId, id, type, step, productType} = req.body;
+    if (step >= 100000) {
+      cb(new Error('数据太大'))
+      return
+    }
+
+    let curItem = await dao.list('Product', {columns: {id}})
+    curItem = curItem[0]
+    const curPos = curItem.pos
+    const queryBuild = await dao.createQueryBuilder('Product')
+    queryBuild.select(['Product.id', 'Product.pos'])
+    queryBuild.where('Product.shopId = :shopId', {shopId})
+    if (productType) {
+      if (productType === '-1') {
+        queryBuild.andWhere('Product.productType = :productType', {productType: ''})
+      } else if (productType !== '0' && productType !== '-2') {
+        queryBuild.andWhere('Product.productType = :productType', {productType})
+      }
+    }
+    queryBuild.andWhere('Product.status = :status', {status: productType === '-2' ? 1 : 0})
+    if (type === 'top') {
+      queryBuild.andWhere('Product.pos > :curPos', {curPos})
+      queryBuild.addOrderBy('Product.pos', 'ASC')
+    } else {
+      queryBuild.andWhere('Product.pos < :curPos', {curPos})
+      queryBuild.addOrderBy('Product.pos', 'DESC')
+    }
+    
+    queryBuild.limit(step + 1)
+    const list = await queryBuild.getMany()
+    let preId = 0
+    if (list.length === 0) {
+      cb(null, preId)
+      return
+    }
+    let newPos
+    let needFormat = false
+    if (list.length <= step) {
+      const preItem = list.pop()
+      if (type === 'top') {
+        newPos = preItem.pos + 5000
+      } else {
+        newPos = Math.floor(preItem.pos / 2)
+        preId = preItem.id
+      }
+      if (newPos < 100) needFormat = true
+    } else {
+      let aItem = list.pop()
+      let a = aItem.pos
+      let bItem = list.pop()
+      let b = bItem.pos
+      newPos = Math.floor((a + b)/2)
+      if (Math.abs(a - b) < 100) needFormat = true
+      if (type === 'top') {
+        preId = aItem.id
+      } else {
+        preId = bItem.id
+      }
+    }
+    await dao.update('Product', id, {pos: newPos, upd_time: util.getNowTime()})
+    if (needFormat) {
+      const prodList = await dao.list('Product', {columns: {shopId}, order: {pos: 'DESC'}, only: ['id', 'pos']})
+      let len = prodList.length
+      for (const {id: productId} of prodList) {
+        await dao.update('Product', productId, {pos: len * 10000})
+        len -= 1;
+      }
+    }
+    cb(null, preId)
   } catch(e) {
     cb(e)
   }
