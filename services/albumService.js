@@ -244,7 +244,7 @@ module.exports.getProductTypes = async (params ,cb) => {
 
   cond.only = ['id', 'name', 'shopId', 'parentId']
   cond.order = {sort: 'DESC', id: 'ASC'}
-  cond.take = 100 // 限制数量
+  cond.take = 1000 // 限制数量
   try {
     const data = await dao.list('ProductTypes', cond)
     cb(null, data)
