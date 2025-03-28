@@ -83,12 +83,13 @@ module.exports.isNeedAudImg = async (shopId) => {
     const countRes = await dao.count('Product', {shopId})
     if (countRes && countRes[0] && countRes[0].total >= 5) { // 产品数量5个以内要审核
       await dao.update('Shop', shopId, {auditing: 1})
-      return false
+      return true
     } 
   }
   if (auditing === 1) { // 概率审核
-    const n = this.rand(0, 100)
-    return n > 95 ? true: false
+    return true
+    // const n = this.rand(0, 100)
+    // return n > 95 ? true: false
   } 
   return true // 兜底审核
 }

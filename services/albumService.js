@@ -867,6 +867,7 @@ module.exports.auditingImg = async (req, cb) => {
     }
 
     const audRes = await cos.getImageAuditing(fileName)
+    console.log(audRes)
     const ret = await util.handleAudRes(audRes, shopId, userId)
     cb(null, ret)
   } catch(e) {
