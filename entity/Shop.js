@@ -22,6 +22,8 @@ module.exports = {
     waterMark: {type: 'int', default: 0}, // 是否开启水印 0-不开启、1-开启
     addressStatus: {type: 'int', default: 0}, // 是否必填地址 0-否、1-必填
     inveExportStatus: {type: 'int', default: 0}, // 用户能否导出清单 0-能、1-否
+    bannerStatus: {type: 'int', default: 0}, // 是否开启首页轮播 0-否、1-是
+    bannerCfg: {type: 'text', nullable: true},// banner 配置信息
     business: {type: 'int', nullable: true},
     add_time: {type: 'int', nullable: true},
     upd_time: {type: 'int', nullable: true},

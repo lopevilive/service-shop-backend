@@ -4,7 +4,7 @@ const dao = require(path.join(process.cwd(),"dao/DAO"));
 const util = require(path.join(process.cwd(),"util/index"))
 const cos = require(path.join(process.cwd(),"modules/cos"))
 const {createTicket, verifyTicket} = require(path.join(process.cwd(),"modules/ticketManage"));
-const { In, Like } = require("typeorm");
+const { In, Like, Brackets } = require("typeorm");
 const axios = require('axios');
 const ExcelJS = require('exceljs/dist/es5');
 const dayjs = require('dayjs')
@@ -28,7 +28,7 @@ module.exports.getShop = async (params ,cb) => {
   cond.only = [
     'id', 'desc', 'url', 'name', 'area', 'address', 'phone', 'qrcodeUrl', 'business',
     'attrs', 'specCfg', 'level', 'status', 'encry', 'waterMark', 'auditing', 'addressStatus',
-    'inveExportStatus'
+    'inveExportStatus', 'bannerStatus', 'bannerCfg'
   ]
   cond.take = 100 // 限制数量
   try {
@@ -154,6 +154,12 @@ module.exports.getProduct = async (req ,cb) => {
     if (productType) {
       if (productType === '-1') {
         queryBuild.andWhere('Product.productType = :productType', {productType: ''})
+      } else if(/(\d+)-0/.test(productType)) {
+        let tmpId = RegExp.$1
+        queryBuild.andWhere(new Brackets((qb) => {
+          qb.orWhere('Product.productType = :a', {a: tmpId})
+            .orWhere('Product.productType LIKE :b', {b: `${tmpId}-%`})
+        }))
       } else if (productType !== '0') {
         queryBuild.andWhere('Product.productType = :productType', {productType})
       }
@@ -288,16 +294,16 @@ module.exports.productTypesMod = async (params ,cb) => {
   if (!isMod) { // 创建
     try {
       const data = await dao.create('ProductTypes', payload)
-      if (parentId) {
-        const queryBuild = await dao.createQueryBuilder('Product')
-        queryBuild.select(['Product.id', 'Product.productType'])
-        queryBuild.where('Product.productType = :parentId', {parentId: String(parentId)})
-        const list = await queryBuild.getMany()
-        if (list.length) {
-          const ids = list.map((item) => item.id)
-          await dao.update('Product', ids, {productType: ''})
-        }
-      }
+      // if (parentId) {
+      //   const queryBuild = await dao.createQueryBuilder('Product')
+      //   queryBuild.select(['Product.id', 'Product.productType'])
+      //   queryBuild.where('Product.productType = :parentId', {parentId: String(parentId)})
+      //   const list = await queryBuild.getMany()
+      //   if (list.length) {
+      //     const ids = list.map((item) => item.id)
+      //     await dao.update('Product', ids, {productType: ''})
+      //   }
+      // }
       cb(null, data)
     } catch(e) {
       cb(e)
@@ -327,18 +333,18 @@ module.exports.productTypesDel = async (params, cb) => {
       if (subTypes.length) {
         const ids = subTypes.map((item) => item.id)
         await dao.delete('ProductTypes', ids)
-        const prodList = await dao.list('Product', {columns: {productType: Like(`%${id}-%`)}})
+        const prodList = await dao.list('Product', {columns: {productType: Like(`${id}-%`)}})
         if (prodList.length) {
           const ids = prodList.map((item) => item.id)
           await dao.update('Product', ids, {productType: ''})
         }
-      } else {
-        const prodList = await dao.list('Product', {columns: {productType: `${id}`}})
-        if (prodList.length) {
-          const ids = prodList.map((item) => item.id)
-          await dao.update('Product', ids, {productType: ''})
-        }
+      } 
+      const prodList = await dao.list('Product', {columns: {productType: `${id}`}})
+      if (prodList.length) {
+        const ids = prodList.map((item) => item.id)
+        await dao.update('Product', ids, {productType: ''})
       }
+      
     } else {
       // 二级分类
       let parent = await dao.list('ProductTypes', {columns: {id: info.parentId}})
@@ -964,7 +970,13 @@ module.exports.modProductPos = async (req, cb) => {
     if (productType) {
       if (productType === '-1') {
         queryBuild.andWhere('Product.productType = :productType', {productType: ''})
-      } else if (productType !== '0' && productType !== '-2') {
+      } else if(/(\d+)-0/.test(productType)) {
+        let tmpId = RegExp.$1
+        queryBuild.andWhere(new Brackets((qb) => {
+          qb.orWhere('Product.productType = :a', {a: tmpId})
+            .orWhere('Product.productType LIKE :b', {b: `${tmpId}-%`})
+        }))
+      }  else if (productType !== '0' && productType !== '-2') {
         queryBuild.andWhere('Product.productType = :productType', {productType})
       }
     }
