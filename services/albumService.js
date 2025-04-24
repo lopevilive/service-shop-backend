@@ -1034,3 +1034,25 @@ module.exports.modProductPos = async (req, cb) => {
     cb(e)
   }
 }
+
+module.exports.getVipInfo = async (req, cb) => {
+  const { shopId } = req.body
+  try {
+    let shopInfo = await dao.list('Shop', {columns: {id: shopId}})
+    if (shopInfo.length !== 1) throw new Error('请求出错')
+    shopInfo = shopInfo[0]
+    const ret = {
+      shopId,
+      amount: util.getRestAmount(shopInfo.level, shopInfo.expiredTime), // 剩余金额
+      level: shopInfo.level,
+      expiredTime: shopInfo.expiredTime || 0,
+      cfg: util.getConfig('levelCfg')
+    }
+
+    cb(null, ret)
+  } catch(e) {
+    cb(e)
+  }
+
+  
+}

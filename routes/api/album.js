@@ -540,6 +540,18 @@ router.post('/ModProductPos',
   }
 )
 
+router.post('/GetVipInfo',
+  async (req, res, next) => {
+    albumService.getVipInfo(req, (err, data) => {
+      if (err) {
+        res.sendResult(null, CODE_UNKNOWN, err.message)
+      } else {
+        res.sendResult(data, CODE_SUCC, 'succ')
+      }
+    })(req, res, next)
+  }
+)
+
 
 
 

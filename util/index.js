@@ -144,3 +144,40 @@ module.exports.createOrderId = (type, add_time) => {
   const timeSub = String(add_time).slice(-6)
   return `${type}${timeStr}${timeSub}${randNum}`
 }
+
+module.exports.generateNonceStr = (len) => {
+  let data = "ABCDEFGHJKMNPQRSTWXYZabcdefhijkmnprstwxyz2345678";
+  let str = "";
+  for (let i = 0; i < len; i++) {
+      str += data.charAt(Math.floor(Math.random() * data.length));
+  }
+  return str;
+}
+
+module.exports.getRestAmount = (level, expiredTime) => {
+  const levelCfg = this.getConfig('levelCfg')
+  let price = 0
+  for (const item of levelCfg) {
+    if (item.level === level) {
+      price = item.price
+      break;
+    }
+  }
+  if (price === 0) return 0;
+  const nowTime = this.getNowTime()
+  if (nowTime > expiredTime) return 0
+  const range = expiredTime - nowTime
+  const day = Math.ceil(range / (24 * 60 * 60))
+  const preDayPrice = Math.floor(price / 365)
+  let ret = day * preDayPrice
+  ret = Math.ceil(ret / 100) * 100 // 这里向上取整
+  return ret
+}
+
+module.exports.getVipPrice = (level) => {
+  const levelCfg = this.getConfig('levelCfg')
+  for (const item of levelCfg) {
+    if (item.level === level) return item.price
+  }
+  return 0
+}

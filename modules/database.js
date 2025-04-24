@@ -21,6 +21,7 @@ class DbManage {
       new EntitySchema(require(path.join(process.cwd(),"entity",'Feedback'))),
       new EntitySchema(require(path.join(process.cwd(),"entity",'WatermarkCfg'))),
       new EntitySchema(require(path.join(process.cwd(),"entity",'CusLogs'))),
+      new EntitySchema(require(path.join(process.cwd(),"entity",'Order'))),
     ]
     this.connection = this.connectionManager.create({...this.db_config, entities: this.entities})
     this.timer = null

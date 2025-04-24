@@ -3,6 +3,7 @@ const util = require(path.join(process.cwd(),"util/index"))
 const dao = require(path.join(process.cwd(),"dao/DAO"));
 const ticketManage = require(path.join(process.cwd(),"modules/ticketManage"));
 const axios = require('axios');
+const pay = require(path.join(process.cwd(),"modules/pay"));
 
 
 const getAppInfo = async (code) => {
@@ -136,6 +137,27 @@ module.exports.setViewLogs = async (req, cb) => {
   try {
     await dao.update('User', userId, {viewLogs: JSON.stringify(list)})
     cb(null)
+  } catch(e) {
+    cb(e)
+  }
+}
+
+module.exports.createOrder = async (req, cb) => {
+  try {
+    const {id: userId, openid} = req.userInfo
+    const {level} = req.body
+    const data = await pay.createOrder({userId, openid, shopInfo: req.shopInfo, level})
+    cb(null, data)
+  } catch(e) {
+    cb(e)
+  }
+}
+
+module.exports.queryOrder = async (req, cb) => {
+  try {
+    const {id} = req.body
+    const data = await pay.queryOrder(id, req.shopInfo)
+    cb(null, data)
   } catch(e) {
     cb(e)
   }

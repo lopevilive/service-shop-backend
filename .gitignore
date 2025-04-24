@@ -7,7 +7,7 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-config/default.json
+config/*
 node_modules
 tmp/*
 .DS_Store

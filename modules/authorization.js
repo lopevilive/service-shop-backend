@@ -198,10 +198,13 @@ module.exports.rules = {
     getCusInventory: {rid: 2},
     modInventoryStatus: {rid: 2},
     modProductPos: {rid: 2},
+    getVipInfo: {rid: 2}
   },
   userService: {
     getUserInfo: {rid: 1},
-    setViewLogs: {rid: 1}
+    setViewLogs: {rid: 1},
+    createOrder: {rid: 2},
+    queryOrder: {rid: 2}
   }
 }
 
