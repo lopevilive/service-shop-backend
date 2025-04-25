@@ -32,10 +32,14 @@ module.exports.deEncryptAES = (ticket) => {
   return rawStr
 }
 
-module.exports.vailCount = (level, count) => {
+module.exports.vailCount = ({level, expiredTime}, count) => {
   count = Number(count)
   const levelCfg = this.getConfig('levelCfg')
-  const matchItem = levelCfg.find((item) => item.level === level)
+  const nowTime = this.getNowTime()
+  let matchItem = levelCfg.find((item) => item.level === level)
+  if (nowTime > expiredTime) {
+    matchItem = levelCfg[0] // 过期的情况
+  }
   return {
     limit: matchItem.limit,
     curr: count,

@@ -28,7 +28,7 @@ module.exports.getShop = async (params ,cb) => {
   cond.only = [
     'id', 'desc', 'url', 'name', 'area', 'address', 'phone', 'qrcodeUrl', 'business',
     'attrs', 'specCfg', 'level', 'status', 'encry', 'waterMark', 'auditing', 'addressStatus',
-    'inveExportStatus', 'bannerStatus', 'bannerCfg'
+    'inveExportStatus', 'bannerStatus', 'bannerCfg', 'expiredTime'
   ]
   cond.take = 100 // 限制数量
   try {
@@ -85,7 +85,7 @@ module.exports.shopMod = async (req ,cb) => {
 }
 
 module.exports.productMod = async (req ,cb) => {
-  const {shopInfo: {level, status}} = req
+  const {shopInfo: {status}} = req
   const params = req.body
   const { id, shopId } = params
 
@@ -98,7 +98,7 @@ module.exports.productMod = async (req ,cb) => {
     try {
       let countRes = await dao.count('Product', {shopId})
       const count = countRes[0]['total']
-      const vailRes = util.vailCount(level, count)
+      const vailRes = util.vailCount(req.shopInfo, count)
       if (!vailRes.pass) {
         // 超过限制数量
         cb(null, vailRes)
@@ -201,7 +201,7 @@ module.exports.getProduct = async (req ,cb) => {
         downNum = Number(downNumRes[0].total); // 下架数量
         total += downNum;
       }
-      let vailRes = util.vailCount(shopInfo.level, total)
+      let vailRes = util.vailCount(shopInfo, total)
       limit = vailRes.limit
     }
 
