@@ -24,6 +24,7 @@ module.exports = {
     inveExportStatus: {type: 'int', default: 0}, // 用户能否导出清单 0-能、1-否
     bannerStatus: {type: 'int', default: 0}, // 是否开启首页轮播 0-否、1-是
     bannerCfg: {type: 'text', nullable: true},// banner 配置信息
+    requiredType: {type: 'varchar', nullable: true} , // 必选分类
     business: {type: 'int', nullable: true},
     add_time: {type: 'int', nullable: true},
     upd_time: {type: 'int', nullable: true},

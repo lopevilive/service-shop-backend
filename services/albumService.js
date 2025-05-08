@@ -28,7 +28,7 @@ module.exports.getShop = async (params ,cb) => {
   cond.only = [
     'id', 'desc', 'url', 'name', 'area', 'address', 'phone', 'qrcodeUrl', 'business',
     'attrs', 'specCfg', 'level', 'status', 'encry', 'waterMark', 'auditing', 'addressStatus',
-    'inveExportStatus', 'bannerStatus', 'bannerCfg', 'expiredTime'
+    'inveExportStatus', 'bannerStatus', 'bannerCfg', 'expiredTime', 'requiredType'
   ]
   cond.take = 100 // 限制数量
   try {
