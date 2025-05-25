@@ -28,7 +28,7 @@ module.exports.getShop = async (params ,cb) => {
   cond.only = [
     'id', 'desc', 'url', 'name', 'area', 'address', 'phone', 'qrcodeUrl', 'business',
     'attrs', 'specCfg', 'level', 'status', 'encry', 'waterMark', 'auditing', 'addressStatus',
-    'inveExportStatus', 'bannerStatus', 'bannerCfg', 'expiredTime', 'requiredType'
+    'inveExportStatus', 'bannerStatus', 'bannerCfg', 'expiredTime', 'requiredType', 'typeStatus'
   ]
   cond.take = 100 // 限制数量
   try {
@@ -258,7 +258,8 @@ module.exports.getProductTypes = async (params ,cb) => {
   cond.take = 1000 // 限制数量
   try {
     const data = await dao.list('ProductTypes', cond)
-    cb(null, data)
+    const ret = {shopId, list: data}
+    cb(null, ret)
   } catch(e) {
     cb(e)
   }
