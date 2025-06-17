@@ -93,8 +93,9 @@ app.use(function(req, res, next) {
     res.sendfile('./tencent3622040499476384665.txt')
   }else if (/tencent12649019064503544745/.test(req.path)) {
     res.sendfile('./tencent12649019064503544745.txt')
-  }
-   else {
+  } else if (/tencent4971961837305385002/.test(req.path)) {
+    res.sendfile('./tencent4971961837305385002.txt')
+  } else {
     res.sendResult(null, 404, 'Not Found')
   }
 })
