@@ -79,7 +79,7 @@ module.exports.createOrder = async ({userId, openid, shopInfo, level: targetLeve
   const wxOrderInfo = {
     mchid, appid, notify_url: 'https://huace.xiaoguoxx.cn/',
     out_trade_no: orderId,
-    description: '小果画册开通会员',
+    description: '小果图册开通会员',
     amount: {total: totalFee, currency: 'CNY'},
     payer: {openid}
   }
