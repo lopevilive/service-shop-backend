@@ -54,7 +54,9 @@ module.exports.loadImg = async (list) => {
   })
   let num = 0
   for (const item of list) {
-    let url = `http:${item.url}`
+    let tmp = item.url
+    tmp = tmp.replace(/quality\/\d+/,'quality/2')
+    let url = `http:${tmp}`
     axios({
       method: 'get', url, responseType: 'arraybuffer'
     }).then((res) => {
