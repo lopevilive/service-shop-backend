@@ -26,6 +26,7 @@ module.exports = {
     bannerCfg: {type: 'text', nullable: true},// banner 配置信息
     requiredType: {type: 'varchar', nullable: true} , // 必选分类
     typeStatus: {type: 'int', default: 0}, // 若为 1，产品分类导航栏中的‘全部’标签页将被隐藏
+    forwardPermi: {type: 'int', default: 0}, // 若为 1， 则仅管理员才可以转发
     business: {type: 'int', nullable: true},
     add_time: {type: 'int', nullable: true},
     upd_time: {type: 'int', nullable: true},
