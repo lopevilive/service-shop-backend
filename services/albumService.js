@@ -54,7 +54,7 @@ module.exports.shopCreate = async (req ,cb) => {
         throw new Error('每个用户暂时只能创建 1 个图册~')
       }
     }
-    const data = await dao.create('Shop', {...params, userId: userInfo.id, add_time: util.getNowTime()})
+    const data = await dao.create('Shop', {...params, userId: userInfo.id, add_time: util.getNowTime(), inveExportStatus: 1})
     cb(null, data.id)
   } catch(e) {
     cb(e)
