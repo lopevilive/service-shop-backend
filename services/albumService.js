@@ -624,7 +624,7 @@ module.exports.getInventory = async (req, cb) => {
     return
   }
   const take = limit ? limit : 5
-  const only = ['id', 'add_time', 'data', 'status', 'orderId']
+  const only = ['id', 'add_time', 'data', 'status', 'orderId', 'userId']
   try {
     const ret = await dao.list('Enventory', {columns, only, take, order: {id: 'DESC'}})
     cb(null, ret)
