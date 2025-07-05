@@ -2,6 +2,7 @@ const path = require("path");
 const _ = require('lodash');
 const dao = require(path.join(process.cwd(),"dao/DAO"));
 const util = require(path.join(process.cwd(),"util/index"))
+const { Like } = require("typeorm");
 
 
 const getSpecPrices = (list) => {
@@ -34,6 +35,7 @@ module.exports.modPrice = async () => {
 
 }
 
+// 处理历史清单
 module.exports.modEnventory = async () => {
   const list = await dao.list('Enventory', {columns: {type: 0, }})
   for (const item of list) {
@@ -42,6 +44,7 @@ module.exports.modEnventory = async () => {
   }
 }
 
+// 处理产品为位置
 module.exports.formatProductPos = async () => {
   const shopList = await dao.list('Shop', {only: ['id']})
   for(const {id: shopId} of shopList) {
@@ -51,5 +54,17 @@ module.exports.formatProductPos = async () => {
       await dao.update('Product', productId, {pos: len * 10000})
       len -= 1
     }
+  }
+}
+
+//  处理敏感词
+module.exports.formatIllegalWords = async () => {
+  const pList = await dao.list('Product', {columns: {desc: Like(`%消灾%`)}, take: 50})
+  for (const item of pList) {
+    const {desc, id} = item
+    let newVal = desc.replaceAll('消灾','')
+    if (!newVal) newVal = '-'
+    await dao.update('Product', id, {desc: newVal})
+    console.log(newVal)
   }
 }
