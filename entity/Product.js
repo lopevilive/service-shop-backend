@@ -4,7 +4,7 @@ module.exports = {
   columns: {
     id: {type: 'int', generated: true, primary: true},
     shopId: {type: 'int'},
-    name: {type: 'varchar'},
+    name: {type: 'varchar'}, // 弃用
     url: {type: 'text'},
     price: {type: 'varchar'},
     isSpec: {type: 'int', default: 0},// 是否多规格 0-否、1-是
