@@ -27,9 +27,9 @@ module.exports.getShop = async (params ,cb) => {
   }
   cond.only = [
     'id', 'desc', 'url', 'name', 'area', 'address', 'phone', 'qrcodeUrl', 'business',
-    'attrs', 'specCfg', 'level', 'status', 'encry', 'waterMark', 'auditing', 'addressStatus',
+    'attrs', 'level', 'status', 'encry', 'waterMark', 'auditing', 'addressStatus',
     'inveExportStatus', 'bannerStatus', 'bannerCfg', 'expiredTime', 'requiredType', 'typeStatus',
-    'forwardPermi', 'typeSideMod'
+    'forwardPermi', 'typeSideMod', 'specsCfg'
   ]
   cond.take = 100 // 限制数量
   try {
@@ -73,7 +73,6 @@ module.exports.shopMod = async (req ,cb) => {
     qrcodeUrl: req.body.qrcodeUrl,
     business: req.body.business,
     attrs: req.body.attrs,
-    specCfg: req.body.specCfg,
     upd_time: util.getNowTime()
   }
   const {id} = params
@@ -128,7 +127,7 @@ module.exports.productMod = async (req ,cb) => {
 }
 
 module.exports.getProduct = async (req ,cb) => {
-  // await toolsScript.formatProductPos()
+  // await toolsScript.formatSpecs()
   const params = req.body
   const {
     shopId, productId, pageSize, currPage, productType, status, searchStr, priceSort
@@ -141,9 +140,9 @@ module.exports.getProduct = async (req ,cb) => {
     let downNum = 0;
     const queryBuild = await dao.createQueryBuilder('Product')
     queryBuild.select([
-      'Product.id', 'Product.desc', 'Product.name', 'Product.price', 'Product.productType', 'Product.shopId',
-      'Product.url', 'Product.type3D', 'Product.model3D', 'Product.modelUrl', 'Product.status', 'Product.fields',
-      'Product.sort', 'Product.attr', 'Product.isSpec', 'Product.specs', 'Product.upd_time',
+      'Product.id', 'Product.desc', 'Product.price', 'Product.productType', 'Product.shopId', 'Product.url',
+      'Product.type3D', 'Product.model3D', 'Product.modelUrl', 'Product.status', 'Product.fields',
+      'Product.sort', 'Product.attr', 'Product.isSpec', 'Product.upd_time', 'Product.specDetials'
     ])
     queryBuild.where('1 = 1')
     if (shopId) queryBuild.andWhere('Product.shopId = :shopId', {shopId})

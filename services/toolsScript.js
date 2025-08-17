@@ -68,3 +68,41 @@ module.exports.formatIllegalWords = async () => {
     console.log(newVal)
   }
 }
+
+module.exports.formatSpecs = async () => {
+  const queryBuild = await dao.createQueryBuilder('Product')
+  queryBuild.select(['Product.id', 'Product.isSpec', 'Product.specDetials', 'Product.specs', 'Product.shopId'])
+  queryBuild.where('1 = 1')
+  queryBuild.andWhere('Product.isSpec = 1')
+  queryBuild.andWhere(`Product.specDetials is null or Product.specDetials = ''`)
+  queryBuild.limit(200)
+  const data = await queryBuild.getMany()
+  console.log(data)
+  // return
+  for (const item of data) {
+    // if (item.id !== 54) continue
+    let rawData
+    try {
+      rawData = JSON.parse(item.specs)
+    } catch(e) {}
+    if (!rawData?.length) {
+      console.log('出错了', item.id)
+      break
+    }
+    const newData = {
+      singleSpecs: [],
+      mulSpecs: [],
+      singleUseImg: 0,
+      mulUseImg: 0,
+      mulSpecPriceList: []
+    }
+    for (const rawItem of rawData) {
+      newData.singleSpecs.push({
+        name: rawItem.name,
+        price: rawItem.price,
+        url: ''
+      })
+    }
+    await dao.update('Product', item.id, {specDetials: JSON.stringify(newData)})
+  }
+}

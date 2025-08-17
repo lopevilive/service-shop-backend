@@ -12,7 +12,8 @@ module.exports = {
     phone: {type: 'varchar'},
     qrcodeUrl: {type: 'varchar'},
     attrs: {type: 'text', nullable: true}, // 配置的属性历史
-    specCfg: {type: 'varchar', nullable: true}, // 配置的规格历史
+    specCfg: {type: 'varchar', nullable: true}, // 配置的规格历史 弃用
+    specsCfg: {type: 'text', nullable: true}, // 常用规格
     level: {type: 'int',default: 0}, // 等级
     expiredTime: {type: 'int',default: 0}, // 过期时间
     status: {type: 'int',default: 0}, // 0-正常、1-封禁状态

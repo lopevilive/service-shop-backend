@@ -113,7 +113,7 @@ module.exports.handleAudRes = async (audRes, shopId, userId) => {
   const {RecognitionResult: {PornInfo}} = audRes
   let score = Number(PornInfo.Score)
 
-  if (score >= 95) { // 记录本次审核
+  if (score >= 98) { // 记录本次审核
     // let logType = score < 90 ? 2 : 3
     let logType = 3
     await dao.create('CusLogs', {
@@ -124,14 +124,14 @@ module.exports.handleAudRes = async (audRes, shopId, userId) => {
     })
   }
 
-  if (score >= 95) { // 违规了
+  if (score >= 98) { // 违规了
     await dao.update('User', userId, {status: 1}) // 用户加入黑名单
     if (shopId) {
       await dao.update('Shop', shopId, {status: 1, auditing: 2}) // 封禁画册
     }
     return 1
   }
-  if (score >= 60) { // 敏感
+  if (score >= 80) { // 敏感
     if (shopId) {
       await dao.update('Shop', shopId, { auditing: 2}) // 画册持续审核
     }
