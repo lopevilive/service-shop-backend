@@ -127,7 +127,7 @@ module.exports.productMod = async (req ,cb) => {
 }
 
 module.exports.getProduct = async (req ,cb) => {
-  // await toolsScript.formatSpecs()
+  // await toolsScript.formatTypes()
   const params = req.body
   const {
     shopId, productId, pageSize, currPage, productType, status, searchStr, priceSort
@@ -141,8 +141,8 @@ module.exports.getProduct = async (req ,cb) => {
     const queryBuild = await dao.createQueryBuilder('Product')
     queryBuild.select([
       'Product.id', 'Product.desc', 'Product.price', 'Product.productType', 'Product.shopId', 'Product.url',
-      'Product.type3D', 'Product.model3D', 'Product.modelUrl', 'Product.status', 'Product.fields',
-      'Product.sort', 'Product.attr', 'Product.isSpec', 'Product.upd_time', 'Product.specDetials'
+      'Product.type3D', 'Product.model3D', 'Product.modelUrl', 'Product.status', 'Product.fields', 'Product.sort',
+      'Product.attr', 'Product.isSpec', 'Product.upd_time', 'Product.specDetials', 'Product.descUrl', 'Product.isMulType'
     ])
     queryBuild.where('1 = 1')
     if (shopId) queryBuild.andWhere('Product.shopId = :shopId', {shopId})
@@ -151,18 +151,19 @@ module.exports.getProduct = async (req ,cb) => {
       if (!Array.isArray(productId)) ids = [productId]
       queryBuild.andWhere('Product.id IN (:...ids)', {ids})
     }
-    if (productType) {
-      if (productType === '-1') {
-        queryBuild.andWhere('Product.productType = :productType', {productType: ''})
-      } else if(/(\d+)-0/.test(productType)) {
-        let tmpId = RegExp.$1
-        queryBuild.andWhere(new Brackets((qb) => {
-          qb.orWhere('Product.productType = :a', {a: tmpId})
-            .orWhere('Product.productType LIKE :b', {b: `${tmpId}-%`})
-        }))
-      } else if (productType !== '0') {
-        queryBuild.andWhere('Product.productType = :productType', {productType})
-      }
+    let typeDone = false
+    if (productType === '-1') { //选未分类的产品
+      queryBuild.andWhere('Product.productType = :productType', {productType: ''})
+      typeDone = true
+    }
+    if (productType === '0') { // 选全部，不用处理
+      typeDone = true
+    }
+    if (productType && !typeDone) {
+      queryBuild.andWhere(new Brackets((qb) => {
+        qb.orWhere('Product.productType Like :a', {a: `%,${productType},%`})
+          .orWhere('Product.productType Like :b', {b: `%,${productType}-%`})
+      }))
     }
     
     if ([0,1].includes(status)) queryBuild.andWhere('Product.status = :status', {status})
@@ -228,16 +229,6 @@ module.exports.moveTopProduct = async (params, cb) => {
   }
 }
 
-module.exports.countProduct = async (params, cb) => {
-  const {shopId} = params
-  try {
-    const data = await dao.count('Product', {shopId}, 'productType')
-    cb(null, data)
-  } catch(e) {
-    cb(e)
-  }
-}
-
 module.exports.productDel = async (params, cb) => {
   const {id} = params
   try {
@@ -295,16 +286,6 @@ module.exports.productTypesMod = async (params ,cb) => {
   if (!isMod) { // 创建
     try {
       const data = await dao.create('ProductTypes', payload)
-      // if (parentId) {
-      //   const queryBuild = await dao.createQueryBuilder('Product')
-      //   queryBuild.select(['Product.id', 'Product.productType'])
-      //   queryBuild.where('Product.productType = :parentId', {parentId: String(parentId)})
-      //   const list = await queryBuild.getMany()
-      //   if (list.length) {
-      //     const ids = list.map((item) => item.id)
-      //     await dao.update('Product', ids, {productType: ''})
-      //   }
-      // }
       cb(null, data)
     } catch(e) {
       cb(e)
@@ -322,6 +303,37 @@ module.exports.productTypesMod = async (params ,cb) => {
 
 module.exports.productTypesDel = async (params, cb) => {
   let {id} = params
+
+  const updateType = async (prodList, regStr) => {
+    if (!prodList.length) return
+    const singleList = [] // 只配置了1个分类
+    for (const item of prodList) {
+      const t = item.productType
+      let tList = t.split(',')
+      tList = tList.filter((i) => !!i)
+      if (tList.length === 1) {
+        singleList.push(item)
+        continue
+      }
+      tList = tList.filter((i) => {
+        const reg = new RegExp(`${regStr}`)
+        if (reg.test(i)) return false
+        return true
+      })
+      if (tList.length === 0) {
+        singleList.push(item)
+        continue
+      }
+      let newStr = tList.join(',')
+      newStr = `,${newStr},`
+      await dao.update('Product', item.id, {productType: newStr})
+    }
+    const ids = singleList.map((item) => item.id)
+    if (ids.length) {
+      await dao.update('Product', ids, {productType: ''})
+    }
+  }
+
   try {
     let info = await dao.list('ProductTypes', {columns: {id}})
     if (!info.length) {
@@ -331,31 +343,20 @@ module.exports.productTypesDel = async (params, cb) => {
     info = info[0]
     if (!info.parentId) { // 一级分类
       const subTypes = await dao.list('ProductTypes', {columns: {parentId: id}})
-      if (subTypes.length) {
+      if (subTypes.length) { // 有子分类
         const ids = subTypes.map((item) => item.id)
         await dao.delete('ProductTypes', ids)
-        const prodList = await dao.list('Product', {columns: {productType: Like(`${id}-%`)}})
-        if (prodList.length) {
-          const ids = prodList.map((item) => item.id)
-          await dao.update('Product', ids, {productType: ''})
-        }
-      } 
-      const prodList = await dao.list('Product', {columns: {productType: `${id}`}})
-      if (prodList.length) {
-        const ids = prodList.map((item) => item.id)
-        await dao.update('Product', ids, {productType: ''})
       }
-      
+      const l1 = await dao.list('Product', {columns:{productType: Like(`%,${id},%`)}})
+      const l2 = await dao.list('Product', {columns:{productType: Like(`%,${id}-%`)}})
+      await updateType([...l1, ...l2], `${id}`)
     } else {
       // 二级分类
       let parent = await dao.list('ProductTypes', {columns: {id: info.parentId}})
       if (parent.length) {
         parent = parent[0]
-        const prodList = await dao.list('Product', {columns: {productType: `${parent.id}-${id}`}})
-        if (prodList.length) {
-          const ids = prodList.map((item) => item.id)
-          await dao.update('Product', ids, {productType: ''})
-        }
+        const prodList = await dao.list('Product', {columns: {productType: Like(`%,${parent.id}-${id},%`)}})
+        await updateType(prodList, `${parent.id}-${id}`)
       }
     }
     await dao.delete('ProductTypes', id)
@@ -968,18 +969,22 @@ module.exports.modProductPos = async (req, cb) => {
     const queryBuild = await dao.createQueryBuilder('Product')
     queryBuild.select(['Product.id', 'Product.pos'])
     queryBuild.where('Product.shopId = :shopId', {shopId})
-    if (productType) {
-      if (productType === '-1') {
-        queryBuild.andWhere('Product.productType = :productType', {productType: ''})
-      } else if(/(\d+)-0/.test(productType)) {
-        let tmpId = RegExp.$1
-        queryBuild.andWhere(new Brackets((qb) => {
-          qb.orWhere('Product.productType = :a', {a: tmpId})
-            .orWhere('Product.productType LIKE :b', {b: `${tmpId}-%`})
-        }))
-      }  else if (productType !== '0' && productType !== '-2') {
-        queryBuild.andWhere('Product.productType = :productType', {productType})
-      }
+    let typeDone = false
+    if (productType === '-1') {
+      queryBuild.andWhere('Product.productType = :productType', {productType: ''})
+      typeDone= true
+    }
+    if (productType === '0') {
+      typeDone = true
+    }
+    if (productType === '-2') {
+      typeDone = true
+    }
+    if (productType && !typeDone){
+      queryBuild.andWhere(new Brackets((qb) => {
+        qb.orWhere('Product.productType Like :a', {a: `%,${productType},%`})
+          .orWhere('Product.productType Like :b', {b: `%,${productType}-%`})
+      }))
     }
     queryBuild.andWhere('Product.status = :status', {status: productType === '-2' ? 1 : 0})
     if (type === 'top') {

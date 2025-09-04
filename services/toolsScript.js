@@ -106,3 +106,22 @@ module.exports.formatSpecs = async () => {
     await dao.update('Product', item.id, {specDetials: JSON.stringify(newData)})
   }
 }
+
+module.exports.formatTypes = async () => {
+  let id = 30139
+  const queryBuild = await dao.createQueryBuilder('Product')
+  queryBuild.select(['Product.id', 'Product.productType', 'Product.shopId'])
+  queryBuild.where('1 = 1')
+  queryBuild.andWhere('Product.id > :id', {id: id})
+  queryBuild.andWhere('Product.productType IS NOT NULL AND TRIM(Product.productType) != ""')
+  queryBuild.limit(2000)
+  const data = await queryBuild.getMany()
+  for (const item of data) {
+    id = item.id
+    if (!item.productType) continue
+    if (/,/.test(item.productType))  continue
+    const newStr = `,${item.productType},`
+    await dao.update('Product', id, {productType:  newStr})
+  }
+  console.log(id)
+}

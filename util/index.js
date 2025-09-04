@@ -87,7 +87,7 @@ module.exports.isNeedAudImg = async (shopId) => {
   if (auditing === 99) return false
   if (auditing === 0) {
     const countRes = await dao.count('Product', {shopId})
-    if (countRes && countRes[0] && countRes[0].total >= 5) { // 产品数量5个以内要审核
+    if (countRes && countRes[0] && countRes[0].total >= 1) { // 产品数量5个以内要审核
       await dao.update('Shop', shopId, {auditing: 1})
       return true
     } 

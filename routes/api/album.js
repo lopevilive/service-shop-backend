@@ -59,19 +59,6 @@ router.post('/ProductMod',
   }
 )
 
-router.post('/CountProduct',
-  async (req, res, next) => {
-    albumService.countProduct(req.body,
-      (err, data) => {
-        if (err) {
-          res.sendResult(null, CODE_UNKNOWN, err.message)
-        } else {
-          res.sendResult(data, CODE_SUCC, 'succ')
-        }
-      })(req,res, next)
-  }
-)
-
 router.post('/MoveTopProduct',
   async (req, res, next) => {
     albumService.moveTopProduct(req.body, (err, data) => {
