@@ -29,6 +29,8 @@ const config = {
   ],
 };
 
+module.exports.cfg = config
+
 
 
  module.exports.getTempKeys = async () => {

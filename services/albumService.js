@@ -10,6 +10,7 @@ const ExcelJS = require('exceljs/dist/es5');
 const dayjs = require('dayjs')
 const crypto = require('crypto');
 const fs = require('fs');
+const mathjs = require('mathjs')
 // const toolsScript = require(path.join(process.cwd(),"/services/toolsScript.js"))
 
 module.exports.getShop = async (params ,cb) => {
@@ -127,7 +128,7 @@ module.exports.productMod = async (req ,cb) => {
 }
 
 module.exports.getProduct = async (req ,cb) => {
-  // await toolsScript.formatTypes()
+  // await toolsScript.formatInventory()
   const params = req.body
   const {
     shopId, productId, pageSize, currPage, productType, status, searchStr, priceSort
@@ -587,18 +588,36 @@ module.exports.addressDel = async (req, cb) => {
 }
 
 module.exports.createInventory = async (req, cb) => {
+  const {add, multiply, bignumber} = mathjs
   try {
     const {userInfo, body} = req
     let params = {
       userId: userInfo.id,
       shopId: +body.shopId,
       add_time: util.getNowTime(),
-      data: body.data,
       type: body.type
     }
     if (body.type === 0) {
       params.orderId = util.createOrderId('DD', params.add_time)
     }
+    const d = JSON.parse(body.data)
+    const {list} = d
+    let totalCount = 0
+    let totalPrice = 0
+    for (const prodInfo of list) {
+      totalCount += prodInfo.count
+      if (prodInfo.price === '') totalPrice = '--'
+      if (totalPrice !== '--') {
+        let tmp = multiply(bignumber(Number(prodInfo.price)), bignumber(Number(prodInfo.count)))
+        totalPrice = add(totalPrice, tmp)
+      }
+    }
+    const newData = {
+      ...d,
+      totalCount: totalCount,
+      totalPrice: `${totalPrice}`
+    }
+    params.data = JSON.stringify(newData)
     const ret = await dao.create('Enventory', params)
     cb(null, ret.id)
   } catch(e) {
