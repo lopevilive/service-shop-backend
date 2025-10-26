@@ -30,7 +30,7 @@ module.exports.getShop = async (params ,cb) => {
     'id', 'desc', 'url', 'name', 'area', 'address', 'phone', 'qrcodeUrl', 'business',
     'attrs', 'level', 'status', 'encry', 'waterMark', 'auditing', 'addressStatus',
     'inveExportStatus', 'bannerStatus', 'bannerCfg', 'expiredTime', 'requiredType', 'typeStatus',
-    'forwardPermi', 'typeSideMod', 'specsCfg'
+    'forwardPermi', 'typeSideMod', 'specsCfg', 'showContact'
   ]
   cond.take = 100 // 限制数量
   try {
@@ -74,6 +74,7 @@ module.exports.shopMod = async (req ,cb) => {
     qrcodeUrl: req.body.qrcodeUrl,
     business: req.body.business,
     attrs: req.body.attrs,
+    showContact: req.body.showContact || 0,
     upd_time: util.getNowTime()
   }
   const {id} = params
@@ -128,7 +129,7 @@ module.exports.productMod = async (req ,cb) => {
 }
 
 module.exports.getProduct = async (req ,cb) => {
-  // await toolsScript.formatInventory()
+  // await toolsScript.clearImgs()
   const params = req.body
   const {
     shopId, productId, pageSize, currPage, productType, status, searchStr, priceSort
