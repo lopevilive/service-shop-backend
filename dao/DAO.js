@@ -130,3 +130,7 @@ module.exports.createQueryBuilder = async (entityName) => {
   return model.createQueryBuilder()
 }
 
+module.exports.getManager = ()  => {
+  return db.connection.manager
+}
+

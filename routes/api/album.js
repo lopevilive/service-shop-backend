@@ -539,6 +539,18 @@ router.post('/GetVipInfo',
   }
 )
 
+router.post('/Report',
+  async (req, res, next) => {
+    albumService.report(req, (err, data) => {
+      if (err) {
+        res.sendResult(null, CODE_UNKNOWN, err.message)
+      } else {
+        res.sendResult(data, CODE_SUCC, 'succ')
+      }
+    })(req, res, next)
+  }
+)
+
 
 
 

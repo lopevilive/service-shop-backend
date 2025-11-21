@@ -1074,11 +1074,44 @@ module.exports.getVipInfo = async (req, cb) => {
       expiredTime: shopInfo.expiredTime || 0,
       cfg: util.getConfig('levelCfg')
     }
-
     cb(null, ret)
   } catch(e) {
     cb(e)
   }
+}
 
-  
+module.exports.report = async (req, cb) => {
+  const {field, shopId, isAdmin} = req.body
+  try {
+    const ts = util.getTodayTs()
+    const res = await dao.count('cus_logs', {upd_time: ts})
+    let total = Number(res[0].total)
+    if (total === 0) { // 插入初始数据
+      await dao.create('CusLogs', { logType: 4, content: '{}', add_time: util.getNowTime(), upd_time: ts })
+    }
+
+    const manager = dao.getManager()
+    await manager.transaction(async (transactionalEntityManager) => {
+      const instance = await transactionalEntityManager.createQueryBuilder('CusLogs', 'CusLogs')
+      instance.setLock('pessimistic_write')
+      instance.where('CusLogs.logType = 4')
+      instance.andWhere('CusLogs.upd_time = :ts', {ts})
+      instance.orderBy('CusLogs.id', 'ASC')
+      const data = await instance.getOne()
+      if (!data) return
+      const content = JSON.parse(data.content)
+      if (!content[shopId])  content[shopId] = {admin: {}, custom: {}}
+      const matchItem = isAdmin ? content[shopId].admin : content[shopId].custom
+      if (!matchItem[field]) matchItem[field] =  0
+      matchItem[field] += 1
+      await transactionalEntityManager.update('CusLogs', {id: data.id}, {
+        content: JSON.stringify(content)
+      })
+      // await util.sleep(3000)
+      // console.log('done')
+    })
+    cb(null)
+  } catch(e) {
+    cb(e)
+  }
 }

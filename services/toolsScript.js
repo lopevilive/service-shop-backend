@@ -182,9 +182,9 @@ module.exports.clearImgs = async () => {
   // WatermarkCfg.cfg
   // WatermarkCfg.configkey
   // upload-1259129443.cos.ap-guangzhou.myqcloud.com/5_3_dda7b2170dac6b8a161f072b4b6a62b9.jpg
-  // 大户：20、25、50、88、173、175、176、179、518、532
+  // 大户：20、25、50、88、173、175、176、179、518、532、1074、1094、1158
 
-  // const shopId = 543
+  // const shopId = 1200
   const Marker = ''
 
   if (!shopId) return
