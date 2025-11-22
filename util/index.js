@@ -191,8 +191,13 @@ module.exports.getVipPrice = (level) => {
 
 // 获取今天0点时间戳，单位 秒
 module.exports.getTodayTs = () => {
-  const ret = new Date().setHours(0, 0, 0, 0)
-  return ret / 1000
+  const env = this.getConfig('env')
+  let ret = new Date().setHours(0, 0, 0, 0)
+  ret = ret / 1000
+  if (env === 'prod') {
+    ret -= 60 * 60 * 8
+  }
+  return ret
 }
 
 module.exports.sleep = async (times) => {
