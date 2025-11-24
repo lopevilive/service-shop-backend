@@ -191,13 +191,18 @@ module.exports.getVipPrice = (level) => {
 
 // 获取今天0点时间戳，单位 秒
 module.exports.getTodayTs = () => {
-  const env = this.getConfig('env')
-  let ret = new Date().setHours(0, 0, 0, 0)
-  ret = ret / 1000
-  if (env === 'prod') {
-    ret -= 60 * 60 * 8
-  }
-  return ret
+  const now = Date.now(); // 获取当前的UTC时间戳
+  const utc8OffsetMs = 8 * 60 * 60 * 1000; // 8小时的毫秒数
+  const oneDayMs = 24 * 60 * 60 * 1000; // 一天的毫秒数
+  
+  // 1. 将当前UTC时间戳转换为“北京时间戳”
+  // 2. 计算这个“北京时间戳”在今天已经过去了多少毫秒
+  const millisecondsPassedInUTC8Day = (now + utc8OffsetMs) % oneDayMs;
+  
+  // 3. 用当前UTC时间戳减去“已过时间”，得到今天北京时间零点那一刻的UTC时间戳
+  const utcTimestampOfUTC8Midnight = now - millisecondsPassedInUTC8Day;
+  
+  return utcTimestampOfUTC8Midnight / 1000;
 }
 
 module.exports.sleep = async (times) => {
