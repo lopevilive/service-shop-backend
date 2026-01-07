@@ -5,8 +5,11 @@ const bodyParser = require('body-parser')
 const resextra = require('./modules/resextra')
 const albumRoutes = require('./routes/api/album.js')
 const userRoutes = require('./routes/api/user.js')
+const oilRoutes = require('./routes/api/oil.js')
 const compression = require('compression');
 const {ERR_CODE_MAP: {CODE_SUCC, CODE_PARAMS_ERR, CODE_UNKNOWN, CODE_LOGIN_ERR, CODE_PERMISSION_ERR}} = require(path.join(process.cwd(),"util/errCode"))
+
+// require(path.join(process.cwd(), 'toolsScript/index.js')) // 执行一些脚本
 
 
 // 获取验证模块
@@ -14,10 +17,11 @@ const authorization = require(path.join(process.cwd(), '/modules/authorization')
 
 // 设置全局权限
 authorization.setAuthFn(async function(req, res, next, serviceName, actionName, passFn) {
-  const rule = authorization.rules[serviceName] && authorization.rules[serviceName][actionName]
-  if (rule) {
+  const rule = authorization.authMap[serviceName] && authorization.authMap[serviceName].getRule && authorization.authMap[serviceName].getRule(serviceName, actionName)
+  const executor = authorization.authMap[serviceName] && authorization.authMap[serviceName].getRuleExecutor && authorization.authMap[serviceName].getRuleExecutor(serviceName, actionName)
+  if (rule && executor) {
     try {
-      const retCode = await authorization.execRule(rule, req, res, serviceName, actionName)
+      const retCode = await executor(rule, req, res, serviceName, actionName)
       if (retCode === CODE_SUCC) {
         return passFn(true)
       }
@@ -58,8 +62,7 @@ app.use(bodyParser.json())
 app.use(bodyParser.urlencoded({ extended: true }))
 
 
-// 设置跨域和相应数据格式
-app.all('/api/*', function(req, res, next) {
+const setDefaultHeader = (req, res, next) => {
   res.header('Access-Control-Allow-Origin', req.headers.origin)
   res.setHeader("Access-Control-Allow-Credentials", true);  
   res.header('Access-Control-Allow-Headers', 'X-Requested-With, mytoken')
@@ -68,19 +71,22 @@ app.all('/api/*', function(req, res, next) {
   res.header('Access-Control-Allow-Headers', 'Content-Type,Content-Length, Authorization, Accept,X-Requested-With')
   res.header('Access-Control-Allow-Methods', 'PUT,POST,GET,DELETE,OPTIONS')
   res.header('X-Powered-By', ' 3.2.1')
-  if (req.method == 'OPTIONS') res.send(200)
-  /*让options请求快速返回*/ else next()
-})
+  if (req.method == 'OPTIONS') { /*让options请求快速返回*/ 
+    res.send(200)
+  } else {
+    next()
+  }
+}
 
+// 设置跨域和相应数据格式
+app.all('/api/*', setDefaultHeader)
 // 路由加载
-
-app.use('/api/album', albumRoutes)
-app.use('/api/user', userRoutes)
+app.use('/api/album', albumRoutes) // 图册
+app.use('/api/user', userRoutes) //  图册登录
+app.use('/api/oil', oilRoutes) // 油价
 
 /**
- *
  * 统一处理无响应
- *
  */
 // 如果没有路径处理就返回 Not Found
 app.use(function(req, res, next) {

@@ -4,7 +4,7 @@ const dao = require(path.join(process.cwd(),"dao/DAO"));
 const util = require(path.join(process.cwd(),"util/index"))
 const { Like } = require("typeorm");
 const cos = require(path.join(process.cwd(),"modules/cos"))
-const mathjs = require('mathjs')
+const mathjs = require('mathjs');
 
 
 const getSpecPrices = (list) => {
@@ -182,9 +182,9 @@ module.exports.clearImgs = async () => {
   // WatermarkCfg.cfg
   // WatermarkCfg.configkey
   // upload-1259129443.cos.ap-guangzhou.myqcloud.com/5_3_dda7b2170dac6b8a161f072b4b6a62b9.jpg
-  // 大户：20、25、50、88、173、175、176、179、518、532、1074、1094、1158
+  // 大户：20、25、50、88、173、175、176、179、518、532、1074、1094、1158、1201
 
-  // const shopId = 1200
+  // const shopId = 1211
   const Marker = ''
 
   if (!shopId) return
@@ -262,3 +262,49 @@ module.exports.clearImgs = async () => {
   }
   console.log(`lastKey:`, lastKey)
 }
+
+module.exports.formatReport = async () => {
+  let data = await dao.list('CusLogs', {order: {id: 'DESC'}, take: 30, columns: {logType: 4} })
+  const list = data.map((item) => JSON.parse(item.content))
+  let cusInfo = [0, 0, 0] // member openTimes viewDetials
+  let adminInfo = [0, 0, 0]
+  let cusInfoVip = [0, 0, 0]
+  let adminInfoVip = [0, 0, 0]
+  const shopInfoMap = {}
+  while(list.length) {
+    const item = list.pop()
+    const shopIds = Object.keys(item).map((item) => Number(item))
+    for (const shopId of shopIds) {
+      if ([2].includes(shopId)) continue
+      const matchItem = item[shopId]
+      const {admin, custom} = matchItem
+      if (!shopInfoMap[shopId]) {
+        const shopInfo = await dao.list('Shop', {columns: {id: shopId}})
+        shopInfoMap[shopId] = shopInfo[0]
+      }
+      const isVip = shopInfoMap[shopId].level > 0
+      let tmpCus = isVip ? cusInfoVip : cusInfo
+      let tmpAdmin = isVip ? adminInfoVip : adminInfo
+      if (admin.member) tmpAdmin[0] += admin.member
+      if (admin.openTimes) tmpAdmin[1] += admin.openTimes
+      if (admin.viewDetial) tmpAdmin[2] += admin.viewDetial
+
+      if (custom.member) tmpCus[0] += custom.member
+      if (custom.openTimes) tmpCus[1] += custom.openTimes
+      if (custom.viewDetial) tmpCus[2] += custom.viewDetial
+    }
+    
+  }
+  console.log(cusInfo)
+  console.log(adminInfo)
+  console.log(cusInfoVip)
+  console.log(adminInfoVip)
+
+}
+const init = async () => {
+  setTimeout(() => {
+    // this.formatReport()
+  }, 0);
+}
+
+init()

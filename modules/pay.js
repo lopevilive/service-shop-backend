@@ -24,7 +24,7 @@ module.exports.createOrderSign = async (method, url, timestamp, nonce_str, body)
 exports.createPaySign = async function (prepay_id) {
   const timeStamp = util.getNowTime();
   const nonceStr = util.generateNonceStr(32);
-  const { appid } = util.getConfig('appInfo');
+  const { appid } = util.getConfig('album.appInfo');
   let signStr = `${appid}\n${timeStamp}\n${nonceStr}\nprepay_id=${prepay_id}\n`;
   let cert = fs.readFileSync(path.join(process.cwd(),"config/apiclient_key.pem"), "utf-8"); 
   let sign = crypto.createSign("RSA-SHA256");
@@ -73,9 +73,9 @@ module.exports.createOrder = async ({userId, openid, shopInfo, level: targetLeve
     }
   }
 
-  const mchid = util.getConfig('mchid')
-  const serial_no = util.getConfig('serial_no')
-  const { appid } = util.getConfig('appInfo');
+  const mchid = util.getConfig('default.wxPay.mchid')
+  const serial_no = util.getConfig('default.wxPay.serial_no')
+  const { appid } = util.getConfig('album.appInfo');
   const wxOrderInfo = {
     mchid, appid, notify_url: 'https://huace.xiaoguoxx.cn/',
     out_trade_no: orderId,
@@ -135,8 +135,8 @@ module.exports.queryOrder = async (id, shopInfo) => {
   if (status === 1) return status
   const nowTime = util.getNowTime()
   const nonce_str = util.generateNonceStr(32);
-  const mchid = util.getConfig('mchid')
-  const serial_no = util.getConfig('serial_no')
+  const mchid = util.getConfig('default.wxPay.mchid')
+  const serial_no = util.getConfig('default.wxPay.serial_no')
   const wxPath = `/v3/pay/transactions/out-trade-no/${orderId}?mchid=${mchid}`
   const signature = await this.createOrderSign('GET', wxPath, nowTime, nonce_str, '')
   const Authorization = `WECHATPAY2-SHA256-RSA2048 mchid="${mchid}",nonce_str="${nonce_str}",timestamp="${nowTime}",signature="${signature}",serial_no="${serial_no}"`;

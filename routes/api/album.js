@@ -180,8 +180,7 @@ router.post('/ProductTypesDel',
   }
 )
 
-router.post(
-  '/GetCosTempKeys',
+router.post('/GetCosTempKeys',
   (req, res, next) => {
     albumService.getCosTempKeys(
       req,
@@ -197,8 +196,7 @@ router.post(
 )
 
 
-router.post(
-  '/GetStaff',
+router.post('/GetStaff',
   (req, res, next) => {
     albumService.getStaff(
       req,
@@ -213,8 +211,7 @@ router.post(
   }
 )
 
-router.post(
-  '/CreateStaff',
+router.post('/CreateStaff',
   (req, res, next) => {
     albumService.createStaff(
       req,
@@ -229,8 +226,7 @@ router.post(
   }
 )
 
-router.post(
-  '/DelStaff',
+router.post('/DelStaff',
   (req, res, next) => {
     albumService.delStaff(
       req,
@@ -245,8 +241,7 @@ router.post(
   }
 )
 
-router.post(
-  '/VerfiyStaff',
+router.post('/VerfiyStaff',
   (req, res, next) => {
     albumService.verfiyStaff(
       req,
@@ -262,8 +257,7 @@ router.post(
 )
 
 
-router.post(
-  '/AcceptStaff',
+router.post('/AcceptStaff',
   (req, res, next) => {
     albumService.acceptStaff(
       req,

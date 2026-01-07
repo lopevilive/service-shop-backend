@@ -5,8 +5,8 @@ const COS = require('cos-nodejs-sdk-v5');
 
 // 配置参数
 const config = {
-  secretId: util.getConfig("secretId"), // 固定密钥
-  secretKey: util.getConfig("secretKey"), // 固定密钥
+  secretId: util.getConfig("default.cos.secretId"), // 固定密钥
+  secretKey: util.getConfig("default.cos.secretKey"), // 固定密钥
   proxy: '',
   durationSeconds: 7200,
   // endpoint: 'sts.tencentcloudapi.com', // 域名，非必须，与host二选一，默认为 sts.tencentcloudapi.com

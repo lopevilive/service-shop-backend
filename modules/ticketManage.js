@@ -6,8 +6,7 @@ const util = require(path.join(process.cwd(),"util/index"))
 module.exports.createTicket = (str, expired) => {
   if (!expired) expired = 60 * 15 // 默认 15 分钟
   const expiredTime = util.getNowTime() + expired
-  const random = Math.floor(Math.random() * 10000)
-  let encryStr = `${str}/${expiredTime}/${random}`
+  const encryStr = `${str}/${expiredTime}`
   const ticket = util.encryptAES(encryStr)
   return ticket
 }

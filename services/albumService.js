@@ -7,11 +7,9 @@ const {createTicket, verifyTicket} = require(path.join(process.cwd(),"modules/ti
 const { In, Like, Brackets } = require("typeorm");
 const axios = require('axios');
 const ExcelJS = require('exceljs/dist/es5');
-const dayjs = require('dayjs')
 const crypto = require('crypto');
 const fs = require('fs');
 const mathjs = require('mathjs')
-// const toolsScript = require(path.join(process.cwd(),"/services/toolsScript.js"))
 
 module.exports.getShop = async (params ,cb) => {
   const {userId, shopId} = params
@@ -48,7 +46,7 @@ module.exports.shopCreate = async (req ,cb) => {
     if (userInfo.status === 1) { // 违规用户
       throw new Error('请稍后重试*')
     }
-    const sups = util.getConfig('superAdmin')
+    const sups = util.getConfig('album.superAdmin')
     if (!sups.includes(userInfo.id)) {
       const res = await dao.list('Shop', {columns: {userId: userInfo.id}})
       if (res.length) {
@@ -129,7 +127,6 @@ module.exports.productMod = async (req ,cb) => {
 }
 
 module.exports.getProduct = async (req ,cb) => {
-  // await toolsScript.clearImgs()
   const params = req.body
   const {
     shopId, productId, pageSize, currPage, productType, status, searchStr, priceSort
@@ -729,14 +726,15 @@ module.exports.exportInventory = async (req, cb) => {
     })
 
     idx += 1
-    sheet.addRow([`创建时间： ${dayjs(info.add_time * 1000).format('YYYY/MM/DD HH:mm')}`])
+    const dateStr = util.dateTs2Str(info.add_time, 'YYYY/MM/DD HH:mm')
+    sheet.addRow([`创建时间： ${dateStr}`])
     sheet.mergeCells(`A${idx}:F${idx}`)
     sheet.getRow(idx).eachCell({includeEmpty: false}, (cell) => {
       cell.alignment = {vertical: 'middle'}
     })
 
     const md5 = crypto.createHash('md5').update(`${id}-${util.getNowTime()}`).digest('hex')
-    const env = util.getConfig('env')
+    const env = util.getConfig('default.env')
     let fileName = `/tmp/报价单-${md5}.xlsx`
     if (env === 'dev') {
       fileName = path.join(process.cwd(),`tmp/报价单-${md5}.xlsx`)
@@ -756,7 +754,7 @@ module.exports.exportInventory = async (req, cb) => {
 
 module.exports.getwxacodeunlimit = async (req, cb) => {
   try {
-    const {appid, secret} = util.getConfig('appInfo');
+    const {appid, secret} = util.getConfig('album.appInfo');
     const {scene} = req.body;
 
     // 获取 access_token
@@ -1072,7 +1070,7 @@ module.exports.getVipInfo = async (req, cb) => {
       amount: util.getRestAmount(shopInfo.level, shopInfo.expiredTime), // 剩余金额
       level: shopInfo.level,
       expiredTime: shopInfo.expiredTime || 0,
-      cfg: util.getConfig('levelCfg')
+      cfg: util.getConfig('album.levelCfg')
     }
     cb(null, ret)
   } catch(e) {
@@ -1090,7 +1088,7 @@ module.exports.report = async (req, cb) => {
       await dao.create('CusLogs', { logType: 4, content: '{}', add_time: util.getNowTime(), upd_time: ts })
     }
 
-    const manager = dao.getManager()
+    const manager = await dao.getManager()
     await manager.transaction(async (transactionalEntityManager) => {
       const instance = await transactionalEntityManager.createQueryBuilder('CusLogs', 'CusLogs')
       instance.setLock('pessimistic_write')

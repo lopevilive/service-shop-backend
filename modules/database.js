@@ -9,7 +9,7 @@ const { ConnectionManager, EntitySchema } = require("typeorm");
 class DbManage {
   constructor() {
     this.connectionManager = new ConnectionManager();
-    this.db_config = util.getConfig("db_config");
+    this.db_config = util.getConfig("default.db_config");
     this.entities = [
       new EntitySchema(require(path.join(process.cwd(),"entity",'Shop'))),
       new EntitySchema(require(path.join(process.cwd(),"entity",'Product'))),
@@ -22,6 +22,8 @@ class DbManage {
       new EntitySchema(require(path.join(process.cwd(),"entity",'WatermarkCfg'))),
       new EntitySchema(require(path.join(process.cwd(),"entity",'CusLogs'))),
       new EntitySchema(require(path.join(process.cwd(),"entity",'Order'))),
+      new EntitySchema(require(path.join(process.cwd(),"entity",'ZaList'))),
+      new EntitySchema(require(path.join(process.cwd(),"entity",'ZaUser'))),
     ]
     this.connection = this.connectionManager.create({...this.db_config, entities: this.entities})
     this.timer = null
@@ -39,7 +41,7 @@ class DbManage {
     const {connection} = this
     let retryNum = 20; // 重试次数
     const timeO = 500; // 重试间隔，毫秒
-    const todo = async () => {
+    const toConnect = async () => {
       try {
         await connection.connect()
       } catch(e) {
@@ -50,13 +52,13 @@ class DbManage {
               resolve()
             }, timeO);
           })
-          await todo()
+          await toConnect()
         } else {
           throw e
         }
       }
     }
-    await todo()
+    await toConnect()
   }
 
   async getModel(entityName) {
