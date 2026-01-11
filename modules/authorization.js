@@ -57,7 +57,6 @@ module.exports.getService = function(serviceName) {
 			global.service_caches[serviceName][actionName] = Invocation(serviceName,actionName,serviceModule,origFunc);
 		}
 	}
-	// console.log(global.service_caches);
 	return global.service_caches[serviceName];
 }
 

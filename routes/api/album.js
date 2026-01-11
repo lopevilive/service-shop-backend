@@ -136,7 +136,7 @@ router.post('/GetProductTypes',
 
 router.post('/ProductTypesMod',
   async (req, res, next) => {
-    albumService.productTypesMod(req.body, (err, data) => {
+    albumService.productTypesMod(req, (err, data) => {
       if (err) {
         res.sendResult(null, CODE_UNKNOWN, err.message)
       } else {

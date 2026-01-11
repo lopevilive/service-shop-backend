@@ -10,6 +10,23 @@ const ExcelJS = require('exceljs/dist/es5');
 const crypto = require('crypto');
 const fs = require('fs');
 const mathjs = require('mathjs')
+const wxApi = require(path.join(process.cwd(),"modules/wxApi"))
+const contentValid = require(path.join(process.cwd(),"modules/contentValid"))
+
+const validExec = async (strList, payload) => {
+  const {openid, userId, shopId} = payload
+  const newStrList = util.joinStrArrayWithLimit(strList, 2000)
+  const pList = newStrList.map((str) => {
+    return contentValid.albumValidText({openid, userId, shopId, content: str})
+  })
+  const validRes = await Promise.all(pList)
+  for (const validItem of validRes) {
+    if (validItem.pass === false) {
+      throw new Error(validItem.msg || '系统繁忙~')
+    }
+  }
+}
+
 
 module.exports.getShop = async (params ,cb) => {
   const {userId, shopId} = params
@@ -53,6 +70,8 @@ module.exports.shopCreate = async (req ,cb) => {
         throw new Error('每个用户暂时只能创建 1 个图册~')
       }
     }
+
+    await validExec([params.name, params.desc], {openid: userInfo.openid, userId: userInfo.id, shopId: 0})
     const data = await dao.create('Shop', {...params, userId: userInfo.id, add_time: util.getNowTime(), inveExportStatus: 1})
     cb(null, data.id)
   } catch(e) {
@@ -61,6 +80,7 @@ module.exports.shopCreate = async (req ,cb) => {
 }
 
 module.exports.shopMod = async (req ,cb) => {
+  const {userInfo} = req
   const params = {
     id: req.body.id,
     desc: req.body.desc,
@@ -77,6 +97,9 @@ module.exports.shopMod = async (req ,cb) => {
   }
   const {id} = params
   try {
+    await validExec([
+      params.desc, params.name, params.address, params.phone
+    ], {openid: userInfo.openid, userId: userInfo.id, shopId: params.id})
     await dao.update('Shop', id, params)
     cb(null, id)
   } catch(e) {
@@ -85,7 +108,7 @@ module.exports.shopMod = async (req ,cb) => {
 }
 
 module.exports.productMod = async (req ,cb) => {
-  const {shopInfo: {status}} = req
+  const {shopInfo: {status}, userInfo} = req
   const params = req.body
   const { id, shopId } = params
 
@@ -93,7 +116,14 @@ module.exports.productMod = async (req ,cb) => {
     cb(new Error('未知错误，请重启小程序*'))
     return
   }
-
+  try {
+    await validExec([
+      params.desc, params.specDetials, params.price, params.attr
+    ], {openid: userInfo.openid, userId: userInfo.id, shopId})
+  } catch(e) {
+    cb(e)
+    return
+  }
   if (id === 0) { // 创建
     try {
       let countRes = await dao.count('Product', {shopId})
@@ -269,34 +299,31 @@ module.exports.modProdTypesSort = async (params, cb) => {
   }
 }
 
-module.exports.productTypesMod = async (params ,cb) => {
-  let {data: payload} = params
-  let isMod = false
-  let parentId = null
-  for (const item of payload) {
-    if (item.parentId) parentId = item.parentId
-    if (item.id) { // 编辑
-      isMod = true
-      item['upd_time'] = util.getNowTime()
-    } else { // 新增
-      item['add_time'] = util.getNowTime()
+module.exports.productTypesMod = async (req ,cb) => {
+  try {
+    const {userInfo, body} = req
+    let {data: payload, shopId} = body
+    let isMod = false
+    const validStr = payload.map((item) => item.name)
+    await validExec(validStr, {openid: userInfo.openid, userId: userInfo.id, shopId})
+    for (const item of payload) {
+      if (item.id) { // 编辑
+        isMod = true
+        item['upd_time'] = util.getNowTime()
+      } else { // 新增
+        item['add_time'] = util.getNowTime()
+      }
     }
-  }
-  if (!isMod) { // 创建
-    try {
+    if (!isMod) { // 创建
       const data = await dao.create('ProductTypes', payload)
       cb(null, data)
-    } catch(e) {
-      cb(e)
-    }
-  } else { // 修改
-    payload = payload[0]
-    try {
+    } else { // 修改
+      payload = payload[0]
       const data = await dao.update('ProductTypes', payload.id, payload)
       cb(null, data)
-    } catch(e) {
-      cb(e)
     }
+  } catch(e) {
+    cb(e)
   }
 }
 
@@ -409,11 +436,12 @@ module.exports.getStaff = async (req, cb) => {
 }
 
 module.exports.createStaff = async (req, cb) => {
-  const {shopInfo} = req
+  const {shopInfo, userInfo} = req
   const {nickName, type} = req.body
 
   try {
     const ticket = createTicket('createStaff', 60 * 60 * 4) //4小时内有效
+    await validExec([nickName], {openid: userInfo.openid, userId: userInfo.id, shopId: shopInfo.id})
     const params = {
       shopId: shopInfo.id,
       nickName,
@@ -543,10 +571,11 @@ module.exports.getAddressList = async (req, cb) => {
 }
 
 module.exports.addressMod = async (req, cb) => {
-  const {userInfo: {id: userId}} = req
+  const {userInfo: {id: userId, openid}} = req
   const params = {...req.body}
   params.isDefault = params.isDefault ? 1 : 0
   try {
+    await validExec([params.addressDetail, params.tel, params.name], {openid, userId, shopId: 0})
     if (params.isDefault === 1) {
       const list = await dao.list('Address', {columns: {userId, isDefault: 1}})
       let needResetList = []
@@ -595,10 +624,11 @@ module.exports.createInventory = async (req, cb) => {
       add_time: util.getNowTime(),
       type: body.type
     }
+    const d = JSON.parse(body.data)
+    await validExec([d.remark], {openid: userInfo.openid, userId: userInfo.id, shopId: 0})
     if (body.type === 0) {
       params.orderId = util.createOrderId('DD', params.add_time)
     }
-    const d = JSON.parse(body.data)
     const {list} = d
     let totalCount = 0
     let totalPrice = 0
@@ -756,10 +786,8 @@ module.exports.getwxacodeunlimit = async (req, cb) => {
   try {
     const {appid, secret} = util.getConfig('album.appInfo');
     const {scene} = req.body;
-
     // 获取 access_token
-    const access_tokenRes = await axios.get('https://api.weixin.qq.com/cgi-bin/token', {params: {appid, secret, grant_type: 'client_credential'}})
-    const {access_token, expires_in} = access_tokenRes.data
+    const access_token = await wxApi.getAccessToken({appid, secret})
     let url = `https://api.weixin.qq.com/wxa/getwxacodeunlimit?access_token=${access_token}`
     const {data} = await axios.post(url, { scene, is_hyaline: true }, { responseType: 'arraybuffer'})
     const base64 = data.toString('base64')
@@ -867,7 +895,8 @@ module.exports.getWatermarkCfg = async (req, cb) => {
 
 module.exports.saveWatermarkCfg = async (req, cb) => {
   try {
-    const { shopId } = req.body
+    const {body: {shopId, text}, userInfo} = req
+    await validExec([text], {openid: userInfo.openid, userId: userInfo.id, shopId})
     let ret = await dao.list('WatermarkCfg', {columns: {shopId}})
     if (ret.length) { // 已存在配置
       const id = ret[0].id
@@ -898,7 +927,7 @@ module.exports.auditingImg = async (req, cb) => {
     }
 
     const audRes = await cos.getImageAuditing(fileName)
-    console.log(audRes)
+    // console.log(audRes)
     const ret = await util.handleAudRes(audRes, shopId, userId)
     cb(null, ret)
   } catch(e) {

@@ -122,115 +122,115 @@ module.exports.calculateOilPriceAdjustment = (prevCycle, currCycle, avgExchangeR
  * @param {Array} backtestCases - 回测案例数组
  * @returns {Object} 回测结果汇总（含详情+统计数据）
  */
-module.exports.runBacktest = (backtestCases) => {
-    // 校验案例数组有效性
-    if (!Array.isArray(backtestCases) || backtestCases.length === 0) {
-        throw new Error('回测失败：案例数组必须是非空数组');
-    }
+// module.exports.runBacktest = (backtestCases) => {
+//     // 校验案例数组有效性
+//     if (!Array.isArray(backtestCases) || backtestCases.length === 0) {
+//         throw new Error('回测失败：案例数组必须是非空数组');
+//     }
 
-    const calculateOilPrice = module.exports.calculateOilPriceAdjustment;
-    const backtestResult = {
-        caseDetails: [], // 每个案例的详细结果
-        summary: { // 汇总统计数据
-            totalCases: backtestCases.length,
-            totalAbsError: 0,
-            avgError: 0,
-            maxAbsError: 0
-        }
-    };
+//     const calculateOilPrice = module.exports.calculateOilPriceAdjustment;
+//     const backtestResult = {
+//         caseDetails: [], // 每个案例的详细结果
+//         summary: { // 汇总统计数据
+//             totalCases: backtestCases.length,
+//             totalAbsError: 0,
+//             avgError: 0,
+//             maxAbsError: 0
+//         }
+//     };
 
-    // 遍历执行每个案例的回测
-    backtestCases.forEach((item, index) => {
-        const caseItem = {
-            caseIndex: index + 1,
-            caseName: item.name,
-            input: {
-                prevBrent: item.prev.brent,
-                prevWti: item.prev.wti,
-                currBrent: item.curr.brent,
-                currWti: item.curr.wti,
-                exchangeRate: item.exchangeRate
-            },
-            calcResult: '',
-            actualResult: item.actual,
-            error: 0,
-            absError: 0,
-            avgOilPrice: 0,
-            profitTransferStatus: '',
-            isSuccess: true,
-            errorMsg: ''
-        };
+//     // 遍历执行每个案例的回测
+//     backtestCases.forEach((item, index) => {
+//         const caseItem = {
+//             caseIndex: index + 1,
+//             caseName: item.name,
+//             input: {
+//                 prevBrent: item.prev.brent,
+//                 prevWti: item.prev.wti,
+//                 currBrent: item.curr.brent,
+//                 currWti: item.curr.wti,
+//                 exchangeRate: item.exchangeRate
+//             },
+//             calcResult: '',
+//             actualResult: item.actual,
+//             error: 0,
+//             absError: 0,
+//             avgOilPrice: 0,
+//             profitTransferStatus: '',
+//             isSuccess: true,
+//             errorMsg: ''
+//         };
 
-        try {
-            // 执行调价额计算
-            caseItem.calcResult = calculateOilPrice(item.prev, item.curr, item.exchangeRate);
+//         try {
+//             // 执行调价额计算
+//             caseItem.calcResult = calculateOilPrice(item.prev, item.curr, item.exchangeRate);
             
-            // 计算原油均价
-            const prevBrent = Number(item.prev.brent);
-            const prevWti = Number(item.prev.wti);
-            const currBrent = Number(item.curr.brent);
-            const currWti = Number(item.curr.wti);
-            caseItem.avgOilPrice = (prevBrent + prevWti + currBrent + currWti) / 4;
+//             // 计算原油均价
+//             const prevBrent = Number(item.prev.brent);
+//             const prevWti = Number(item.prev.wti);
+//             const currBrent = Number(item.curr.brent);
+//             const currWti = Number(item.curr.wti);
+//             caseItem.avgOilPrice = (prevBrent + prevWti + currBrent + currWti) / 4;
             
-            // 判断利润让渡状态
-            caseItem.profitTransferStatus = caseItem.avgOilPrice < 80 
-                ? "利润让渡6元（仅降价生效）" 
-                : "利润让渡0元";
+//             // 判断利润让渡状态
+//             caseItem.profitTransferStatus = caseItem.avgOilPrice < 80 
+//                 ? "利润让渡6元（仅降价生效）" 
+//                 : "利润让渡0元";
             
-            // 计算误差
-            const calcNum = Number(caseItem.calcResult);
-            const actualNum = Number(caseItem.actualResult);
-            caseItem.error = calcNum - actualNum;
-            caseItem.absError = Math.abs(caseItem.error);
+//             // 计算误差
+//             const calcNum = Number(caseItem.calcResult);
+//             const actualNum = Number(caseItem.actualResult);
+//             caseItem.error = calcNum - actualNum;
+//             caseItem.absError = Math.abs(caseItem.error);
 
-            // 累加总误差
-            backtestResult.summary.totalAbsError += caseItem.absError;
-        } catch (e) {
-            // 捕获单个案例的执行错误
-            caseItem.isSuccess = false;
-            caseItem.errorMsg = e.message;
-            caseItem.calcResult = '执行失败';
-        }
+//             // 累加总误差
+//             backtestResult.summary.totalAbsError += caseItem.absError;
+//         } catch (e) {
+//             // 捕获单个案例的执行错误
+//             caseItem.isSuccess = false;
+//             caseItem.errorMsg = e.message;
+//             caseItem.calcResult = '执行失败';
+//         }
 
-        // 保存案例详情
-        backtestResult.caseDetails.push(caseItem);
-    });
+//         // 保存案例详情
+//         backtestResult.caseDetails.push(caseItem);
+//     });
 
-    // 计算汇总统计数据
-    backtestResult.summary.avgError = (backtestResult.summary.totalAbsError / backtestResult.summary.totalCases).toFixed(2);
-    backtestResult.summary.maxAbsError = Math.max(...backtestResult.caseDetails.map(caseItem => caseItem.absError)).toFixed(2);
-    backtestResult.summary.totalAbsError = backtestResult.summary.totalAbsError.toFixed(2);
+//     // 计算汇总统计数据
+//     backtestResult.summary.avgError = (backtestResult.summary.totalAbsError / backtestResult.summary.totalCases).toFixed(2);
+//     backtestResult.summary.maxAbsError = Math.max(...backtestResult.caseDetails.map(caseItem => caseItem.absError)).toFixed(2);
+//     backtestResult.summary.totalAbsError = backtestResult.summary.totalAbsError.toFixed(2);
 
-    // 控制台输出格式化结果
-    console.log("===== 油价调价算法回测结果汇总（零误差版） =====");
-    backtestResult.caseDetails.forEach(caseItem => {
-        if (caseItem.isSuccess) {
-            console.log(`
-【案例${caseItem.caseIndex}】${caseItem.caseName}
-- 原油均价：${caseItem.avgOilPrice.toFixed(2)} 美元/桶（${caseItem.profitTransferStatus}）
-- 输入数据：上轮布伦特${caseItem.input.prevBrent}、WTI${caseItem.input.prevWti} | 本轮布伦特${caseItem.input.currBrent}、WTI${caseItem.input.currWti} | 汇率${caseItem.input.exchangeRate}
-- 算法计算：${caseItem.calcResult} 元/吨
-- 官方实际：${caseItem.actualResult} 元/吨
-- 误差：${caseItem.error.toFixed(2)} 元/吨（绝对值：${caseItem.absError.toFixed(2)}）
-            `);
-        } else {
-            console.log(`
-【案例${caseItem.caseIndex}】${caseItem.caseName}
-- 执行失败：${caseItem.errorMsg}
-            `);
-        }
-    });
+//     // 控制台输出格式化结果
+//     console.log("===== 油价调价算法回测结果汇总（零误差版） =====");
+//     backtestResult.caseDetails.forEach(caseItem => {
+//         if (caseItem.isSuccess) {
+//             console.log(`
+// 【案例${caseItem.caseIndex}】${caseItem.caseName}
+// - 原油均价：${caseItem.avgOilPrice.toFixed(2)} 美元/桶（${caseItem.profitTransferStatus}）
+// - 输入数据：上轮布伦特${caseItem.input.prevBrent}、WTI${caseItem.input.prevWti} | 本轮布伦特${caseItem.input.currBrent}、WTI${caseItem.input.currWti} | 汇率${caseItem.input.exchangeRate}
+// - 算法计算：${caseItem.calcResult} 元/吨
+// - 官方实际：${caseItem.actualResult} 元/吨
+// - 误差：${caseItem.error.toFixed(2)} 元/吨（绝对值：${caseItem.absError.toFixed(2)}）
+//             `);
+//         } else {
+//             console.log(`
+// 【案例${caseItem.caseIndex}】${caseItem.caseName}
+// - 执行失败：${caseItem.errorMsg}
+//             `);
+//         }
+//     });
 
-    // 输出汇总信息
-    console.log(`===== 回测汇总 =====`);
-    console.log(`总案例数：${backtestResult.summary.totalCases} 个`);
-    console.log(`总误差绝对值之和：${backtestResult.summary.totalAbsError} 元/吨`);
-    console.log(`平均单案例误差：${backtestResult.summary.avgError} 元/吨`);
-    console.log(`最大单案例误差：${backtestResult.summary.maxAbsError} 元/吨`);
+//     // 输出汇总信息
+//     console.log(`===== 回测汇总 =====`);
+//     console.log(`总案例数：${backtestResult.summary.totalCases} 个`);
+//     console.log(`总误差绝对值之和：${backtestResult.summary.totalAbsError} 元/吨`);
+//     console.log(`平均单案例误差：${backtestResult.summary.avgError} 元/吨`);
+//     console.log(`最大单案例误差：${backtestResult.summary.maxAbsError} 元/吨`);
 
-    // 返回结构化的回测结果（方便外部调用）
-    return backtestResult;
-};
+//     // 返回结构化的回测结果（方便外部调用）
+//     return backtestResult;
+// };
 
 // ====================== 测试你关注的核心案例 ======================
 // 测试案例1：你之前的案例3（64.121/60.270 → 63.653/59.399）
@@ -250,17 +250,17 @@ module.exports.runBacktest = (backtestCases) => {
 // console.log("【案例4】计算结果（官方-55）：", case2Result); // 输出 -55（零误差）
 
 // ====================== 全量回测（可选执行） ======================
-const backtestCases = [
-    { name: "2024.08.10 调价（原油＜80）", prev: { brent: "72.500", wti: "68.800" }, curr: { brent: "71.800", wti: "67.200" }, exchangeRate: "7.15", actual: "-85" },
-    { name: "2024.09.15 调价（原油＜80）", prev: { brent: "70.200", wti: "66.500" }, curr: { brent: "72.100", wti: "67.300" }, exchangeRate: "7.18", actual: "90" },
-    { name: "2024.10.21 调价（原油＜80）", prev: { brent: "64.121", wti: "60.270" }, curr: { brent: "63.653", wti: "59.399" }, exchangeRate: "7.12", actual: "-70" },
-    { name: "2024.11.24 调价（原油＜80）", prev: { brent: "63.653", wti: "59.399" }, curr: { brent: "62.705", wti: "58.934" }, exchangeRate: "7.02", actual: "-55" },
-    { name: "2024.12.08 调价（原油＜80）", prev: { brent: "62.300", wti: "58.800" }, curr: { brent: "62.100", wti: "58.700" }, exchangeRate: "7.05", actual: "0" },
-    { name: "2025.01.15 调价（原油＜80）", prev: { brent: "61.500", wti: "58.200" }, curr: { brent: "60.800", wti: "57.600" }, exchangeRate: "7.05", actual: "-40" },
-    { name: "2025.02.28 调价（原油＜80）", prev: { brent: "62.300", wti: "59.100" }, curr: { brent: "63.500", wti: "59.700" }, exchangeRate: "7.08", actual: "65" },
-    { name: "2025.03.18 调价（原油＜80）", prev: { brent: "65.800", wti: "62.100" }, curr: { brent: "63.200", wti: "59.500" }, exchangeRate: "7.01", actual: "-110" },
-    { name: "2024.07.05 调价（原油≥80）", prev: { brent: "81.200", wti: "78.500" }, curr: { brent: "83.500", wti: "80.100" }, exchangeRate: "7.20", actual: "120" }
-];
+// const backtestCases = [
+//     { name: "2024.08.10 调价（原油＜80）", prev: { brent: "72.500", wti: "68.800" }, curr: { brent: "71.800", wti: "67.200" }, exchangeRate: "7.15", actual: "-85" },
+//     { name: "2024.09.15 调价（原油＜80）", prev: { brent: "70.200", wti: "66.500" }, curr: { brent: "72.100", wti: "67.300" }, exchangeRate: "7.18", actual: "90" },
+//     { name: "2024.10.21 调价（原油＜80）", prev: { brent: "64.121", wti: "60.270" }, curr: { brent: "63.653", wti: "59.399" }, exchangeRate: "7.12", actual: "-70" },
+//     { name: "2024.11.24 调价（原油＜80）", prev: { brent: "63.653", wti: "59.399" }, curr: { brent: "62.705", wti: "58.934" }, exchangeRate: "7.02", actual: "-55" },
+//     { name: "2024.12.08 调价（原油＜80）", prev: { brent: "62.300", wti: "58.800" }, curr: { brent: "62.100", wti: "58.700" }, exchangeRate: "7.05", actual: "0" },
+//     { name: "2025.01.15 调价（原油＜80）", prev: { brent: "61.500", wti: "58.200" }, curr: { brent: "60.800", wti: "57.600" }, exchangeRate: "7.05", actual: "-40" },
+//     { name: "2025.02.28 调价（原油＜80）", prev: { brent: "62.300", wti: "59.100" }, curr: { brent: "63.500", wti: "59.700" }, exchangeRate: "7.08", actual: "65" },
+//     { name: "2025.03.18 调价（原油＜80）", prev: { brent: "65.800", wti: "62.100" }, curr: { brent: "63.200", wti: "59.500" }, exchangeRate: "7.01", actual: "-110" },
+//     { name: "2024.07.05 调价（原油≥80）", prev: { brent: "81.200", wti: "78.500" }, curr: { brent: "83.500", wti: "80.100" }, exchangeRate: "7.20", actual: "120" }
+// ];
 
 // 执行全量回测（取消注释即可运行）
 // module.exports.runBacktest(backtestCases);

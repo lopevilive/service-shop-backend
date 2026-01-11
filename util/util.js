@@ -246,6 +246,7 @@ module.exports.createOrderId = (type, add_time) => {
   return `${type}${timeStr}${timeSub}${randNum}`
 }
 
+// 生成随机字符
 module.exports.generateNonceStr = (len) => {
   let data = "ABCDEFGHJKMNPQRSTWXYZabcdefhijkmnprstwxyz2345678";
   let str = "";
@@ -426,5 +427,76 @@ module.exports.removeRegionSuffix = (region) => {
       break; // 匹配到一个后缀后立即退出，避免重复移除
     }
   }
+  return result;
+}
+
+/**
+ * 字符串数组分段拼接【精准分情况超长处理】
+ * @param {string[]} strArr 原始字符串数组 例：['123','456','asd']
+ * @param {number} [maxLen=2000] 每一项最大字符长度，可配置，默认2000
+ * @returns {string[]} 处理后的数组，每项≤maxLen，兼顾完整性+合规性
+ */
+module.exports.joinStrArrayWithLimit = (strArr, maxLen = 2000) => {
+  // 边界值处理：非数组返回空、非法长度重置为2000、最小长度限制1
+  if (!Array.isArray(strArr) || strArr.length === 0) return [];
+  const limit = typeof maxLen === 'number' && maxLen >= 1 ? maxLen : 2000;
+  const connector = '。'; // 连接符，严格算1个字符
+  const result = [];
+  let currentStr = ''; // 当前正在拼接的字符串
+
+  // 【专用工具方法】仅当「单个字符串本身超长」时调用，强制切割成合规片段，不浪费长度
+  const splitOverLengthStr = (longStr) => {
+    const segments = [];
+    let startIndex = 0;
+    // 循环切割，每段严格等于/小于最大长度，保证绝对合规
+    while (startIndex < longStr.length) {
+      const endIndex = startIndex + limit;
+      segments.push(longStr.substring(startIndex, endIndex));
+      startIndex = endIndex;
+    }
+    return segments;
+  };
+
+  // 遍历原始数组，逐个处理
+  strArr.forEach(item => {
+    // 过滤空值：undefined/null/空字符串/纯空格，直接跳过不拼接
+    const currItem = item?.toString().trim() || '';
+    if (!currItem) return;
+
+    let waitJoinItems = [];
+    // 分情况初始化待拼接的内容：判断当前项是否本身超长
+    if (currItem.length > limit) {
+      // 情况①：单个项本身超长 → 仅此时切割，切成合规片段
+      waitJoinItems = splitOverLengthStr(currItem);
+    } else {
+      // 情况②：单个项本身合规 → 不切割，保留完整字符串，直接待拼接
+      waitJoinItems = [currItem];
+    }
+
+    // 遍历待拼接的内容（可能是完整项，也可能是超长项切割后的片段）
+    waitJoinItems.forEach(waitItem => {
+      if (currentStr === '') {
+        // 当前无拼接内容，直接赋值
+        currentStr = waitItem;
+      } else {
+        // 核心计算：当前串 + 连接符(1字符) + 待拼接项 的总长度
+        const totalNeedLen = currentStr.length + 1 + waitItem.length;
+        if (totalNeedLen <= limit) {
+          // 总长度合规 → 正常拼接，保留完整性
+          currentStr += connector + waitItem;
+        } else {
+          // 总长度超了 → 把当前串推入结果，待拼接项【完整独立】作为新的拼接起点
+          result.push(currentStr);
+          currentStr = waitItem;
+        }
+      }
+    });
+  });
+
+  // 最后把剩余的拼接串推入结果，防止遗漏末尾内容
+  if (currentStr) {
+    result.push(currentStr);
+  }
+
   return result;
 }

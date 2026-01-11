@@ -44,8 +44,7 @@ module.exports.bindPhone = async (req, cb) => {
     const {appid, secret} = util.getConfig('album.appInfo')
     const { code, token } = req.body
     // 获取 access_tokenRes
-    const access_tokenRes = await axios.get('https://api.weixin.qq.com/cgi-bin/token', {params: {appid, secret, grant_type: 'client_credential'}})
-    const {access_token, expires_in} = access_tokenRes.data
+    const access_token = await wxApi.getAccessToken({appid, secret})
     // 校验 token
     const {status, rawStr} = ticketManage.verifyTicket(token)
     if (status !== 0) throw new Error('token 失效')
