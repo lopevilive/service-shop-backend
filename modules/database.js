@@ -34,7 +34,7 @@ class DbManage {
   async refreshTimeOut() {
     if (this.timer) clearTimeout(this.timer)
     this.timer = setTimeout(() => {
-      if (this.connection.isConnected) this.connection.close()
+      if (this.connection.isInitialized) this.connection.destroy()
     }, this.timeOut * 1000)
   }
 
@@ -42,29 +42,33 @@ class DbManage {
     const {connection} = this
     let retryNum = 20; // 重试次数
     const timeO = 500; // 重试间隔，毫秒
-    const toConnect = async () => {
+
+    while (retryNum > 0) {
       try {
-        await connection.connect()
+        if (connection.isInitialized) {
+          return;
+        }
+        await connection.initialize() // 连接逻辑不变
+        return; // 连接成功，直接退出
       } catch(e) {
-        if (retryNum > 0) {
-          retryNum -= 1;
-          await new Promise((resolve) => {
-            setTimeout(() => {
-              resolve()
-            }, timeO);
-          })
-          await toConnect()
-        } else {
+        retryNum -= 1;
+        // 重试次数用完，抛出错误
+        if (retryNum <= 0) {
           throw e
         }
+        // 等待后继续重试
+        await new Promise((resolve) => {
+          setTimeout(() => {
+            resolve()
+          }, timeO);
+        })
       }
     }
-    await toConnect()
   }
 
   async getModel(entityName) {
     const {connection} = this
-    if (!connection.isConnected) {
+    if (!connection.isInitialized) {
       await this.connectDb()
     }
     this.refreshTimeOut()
