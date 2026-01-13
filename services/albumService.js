@@ -1153,6 +1153,7 @@ module.exports.wxMsgVerify = async (req, cb) => {
   }
 }
 
+// 微信推送的消息，在 dev 环境不会执行
 module.exports.wxMsgRec = async (req, cb) => {
   try {
     cb(null) // 直接回复微信
@@ -1166,6 +1167,7 @@ module.exports.wxMsgRec = async (req, cb) => {
     content = JSON.parse(content)
     content.res = req.body
     await dao.update('XaCache', id, {content: JSON.stringify(content), dataType: 11, upd_time: util.getNowTime()})
+    await contentValid.albumHandleWxMediaCheck()
   } catch(e) {
     cb(e)
   }

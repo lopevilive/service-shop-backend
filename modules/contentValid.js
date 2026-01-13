@@ -58,6 +58,9 @@ module.exports.albumValidText = async (payload = {}) => {
     if (ret.suggest === 'review') { // 需人工复审
       const msg = getMsg(ret.label)
       dao.create('XaCache', { dataType: 5, add_time: util.getNowTime(), content: logContent})
+      if (shopId) {
+        dao.update('Shop', shopId, { auditing: 2}) // 标记图册
+      }
       return {pass: false, msg}
     }
     if (ret.suggest === 'risky') { // 有风险，这个时候直接封禁用户
@@ -133,6 +136,9 @@ module.exports.albumValidImg = async (payload) => {
   if (score <= 85) { // 85分以下不处理
     return 0
   }
+  if (shopId) {
+    await dao.update('Shop', shopId, { auditing: 2}) // 标记图册
+  }
   const riskyScort = 98
   const logContent = JSON.stringify({ audRes, appid, userId: userInfo.id, openid: userInfo.openid, shopId})
   dao.create('XaCache', {dataType: score >= riskyScort ? 8 : 7, add_time: util.getNowTime(), content: logContent})
@@ -146,3 +152,39 @@ module.exports.albumValidImg = async (payload) => {
     return 0
   }
 }
+
+// 微信异步返回结果后，读取db进行数据处理
+module.exports.albumHandleWxMediaCheck = async () => {
+  const manager = await dao.getManager()
+  await manager.transaction(async (transactionalEntityManager) => {
+    const instance = await transactionalEntityManager.createQueryBuilder('XaCache', 'XaCache');
+    instance.setLock('pessimistic_write');
+    instance.where('XaCache.dataType = 11')
+    const data = await instance.getMany()
+    for (const dataItem of data) {
+      const content = JSON.parse(dataItem.content)
+      const {req: {userId, shopId}, res: {result}, nodel} = content
+      if (nodel) continue // 这个字段用来过滤本地发起的审核，交由本地处理，此处跳过
+      if (result.suggest === 'pass') { // 无风险字段
+        await transactionalEntityManager.update('XaCache', {id: dataItem.id}, {dataType: 12,upd_time: util.getNowTime()})
+        await transactionalEntityManager.delete('XaCache', {id: dataItem.id}) //正常处理完删除，不保留
+      }
+      if (result.suggest === 'review') { // 需要复查
+        await transactionalEntityManager.update('XaCache', {id: dataItem.id}, {dataType: 13,upd_time: util.getNowTime()})
+        if (shopId) {
+          await dao.update('Shop', shopId, { auditing: 2})
+        }
+      }
+      if (result.suggest === 'risky') { // 需要封禁图册
+        await transactionalEntityManager.update('XaCache', {id: dataItem.id}, {dataType: 14,upd_time: util.getNowTime()})
+        await dao.update('User', userId, {status: 1}) // 用户加入黑名单
+        if (shopId) {
+          await dao.update('Shop', shopId, {status: 1, auditing: 2}) // 封禁画册
+        }
+      }
+
+    }
+  })
+}
+
+// this.albumHandleWxMediaCheck()
