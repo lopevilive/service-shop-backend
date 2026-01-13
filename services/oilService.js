@@ -5,7 +5,6 @@ const util = require(path.join(process.cwd(),"util/index"))
 const wxApi = require(path.join(process.cwd(),"modules/wxApi"))
 const axios = require('axios');
 const mathjs = require('mathjs')
-// require(path.join(process.cwd(),"toolsScript/test2.js"))
 
 // const expiredTs = 60 * 60 * 0.001
 const expiredTs = 60 * 60 * 1

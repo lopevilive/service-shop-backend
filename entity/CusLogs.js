@@ -7,9 +7,9 @@ module.exports = {
   columns: {
     id: {type: 'int', generated: true, primary: true},
     /**
-     *  1-图片审核次数，理论上只有 1 条
-     *  2-图片审核敏感日志 // 废弃
-     *  3-图片审核违规日志 // 废弃
+     *  1-图册/图片审核次数，理论上只有 1 条
+     *  2-图册/微信图片审核次数，理论上只有 1 条
+     *  3-图册/微信文字审核次数，理论上只有 1 条
      *  4-上报数据，每天产生 1 条数据，upd_time 为当天 0 点时间戳
      */
     logType: {type: 'int', index: true},

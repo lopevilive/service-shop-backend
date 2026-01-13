@@ -545,6 +545,30 @@ router.post('/Report',
   }
 )
 
+router.get('/WxMsgRec',
+  async (req, res, next) => {
+    albumService.wxMsgVerify(req, (err, data) => {
+      if (err) {
+        res.sendResult(null, CODE_UNKNOWN, err.message)
+      } else {
+        res.send(data)
+      }
+    })(req, res, next)
+  }
+)
+
+router.post('/WxMsgRec',
+  async (req, res, next) => {
+    albumService.wxMsgRec(req, (err, data) => {
+      if (err) {
+        res.sendResult(null, CODE_UNKNOWN, err.message)
+      } else {
+        res.send('success')
+      }
+    })(req, res, next)
+  }
+)
+
 
 
 

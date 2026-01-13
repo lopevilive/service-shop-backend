@@ -918,17 +918,8 @@ module.exports.saveWatermarkCfg = async (req, cb) => {
 
 module.exports.auditingImg = async (req, cb) => {
   const {fileName, shopId} = req.body
-  const { userInfo: {id: userId} } = req
   try {
-    const needAud = await util.isNeedAudImg(shopId)
-    if (needAud === false) { // 无需审核
-      cb(null, 0)
-      return
-    }
-
-    const audRes = await cos.getImageAuditing(fileName)
-    // console.log(audRes)
-    const ret = await util.handleAudRes(audRes, shopId, userId)
+    const ret = await contentValid.albumValidImg({fileName, shopId, userInfo: req.userInfo})
     cb(null, ret)
   } catch(e) {
     cb(e)
@@ -1142,3 +1133,47 @@ module.exports.report = async (req, cb) => {
     cb(e)
   }
 }
+
+// 这里处理消息推送配置
+module.exports.wxMsgVerify = async (req, cb) => {
+  try {
+    const { signature, timestamp, nonce, echostr } = req.query;
+    const {msgToken, msgEncodingAESKey} = util.getConfig('album.appInfo')
+    const arr = [msgToken, timestamp, nonce].sort();
+    const str = arr.join('');
+    const sha1Str = crypto.createHash('sha1').update(str).digest('hex');
+    if (sha1Str === signature) {
+      // ✅ 校验成功：原样返回 echostr 字符串 (核心！！！)
+      cb(null, echostr)
+    } else {
+      cb(null, '校验非法')
+    }
+  } catch(e) {
+    cb(e)
+  }
+}
+
+module.exports.wxMsgRec = async (req, cb) => {
+  try {
+    cb(null) // 直接回复微信
+    await util.sleep(3000) // 这里避免太快还没创建数据
+    const {Event, trace_id} = req.body
+    if (Event !== 'wxa_media_check') return
+    if (!trace_id) return
+    const data = await dao.list('XaCache', {columns: {dataType: 10, key1: trace_id}})
+    if (!data.length) return
+    let {id, content} = data[0]
+    content = JSON.parse(content)
+    content.res = req.body
+    await dao.update('XaCache', id, {content: JSON.stringify(content), dataType: 11, upd_time: util.getNowTime()})
+  } catch(e) {
+    cb(e)
+  }
+}
+
+// this.wxMsgRec({
+//  body: {
+//    Event: 'wxa_media_check',
+//     trace_id: '6965ef8b-628096bc-2190c0ef'
+//  }
+// }, ()=> {})
