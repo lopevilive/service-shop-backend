@@ -58,7 +58,7 @@ app.use('/dist',express.static('dist'))
  * 公共系统初始化
  *
  */
-app.use(bodyParser.json())
+app.use(bodyParser.json({limit: '6mb'}))
 app.use(bodyParser.urlencoded({ extended: true }))
 
 
