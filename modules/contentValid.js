@@ -162,27 +162,31 @@ module.exports.albumHandleWxMediaCheck = async () => {
     instance.where('XaCache.dataType = 11')
     const data = await instance.getMany()
     for (const dataItem of data) {
-      const content = JSON.parse(dataItem.content)
-      const {req: {userId, shopId}, res: {result}, nodel} = content
-      if (nodel) continue // 这个字段用来过滤本地发起的审核，交由本地处理，此处跳过
-      if (result.suggest === 'pass') { // 无风险字段
-        await transactionalEntityManager.update('XaCache', {id: dataItem.id}, {dataType: 12,upd_time: util.getNowTime()})
-        await transactionalEntityManager.delete('XaCache', {id: dataItem.id}) //正常处理完删除，不保留
-      }
-      if (result.suggest === 'review') { // 需要复查
-        await transactionalEntityManager.update('XaCache', {id: dataItem.id}, {dataType: 13,upd_time: util.getNowTime()})
-        if (shopId) {
-          await dao.update('Shop', shopId, { auditing: 2})
+      try {
+        const content = JSON.parse(dataItem.content)
+        const {req: {userId, shopId}, res: {result, errcode}, nodel} = content
+        if (errcode !== 0) continue
+        if (nodel) continue // 这个字段用来过滤本地发起的审核，交由本地处理，此处跳过
+        if (result.suggest === 'pass') { // 无风险字段
+          await transactionalEntityManager.update('XaCache', {id: dataItem.id}, {dataType: 12,upd_time: util.getNowTime()})
+          await transactionalEntityManager.delete('XaCache', {id: dataItem.id}) //正常处理完删除，不保留
         }
-      }
-      if (result.suggest === 'risky') { // 需要封禁图册
-        await transactionalEntityManager.update('XaCache', {id: dataItem.id}, {dataType: 14,upd_time: util.getNowTime()})
-        await dao.update('User', userId, {status: 1}) // 用户加入黑名单
-        if (shopId) {
-          await dao.update('Shop', shopId, {status: 1, auditing: 2}) // 封禁画册
+        if (result.suggest === 'review') { // 需要复查
+          await transactionalEntityManager.update('XaCache', {id: dataItem.id}, {dataType: 13,upd_time: util.getNowTime()})
+          if (shopId) {
+            await dao.update('Shop', shopId, { auditing: 2})
+          }
         }
+        if (result.suggest === 'risky') { // 需要封禁图册
+          await transactionalEntityManager.update('XaCache', {id: dataItem.id}, {dataType: 14,upd_time: util.getNowTime()})
+          await dao.update('User', userId, {status: 1}) // 用户加入黑名单
+          if (shopId) {
+            await dao.update('Shop', shopId, {status: 1, auditing: 2}) // 封禁画册
+          }
+        }
+      } catch(e) {
+        console.error(e)
       }
-
     }
   })
 }
