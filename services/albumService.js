@@ -680,7 +680,7 @@ module.exports.getInventory = async (req, cb) => {
   }
 }
 
-module.exports.exportInventory = async (req, cb) => {
+module.exports.exportInventory = async (req, cb) => { // 弃用
   const {id} = req.query
   if (!id) {
     cb(new Error('参数有误'))

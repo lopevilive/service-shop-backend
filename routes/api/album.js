@@ -346,7 +346,7 @@ router.post('/GetInventory',
 )
 
 
-router.get('/ExportInventory1',
+router.get('/ExportInventory1', // 弃用
   async (req, res, next) => {
     albumService.exportInventory(req, (err, data) => {
       if (err) {
