@@ -21,17 +21,21 @@ module.exports.login = async (req, cb) => {
 module.exports.getUserInfo = async (req, cb) => {
   try {
     const {id: userId, phone, viewLogs} = req.userInfo
-    const ret = {userId, hasPhone: false}
+    const ret = {userId, hasPhone: !!phone}
     const ownerList = await dao.list('Shop', {columns: {userId}})
     const adminList = await dao.list('Staff', {columns: {userId, type: 1, status: 4}})
     ret['ownerList'] = ownerList.map((item) => item.id)
+    if (['develop', 'trial'].includes(req.body.wxEnv)) { // 测试环境特殊处理，配合审核
+      const testEnvAuditor = util.getConfig('album.testEnvAuditor')
+      ret['ownerList'] = [...ret['ownerList'], ...testEnvAuditor]
+      ret['hasPhone'] = true
+    }
     ret['adminList'] = adminList.map((item) => item.shopId)
     ret['isSup'] = util.getConfig('album.superAdmin').includes(userId)
     ret['demoShops'] = util.getConfig('album.demoShops')
     let logs = viewLogs || '[]'
     logs = JSON.parse(logs)
     ret['viewLogs'] = logs
-    if (phone) ret['hasPhone'] = true
     cb(null, ret)
   } catch(e) {
     console.error(e)

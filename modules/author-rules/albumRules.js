@@ -46,6 +46,8 @@ const useShop = async (req, shopId) => {
 // 是否创建者
 const useIsOwner = async (req) => {
   const {userInfo, shopInfo} = req
+  const testEnvAuditor = util.getConfig('album.testEnvAuditor')
+  if (testEnvAuditor.includes(shopInfo.id)) return true
   if ( +shopInfo.userId === userInfo.id) return true
   return false
 }
@@ -53,6 +55,8 @@ const useIsOwner = async (req) => {
 // 是否管理员
 const useIsAdmin = async (req) => {
   const {userInfo, shopInfo} = req
+  const testEnvAuditor = util.getConfig('album.testEnvAuditor')
+  if (testEnvAuditor.includes(shopInfo.id)) return true
   const res = await dao.list('Staff', {columns: {userId: userInfo.id,shopId: shopInfo.id, status: 4}})
   if (res.length) {
     return true
@@ -96,7 +100,8 @@ const rulesMap = {
     getCusInventory: {rid: 2},
     modInventoryStatus: {rid: 2},
     modProductPos: {rid: 2},
-    getVipInfo: {rid: 2}
+    getVipInfo: {rid: 2},
+    textImgCheck: {rid: 1}
   },
   userService: {
     getUserInfo: {rid: 1},
@@ -118,6 +123,8 @@ const executor = async (rule, req, res, serviceName, actionName) => {
   isLogin = await useLogin(req)
   if (!isLogin) return CODE_LOGIN_ERR
   if (rid === 1) return CODE_SUCC
+  const testEnvAuditor = util.getConfig('album.testEnvAuditor')
+  if (testEnvAuditor.includes(shopId)) req.userInfo.phone = '123'
   const {id, phone} = req.userInfo
   if (rid === 10) {
     if (phone) return CODE_SUCC

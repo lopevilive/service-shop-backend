@@ -87,7 +87,7 @@ module.exports.msgSecCheck = async (payload) => {
   const {appid, secret, content, openid, scene} = payload
   const access_token = await this.getAccessToken({appid, secret})
   const res = await axios.post(`https://api.weixin.qq.com/wxa/msg_sec_check?access_token=${access_token}`, {
-    content, version: 2, scene: scene || 4, openid
+    content, version: 2, scene: scene || 1, openid
   })
   const {errcode, detail, result, errmsg} = res.data
   if (errcode !== 0) {
@@ -100,7 +100,7 @@ module.exports.msgSecCheck = async (payload) => {
 
 // 图片校验
 module.exports.mediaSecCheck = async (payload) => {
-  const {openid, appid, secret, scene = 4, media_url} = payload
+  const {openid, appid, secret, scene = 1, media_url} = payload
   const access_token = await this.getAccessToken({appid, secret})
   const res = await axios.post(`https://api.weixin.qq.com/wxa/media_check_async?access_token=${access_token}`, {
     media_url, media_type: 2, version: 2, scene, openid

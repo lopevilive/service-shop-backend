@@ -43,32 +43,48 @@ const secCheckCount = async (logType) => {
 /**
  * 校验文本
  * payload.content 要校验的文本
+ * payload.type 1-需要记录、1<<1-不需要封禁
  * return {pass: true, msg: 'ok'} pass=true 说明正常、msg=违规提示语
  */
-module.exports.albumValidText = async (payload = {}) => {
-  const {content, openid, userId, shopId = 0} = payload
+module.exports.albumValidText = async (payload) => {
+  const {content, openid, userId, shopId = 0, type = 0} = payload || {}
   const {appid, secret} = util.getConfig('album.appInfo') || {};
   if (!content) return {pass: true, msg: ''}
   try {
     let ret = await wxApi.msgSecCheck({content, appid, secret, openid})
-    secCheckCount(3) // 记录次数
-    if (ret.label === 100) return {pass: true, msg: ''}
-    if (ret.suggest === 'pass') return {pass: true, msg: ''}
     const logContent = JSON.stringify({ret, openid, appid, userId, shopId, text: content})
+    secCheckCount(3) // 记录次数
+    let recorded = false // 是否已经记录这条数据，避免重复记录
+    if (type && (type & 1)) { // 需要记录数据
+      recorded = true
+      dao.create('XaCache', { dataType: 5, add_time: util.getNowTime(), content: logContent})
+    }
+    if (ret.suggest === 'pass') return {pass: true, msg: ''}
     if (ret.suggest === 'review') { // 需人工复审
       const msg = getMsg(ret.label)
-      dao.create('XaCache', { dataType: 5, add_time: util.getNowTime(), content: logContent})
-      if (shopId) {
-        dao.update('Shop', shopId, { auditing: 2}) // 标记图册
+      if (!recorded) {
+        recorded = true
+        dao.create('XaCache', { dataType: 5, add_time: util.getNowTime(), content: logContent})
+      }
+
+      if (!(type && (type & 1<<1))) {
+        if (shopId) {
+          dao.update('Shop', shopId, { auditing: 2}) // 标记图册
+        }
       }
       return {pass: false, msg}
     }
     if (ret.suggest === 'risky') { // 有风险，这个时候直接封禁用户
       const msg = getMsg(ret.label)
-      dao.create('XaCache', { dataType: 6, add_time: util.getNowTime(), content: logContent})
-      await dao.update('User', userId, {status: 1}) // 用户加入黑名单
-      if (shopId) {
-        await dao.update('Shop', shopId, {status: 1, auditing: 2}) // 封禁图册
+      if (!recorded) {
+        recorded = true
+        dao.create('XaCache', { dataType: 6, add_time: util.getNowTime(), content: logContent})
+      }
+      if (!(type && (type & 1<<1))) {
+        await dao.update('User', userId, {status: 1}) // 用户加入黑名单
+        if (shopId) {
+          await dao.update('Shop', shopId, {status: 1, auditing: 2}) // 封禁图册
+        }
       }
       return {pass: false, msg}
     }
@@ -95,9 +111,12 @@ const albumIsNeedCosCheck = async (shopId) => {
   return true
 }
 
-// 调微信审核接口
-const albumWxSecCheck = async (payload) => {
-  const {fileName, shopId, userId, openid, appid, secret} = payload
+/**
+ * 调微信审核接口
+ * payload.type 1-不用删除记录、1<<1-不用封禁逻辑、1<<2-只接收微信回包，不用额外处理
+ */
+module.exports.albumWxSecCheck = async (payload) => {
+  const {fileName, shopId, userId, openid, appid, secret, type = 0} = payload
   const {bucket, region} = cos.cfg
   const media_url = `https://${bucket}.cos.${region}.myqcloud.com/${fileName}?imageMogr2/quality/40`
   try {
@@ -106,7 +125,8 @@ const albumWxSecCheck = async (payload) => {
     secCheckCount(2)
     const resContent = JSON.stringify({
       req: {media_url, shopId, userId, openid, appid},
-      res: {} // 微信的异步返回结果，此时还是空的
+      res: {}, // 微信的异步返回结果，此时还是空的
+      type
     })
     dao.create('XaCache', {dataType: 10, add_time: util.getNowTime(), key1: trace_id, content: resContent})
   } catch(e) {
@@ -125,7 +145,12 @@ const albumWxSecCheck = async (payload) => {
 module.exports.albumValidImg = async (payload) => {
   const {fileName, shopId, userInfo} = payload
   const {appid, secret} = util.getConfig('album.appInfo')
-  albumWxSecCheck({fileName, shopId, userId: userInfo.id, openid: userInfo.openid, appid, secret})
+  const testEnvAuditor = util.getConfig('album.testEnvAuditor')
+  let type = 0;
+  if (shopId && testEnvAuditor.includes(shopId)) {
+    type = 1 | 1<<1
+  }
+  this.albumWxSecCheck({fileName, shopId, userId: userInfo.id, openid: userInfo.openid, appid, secret, type})
 
   const cosCheck = await albumIsNeedCosCheck(shopId)
   if (cosCheck === false) return 0
@@ -164,24 +189,30 @@ module.exports.albumHandleWxMediaCheck = async () => {
     for (const dataItem of data) {
       try {
         const content = JSON.parse(dataItem.content)
-        const {req: {userId, shopId}, res: {result, errcode}, nodel} = content
+        const {req: {userId, shopId}, res: {result, errcode}, type} = content
         if (errcode !== 0) continue
-        if (nodel) continue // 这个字段用来过滤本地发起的审核，交由本地处理，此处跳过
+        if (type && (type & 1<<2)) continue // 这个状态用来过滤本地发起的审核，交由本地处理，此处跳过
         if (result.suggest === 'pass') { // 无风险字段
           await transactionalEntityManager.update('XaCache', {id: dataItem.id}, {dataType: 12,upd_time: util.getNowTime()})
-          await transactionalEntityManager.delete('XaCache', {id: dataItem.id}) //正常处理完删除，不保留
+          if (!(type && (type & 1))) {
+            await transactionalEntityManager.delete('XaCache', {id: dataItem.id}) //正常处理完删除，不保留
+          }
         }
         if (result.suggest === 'review') { // 需要复查
           await transactionalEntityManager.update('XaCache', {id: dataItem.id}, {dataType: 13,upd_time: util.getNowTime()})
-          if (shopId) {
-            await dao.update('Shop', shopId, { auditing: 2})
+          if (!(type && (type & 1<<1))) {
+            if (shopId) {
+              await dao.update('Shop', shopId, { auditing: 2})
+            }
           }
         }
         if (result.suggest === 'risky') { // 需要封禁图册
           await transactionalEntityManager.update('XaCache', {id: dataItem.id}, {dataType: 14,upd_time: util.getNowTime()})
-          await dao.update('User', userId, {status: 1}) // 用户加入黑名单
-          if (shopId) {
-            await dao.update('Shop', shopId, {status: 1, auditing: 2}) // 封禁画册
+          if (!(type && (type & 1<<1))) {
+            await dao.update('User', userId, {status: 1}) // 用户加入黑名单
+            if (shopId) {
+              await dao.update('Shop', shopId, {status: 1, auditing: 2}) // 封禁画册
+            }
           }
         }
       } catch(e) {

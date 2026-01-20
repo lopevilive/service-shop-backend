@@ -14,10 +14,10 @@ const wxApi = require(path.join(process.cwd(),"modules/wxApi"))
 const contentValid = require(path.join(process.cwd(),"modules/contentValid"))
 
 const validExec = async (strList, payload) => {
-  const {openid, userId, shopId} = payload
+  const {openid, userId, shopId, type = 0} = payload
   const newStrList = util.joinStrArrayWithLimit(strList, 2000)
   const pList = newStrList.map((str) => {
-    return contentValid.albumValidText({openid, userId, shopId, content: str})
+    return contentValid.albumValidText({openid, userId, shopId, content: str, type})
   })
   const validRes = await Promise.all(pList)
   for (const validItem of validRes) {
@@ -1254,7 +1254,7 @@ module.exports.wxMsgVerify = async (req, cb) => {
   }
 }
 
-// 微信推送的消息，在 dev 环境不会执行
+// 微信推送的消息，只会在生产环境触发
 module.exports.wxMsgRec = async (req, cb) => {
   try {
     cb(null) // 直接回复微信
@@ -1280,3 +1280,63 @@ module.exports.wxMsgRec = async (req, cb) => {
 //     trace_id: '6965ef8b-628096bc-2190c0ef'
 //  }
 // }, ()=> {})
+
+
+  // 前端主动发起内容审核请求
+  module.exports.textImgCheck = async (req, cb) => {
+    const {shopId, strList, urlList} = req.body
+    const {id: userId, openid} = req.userInfo
+    try {
+      const p1 = validExec(strList, {openid, userId, shopId, type: 1 | 1<<1})
+      const p2 = new Promise(async (resolve, reject) => {
+        let retryNums = 3
+        while(retryNums > 0) {
+          const list = await dao.list('XaCache', {columns: {dataType: In([10, 11, 12, 13, 14])}})
+          const matchedList = []
+          for (const item of list) {
+            const content = JSON.parse(item.content)
+            const {media_url} = content.req
+            for (const urlItem of urlList) {
+              if (media_url.includes(urlItem)) {
+                matchedList.push(item)
+                break
+              }
+            }
+          }
+          for (const item of matchedList) {
+            if ([13, 14].includes(item.dataType)) {
+              reject('请勿上传违规图片!')
+              return
+            }
+          }
+
+          let needRetry = false
+          for (const item of matchedList) {
+            if (item.dataType === 10) { // 微信还没回包
+              needRetry = true
+              break
+            }
+          }
+
+          if (needRetry) {
+            retryNums -= 1
+            if (retryNums === 0) { // 重试了3次
+              reject('审核接口繁忙~')
+              return
+            }
+            await util.sleep(2000)
+          } else {
+            retryNums = 0
+            break
+          }
+        }
+        resolve()
+      })
+      await Promise.all([p1, p2])
+      cb(null)
+    } catch(e) {
+      console.error(e)
+      cb(new Error('审核未通过，请勿上传违规内容！'))
+    }
+
+  }
