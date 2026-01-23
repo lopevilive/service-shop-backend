@@ -181,7 +181,6 @@ module.exports.clearImgs = async () => {
   // WatermarkCfg.previewUrl
   // WatermarkCfg.cfg
   // WatermarkCfg.configkey
-  // upload-1259129443.cos.ap-guangzhou.myqcloud.com/5_3_dda7b2170dac6b8a161f072b4b6a62b9.jpg
   // 大户：20、25、50、88、173、175、176、179、518、532、1074、1094、1158、1201
 
   // const shopId = 1211
@@ -189,7 +188,12 @@ module.exports.clearImgs = async () => {
 
   if (!shopId) return
 
-  const strList = ['upload-1259129443.cos.ap-guangzhou.myqcloud.com/5_3_dda7b2170dac6b8a161f072b4b6a62b9.jpg']
+  const strList = [
+    'upload-1259129443.cos.ap-guangzhou.myqcloud.com/5_3_dda7b2170dac6b8a161f072b4b6a62b9.jpg',
+    'upload-1259129443.cos.ap-guangzhou.myqcloud.com/5_3_f0fb6556d51a4f1da626a6d92064ac1c.png',
+    'upload-1259129443.cos.ap-guangzhou.myqcloud.com/5_3_19a302d6f831268825df5f881abf9b95.png',
+    'upload-1259129443.cos.ap-guangzhou.myqcloud.com/5_3_24fd435bee5b919a4c0db50415bf6b97.png'
+  ]
   const addData = (list, k) => {
     for (const item of list) {
       if (item[k]) strList.push(item[k])
