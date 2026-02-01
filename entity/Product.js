@@ -7,7 +7,7 @@ module.exports = {
     name: {type: 'varchar'}, // 弃用
     url: {type: 'text'},
     price: {type: 'varchar'},
-    isSpec: {type: 'int', default: 0},// 是否多规格 0-否、1-是
+    isSpec: {type: 'int', default: 0},// 是否多规格 0-否、1-单级规格、2-多级规格
     specs: {type: 'varchar', nullable: true }, // 多规格配置 //弃用
     specDetials: { type: 'text', nullable: true },  // 多规格详情
     productType: {type: 'varchar'},

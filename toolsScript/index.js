@@ -303,11 +303,24 @@ module.exports.formatReport = async () => {
   console.log(adminInfo)
   console.log(cusInfoVip)
   console.log(adminInfoVip)
+}
+
+
+module.exports.formatSpecPrice = async () => {
+  const queryBuild = await dao.createQueryBuilder('Product')
+  queryBuild.select(['Product.id','Product.shopId','Product.desc', 'Product.isSpec', 'Product.specDetials'])
+  queryBuild.where('1 = 1')
+  queryBuild.andWhere('Product.price = :a', {a: 'NaN'})
+  queryBuild.limit(50)
+  const data = await queryBuild.getMany()
+  console.log(data)
 
 }
+
+
 const init = async () => {
   setTimeout(() => {
-    // this.formatReport()
+    // this.formatSpecPrice()
   }, 0);
 }
 
