@@ -50,6 +50,8 @@ module.exports.albumValidText = async (payload) => {
   const {content, openid, userId, shopId = 0, type = 0} = payload || {}
   const {appid, secret} = util.getConfig('album.appInfo') || {};
   if (!content) return {pass: true, msg: ''}
+  const env = util.getConfig('default.env')
+  if (env === 'dev') return {pass: true, msg: ''} // 开发环境不校验
   try {
     let ret = await wxApi.msgSecCheck({content, appid, secret, openid})
     const logContent = JSON.stringify({ret, openid, appid, userId, shopId, text: content})

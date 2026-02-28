@@ -45,7 +45,7 @@ module.exports.getShop = async (params ,cb) => {
     'id', 'desc', 'url', 'name', 'area', 'address', 'phone', 'qrcodeUrl', 'business',
     'attrs', 'level', 'status', 'encry', 'waterMark', 'auditing', 'addressStatus',
     'inveExportStatus', 'bannerStatus', 'bannerCfg', 'expiredTime', 'requiredType', 'typeStatus',
-    'forwardPermi', 'typeSideMod', 'specsCfg', 'showContact'
+    'forwardPermi', 'typeSideMod', 'specsCfg', 'showContact', 'homePageCfg'
   ]
   cond.take = 100 // 限制数量
   try {

@@ -31,6 +31,7 @@ module.exports = {
     typeSideMod: {type: 'int', default: 0}, // 分类位置。0-在上方、1-在左侧
     showContact: {type: 'int', default: 0}, // 是否展示联系方式。0-展示、1-隐藏
     business: {type: 'int', nullable: true},
+    homePageCfg: {type: 'text', nullable: true},
     add_time: {type: 'int', nullable: true},
     upd_time: {type: 'int', nullable: true},
   }
