@@ -168,7 +168,7 @@ router.post('/ProductTypesDel',
     next()
   },
   async (req, res ,next) => {
-    albumService.productTypesDel(req.body, 
+    albumService.productTypesDel(req, 
       (err, data) => {
         if (err) {
           res.sendResult(null, CODE_UNKNOWN, err.message)

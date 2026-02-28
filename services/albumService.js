@@ -327,8 +327,8 @@ module.exports.productTypesMod = async (req ,cb) => {
   }
 }
 
-module.exports.productTypesDel = async (params, cb) => {
-  let {id} = params
+module.exports.productTypesDel = async (req, cb) => {
+  let {id, shopId} = req.body
 
   const updateType = async (prodList, regStr) => {
     if (!prodList.length) return
@@ -367,6 +367,9 @@ module.exports.productTypesDel = async (params, cb) => {
       return
     }
     info = info[0]
+    let shopInfo = await dao.list('Shop', {columns: {id: shopId}})
+    if (shopInfo.length) shopInfo = shopInfo[0]
+    let requiredTypeReg = null
     if (!info.parentId) { // 一级分类
       const subTypes = await dao.list('ProductTypes', {columns: {parentId: id}})
       if (subTypes.length) { // 有子分类
@@ -376,6 +379,7 @@ module.exports.productTypesDel = async (params, cb) => {
       const l1 = await dao.list('Product', {columns:{productType: Like(`%,${id},%`)}})
       const l2 = await dao.list('Product', {columns:{productType: Like(`%,${id}-%`)}})
       await updateType([...l1, ...l2], `${id}`)
+      requiredTypeReg = new RegExp(`,${id}(-\\d+)?,`)
     } else {
       // 二级分类
       let parent = await dao.list('ProductTypes', {columns: {id: info.parentId}})
@@ -383,6 +387,12 @@ module.exports.productTypesDel = async (params, cb) => {
         parent = parent[0]
         const prodList = await dao.list('Product', {columns: {productType: Like(`%,${parent.id}-${id},%`)}})
         await updateType(prodList, `${parent.id}-${id}`)
+        requiredTypeReg = new RegExp(`,${parent.id}(-${id}),`)
+      }
+    }
+    if (shopInfo.requiredType && requiredTypeReg) {
+      if (requiredTypeReg.test(shopInfo.requiredType)) {
+        await dao.update('Shop', shopId, {requiredType: ''})
       }
     }
     await dao.delete('ProductTypes', id)
