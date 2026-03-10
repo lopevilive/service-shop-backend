@@ -26,9 +26,9 @@ module.exports.getUserInfo = async (req, cb) => {
     const adminList = await dao.list('Staff', {columns: {userId, type: 1, status: 4}})
     ret['ownerList'] = ownerList.map((item) => item.id)
     if (['develop', 'trial'].includes(req.body.wxEnv)) { // 测试环境特殊处理，配合审核
-      const testEnvAuditor = util.getConfig('album.testEnvAuditor')
-      ret['ownerList'] = [...ret['ownerList'], ...testEnvAuditor]
-      ret['hasPhone'] = true
+      // const testEnvAuditor = util.getConfig('album.testEnvAuditor')
+      // ret['ownerList'] = [...ret['ownerList'], ...testEnvAuditor]
+      // ret['hasPhone'] = true
     }
     ret['adminList'] = adminList.map((item) => item.shopId)
     ret['isSup'] = util.getConfig('album.superAdmin').includes(userId)
