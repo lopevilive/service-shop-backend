@@ -1,7 +1,6 @@
 const path = require("path");
 const util = require(path.join(process.cwd(),"util/index"))
 const crypto = require('crypto');
-const _ = require('lodash');
 const dao = require(path.join(process.cwd(),"dao/DAO"));
 const fs = require('fs');
 const { default: axios } = require("axios");

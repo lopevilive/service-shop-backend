@@ -1,5 +1,4 @@
 const path = require("path");
-const _ = require('lodash');
 const dao = require(path.join(process.cwd(),"dao/DAO"));
 const util = require(path.join(process.cwd(),"util/index"))
 const cos = require(path.join(process.cwd(),"modules/cos"))
@@ -11,7 +10,12 @@ const crypto = require('crypto');
 const fs = require('fs');
 const mathjs = require('mathjs')
 const wxApi = require(path.join(process.cwd(),"modules/wxApi"))
-const contentValid = require(path.join(process.cwd(),"modules/contentValid"))
+const contentValid = require(path.join(process.cwd(),"modules/contentValid"));
+const Jimp = require('jimp');
+const opentype = require('opentype.js');
+const PImage = require('pureimage');
+const { PassThrough } = require('stream');
+
 
 const validExec = async (strList, payload) => {
   const {openid, userId, shopId, type = 0} = payload
@@ -1292,61 +1296,223 @@ module.exports.wxMsgRec = async (req, cb) => {
 // }, ()=> {})
 
 
-  // 前端主动发起内容审核请求
-  module.exports.textImgCheck = async (req, cb) => {
-    const {shopId, strList, urlList} = req.body
-    const {id: userId, openid} = req.userInfo
-    try {
-      const p1 = validExec(strList, {openid, userId, shopId, type: 1 | 1<<1})
-      const p2 = new Promise(async (resolve, reject) => {
-        let retryNums = 3
-        while(retryNums > 0) {
-          const list = await dao.list('XaCache', {columns: {dataType: In([10, 11, 12, 13, 14])}})
-          const matchedList = []
-          for (const item of list) {
-            const content = JSON.parse(item.content)
-            const {media_url} = content.req
-            for (const urlItem of urlList) {
-              if (media_url.includes(urlItem)) {
-                matchedList.push(item)
-                break
-              }
-            }
-          }
-          for (const item of matchedList) {
-            if ([13, 14].includes(item.dataType)) {
-              reject('请勿上传违规图片!')
-              return
-            }
-          }
-
-          let needRetry = false
-          for (const item of matchedList) {
-            if (item.dataType === 10) { // 微信还没回包
-              needRetry = true
+// 前端主动发起内容审核请求
+module.exports.textImgCheck = async (req, cb) => {
+  const {shopId, strList, urlList} = req.body
+  const {id: userId, openid} = req.userInfo
+  try {
+    const p1 = validExec(strList, {openid, userId, shopId, type: 1 | 1<<1})
+    const p2 = new Promise(async (resolve, reject) => {
+      let retryNums = 3
+      while(retryNums > 0) {
+        const list = await dao.list('XaCache', {columns: {dataType: In([10, 11, 12, 13, 14])}})
+        const matchedList = []
+        for (const item of list) {
+          const content = JSON.parse(item.content)
+          const {media_url} = content.req
+          for (const urlItem of urlList) {
+            if (media_url.includes(urlItem)) {
+              matchedList.push(item)
               break
             }
           }
+        }
+        for (const item of matchedList) {
+          if ([13, 14].includes(item.dataType)) {
+            reject('请勿上传违规图片!')
+            return
+          }
+        }
 
-          if (needRetry) {
-            retryNums -= 1
-            if (retryNums === 0) { // 重试了3次
-              reject('审核接口繁忙~')
-              return
-            }
-            await util.sleep(2000)
-          } else {
-            retryNums = 0
+        let needRetry = false
+        for (const item of matchedList) {
+          if (item.dataType === 10) { // 微信还没回包
+            needRetry = true
             break
           }
         }
-        resolve()
-      })
-      await Promise.all([p1, p2])
-      cb(null)
-    } catch(e) {
-      console.error(e)
-      cb(new Error('审核未通过，请勿上传违规内容！'))
+
+        if (needRetry) {
+          retryNums -= 1
+          if (retryNums === 0) { // 重试了3次
+            reject('审核接口繁忙~')
+            return
+          }
+          await util.sleep(2000)
+        } else {
+          retryNums = 0
+          break
+        }
+      }
+      resolve()
+    })
+    await Promise.all([p1, p2])
+    cb(null)
+  } catch(e) {
+    console.error(e)
+    cb(new Error('审核未通过，请勿上传违规内容！'))
+  }
+}
+
+
+let fontInstance = null;
+module.exports.getSharePoster = async (req, cb) => {
+  try {
+    const { scene, url, title, desc1, desc2 } = req.body;
+    const { appid, secret } = util.getConfig('album.appInfo');
+
+    // --- 1. 字体初始化 (单例模式) ---
+    const fontPath = path.join(process.cwd(), 'assets', 'AlibabaPuHuiTi-3-55-Regular.ttf');
+    if (!fontInstance) {
+      console.time('FontLoad');
+      // opentype.js 直接读取本地 ttf 文件，跨平台兼容性 100%
+      fontInstance = opentype.loadSync(fontPath);
+      console.timeEnd('FontLoad');
     }
 
+    // --- 2. 核心助手函数：基于 opentype 的纯 JS 渲染 ---
+    const renderTextToJimp = async (text, fontSize, color, bold = false) => {
+      // 1. 设置渲染倍率 (3倍超采样，解决锯齿、畸变和细微报错)
+      const scale = 3;
+      const renderSize = fontSize * scale;
+  
+      // 2. 获取文字路径
+      const textPath = fontInstance.getPath(text, 0, 0, renderSize);
+      const box = textPath.getBoundingBox();
+  
+      // 计算画布尺寸，预留足够的 padding 防止文字边缘被裁切
+      const padding = renderSize / 2;
+      const width = Math.ceil(box.x2 - box.x1) + padding;
+      const height = Math.ceil(box.y2 - box.y1) + padding;
+
+      const pCanvas = PImage.make(width, height);
+      const pCtx = pCanvas.getContext('2d');
+
+      // --- 关键修复：强制清空画布为全透明 ---
+      // pureimage 默认是不透明黑，必须手动清除
+      pCtx.clearRect(0, 0, width, height);
+
+      // 坐标偏移，确保文字完整进入画布
+      const offsetX = -box.x1 + padding / 4;
+      const offsetY = -box.y1 + padding / 4;
+
+      pCtx.fillStyle = color;
+      
+      // 封装一个通用的绘制闭包
+      const drawPath = () => {
+        pCtx.beginPath();
+        textPath.commands.forEach(cmd => {
+          const x = cmd.x + offsetX;
+          const y = cmd.y + offsetY;
+          if (cmd.type === 'M') pCtx.moveTo(x, y);
+          else if (cmd.type === 'L') pCtx.lineTo(x, y);
+          else if (cmd.type === 'Q') pCtx.quadraticCurveTo(cmd.x1 + offsetX, cmd.y1 + offsetY, x, y);
+          else if (cmd.type === 'C') pCtx.bezierCurveTo(cmd.x1 + offsetX, cmd.y1 + offsetY, cmd.x2 + offsetX, cmd.y2 + offsetY, x, y);
+          else if (cmd.type === 'Z') pCtx.closePath();
+        });
+        pCtx.fill();
+      };
+
+      // 执行绘制
+      drawPath();
+
+      // 如果需要加粗，使用位移叠绘法（比 stroke 更圆润，无毛刺）
+      if (bold) {
+        pCtx.save();
+        // 在 3 倍空间偏移 1.5 像素，缩放回 1 倍后约等于 0.5 像素的物理加粗
+        pCtx.translate(1.5, 1.5); 
+        drawPath();
+        pCtx.restore();
+      }
+
+      // 3. 将超大图导出并交给 Jimp 缩小
+      return new Promise((resolve, reject) => {
+        const stream = new PassThrough();
+        PImage.encodePNGToStream(pCanvas, stream);
+        const chunks = [];
+        stream.on('data', c => chunks.push(c));
+        stream.on('end', async () => {
+          try {
+            const bigBuffer = Buffer.concat(chunks);
+            const jimpImg = await Jimp.read(bigBuffer);
+            
+            // 使用 Jimp 的高精度缩放算法实现抗锯齿
+            jimpImg.resize(width / scale, height / scale); 
+
+            resolve({ 
+              image: jimpImg, 
+              width: (width - padding) / scale 
+            });
+          } catch (err) {
+            reject(err);
+          }
+        });
+        stream.on('error', reject);
+      });
+    }
+
+    // --- 3. 资源并发下载 ---
+    const access_token = await wxApi.getAccessToken({ appid, secret });
+    const wxUrl = `https://api.weixin.qq.com/wxa/getwxacodeunlimit?access_token=${access_token}`;
+
+    const [qrRes, productRes] = await Promise.all([
+      axios.post(wxUrl, { scene, is_hyaline: true }, { responseType: 'arraybuffer' }),
+      url ? axios.get(url.startsWith('http') ? url : `https:${url}`, { responseType: 'arraybuffer' }) : null
+    ]);
+
+    if (qrRes.data.length < 5000) throw new Error('小程序码获取失败');
+
+    // --- 4. 拼装海报背景与装饰 ---
+    const base = new Jimp(700, 1000, 0xf3b24bff); // 橙色背景
+
+    const whiteCircle = new Jimp(600, 600, 0xffffffff);
+    whiteCircle.circle();
+    base.composite(whiteCircle, 50, 260);
+
+    const qrImg = await Jimp.read(qrRes.data);
+    qrImg.resize(560, 560);
+    base.composite(qrImg, 70, 280);
+
+    if (productRes) {
+      const productImg = await Jimp.read(productRes.data);
+      productImg.cover(250, 250).circle();
+      base.composite(productImg, 225, 435);
+    }
+
+    // --- 5. 渲染文本队列 ---
+    const parseDesc = (d) => (typeof d === 'string' ? JSON.parse(d || '[]') : d);
+    const textTasks = [
+      { text: title, size: 40, y: 60, align: 'left', x: 40, limit: 12, bold: true },
+      { text: parseDesc(desc1)?.[0], size: 32, y: 140, align: 'left', x: 40, limit: 18 },
+      { text: parseDesc(desc2)?.[0], size: 24, y: 200, align: 'left', x: 40, limit: 18 },
+      { text: '微信扫描或长按识别进入小程序～', size: 24, y: 910, align: 'center', x: 350 }
+    ];
+
+    console.time('TextRenderAll');
+    for (const task of textTasks) {
+      if (!task.text) continue;
+      
+      // 预处理文字（替换 emoji，去换行，截断）
+      let rawText = util.emojiReplaceStr(task.text).replace(/[\r\n]/g, '');
+      if (task.limit && rawText.length > task.limit) {
+        rawText = rawText.substring(0, task.limit) + '...';
+      }
+
+      const { image: textImg, width } = await renderTextToJimp(rawText, task.size, '#ffffff', task.bold);
+      let posX = task.x;
+      if (task.align === 'center') posX = task.x - width / 2;
+      
+      // 直接 composite，省去了 Jimp.read(buffer) 的开销
+      base.composite(textImg, posX, task.y);
+    }
+    console.timeEnd('TextRenderAll');
+
+    // --- 6. 最终输出 ---
+    const posterBuffer = await base.getBufferAsync(Jimp.MIME_PNG);
+    cb(null, posterBuffer.toString('base64'));
+
+  } catch(e) {
+    console.error('Poster Error:', e);
+    cb(e);
   }
+}

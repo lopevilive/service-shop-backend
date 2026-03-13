@@ -50,9 +50,9 @@ module.exports.getAccessToken = async (payload) => {
       if (nowTs <= (expiredTs - 60 * 30)) { // 提前30分钟过期
         return access_token
       }
-      if (env === 'dev') return access_token
+      if (['dev', 'test'].includes(env)) return access_token
     }
-    if (env === 'dev') return '' // 因为重复获取 access_token 会导致旧的 access_token 失效，这里避免影响生产环境的缓存
+    if (['dev', 'test'].includes(env)) return '' // 因为重复获取 access_token 会导致旧的 access_token 失效，这里避免影响生产环境的缓存
     // 下面重新获取 access_token
     const access_tokenRes = await axios.get('https://api.weixin.qq.com/cgi-bin/token', {params: {appid, secret, grant_type: 'client_credential'}})
     const {access_token, expires_in} = access_tokenRes.data

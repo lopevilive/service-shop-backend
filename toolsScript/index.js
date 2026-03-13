@@ -1,5 +1,4 @@
 const path = require("path");
-const _ = require('lodash');
 const dao = require(path.join(process.cwd(),"dao/DAO"));
 const util = require(path.join(process.cwd(),"util/index"))
 const { Like } = require("typeorm");

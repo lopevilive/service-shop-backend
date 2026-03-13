@@ -593,6 +593,19 @@ router.post('/TextImgCheck',
   }
 )
 
+// 获取分享海报
+router.post('/GetSharePoster',
+  async (req, res, next) => {
+    albumService.getSharePoster(req, (err, data) => {
+      if (err) {
+        res.sendResult(null, CODE_UNKNOWN, err.message)
+      } else {
+        res.sendResult(data, CODE_SUCC, 'succ')
+      }
+    })(req, res, next)
+  }
+)
+
 
 
 

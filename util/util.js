@@ -1,13 +1,11 @@
 const path = require("path");
-const _ = require('lodash')
-const config = require('config')
 const crypto = require('crypto');
 const axios = require('axios');
 const dayjs = require('dayjs')
 
 
 module.exports.getNowTime = () => {
-  return Math.floor(_.now() / 1000)
+  return Math.floor(Date.now() / 1000)
 }
 
 /**
@@ -40,13 +38,6 @@ module.exports.getNestedValue = (obj, keyPath) => {
   // 5. 最终值是undefined/null则返回null，否则返回原值
   return current === undefined || current === null ? null : current;
 }
-
-// module.exports.getConfig = (key) => {
-//   const env = config.get('env')
-//   let ret = config.get(key)
-//   if (ret[env]) return ret[env]
-//   return ret
-// }
 
 module.exports.getConfig = (keyPath) => {
   const cfg = require(path.join(process.cwd(),"config/globalCfg.js"))
@@ -437,3 +428,9 @@ module.exports.joinStrArrayWithLimit = (strArr, maxLen = 2000) => {
 
   return result;
 }
+
+
+module.exports.emojiReplaceStr = (str) => {
+  if (!str) return '';
+  return str.replace(/[\uD83C|\uD83D|\uD83E][\uDC00-\uDFFF][\u200D|\uFE0F]|[\uD83C|\uD83D|\uD83E][\uDC00-\uDFFF]|[0-9|*|#]\uFE0F\u20E3|[0-9|#]\u20E3|[\u203C-\u3299]\uFE0F\u200D|[\u203C-\u3299]\uFE0F|[\u2122-\u2B55]|\u303D|[\A9|\AE]\u3030|\uA9|\uAE|\u3030/ig, '');
+};
