@@ -313,13 +313,14 @@ module.exports.formatSpecPrice = async () => {
   queryBuild.limit(50)
   const data = await queryBuild.getMany()
   console.log(data)
-
 }
+
+
 
 
 const init = async () => {
   setTimeout(() => {
-    // this.formatSpecPrice()
+    console.log(1)
   }, 0);
 }
 

@@ -7,7 +7,6 @@ const { In, Like, Brackets } = require("typeorm");
 const axios = require('axios');
 const ExcelJS = require('exceljs/dist/es5');
 const crypto = require('crypto');
-const fs = require('fs');
 const mathjs = require('mathjs')
 const wxApi = require(path.join(process.cwd(),"modules/wxApi"))
 const contentValid = require(path.join(process.cwd(),"modules/contentValid"));
@@ -690,108 +689,6 @@ module.exports.getInventory = async (req, cb) => {
     const ret = await dao.list('Enventory', {columns, only, take, order: {id: 'DESC'}})
     cb(null, ret)
   } catch(e) {
-    cb(e)
-  }
-}
-
-module.exports.exportInventory = async (req, cb) => { // 弃用
-  const {id} = req.query
-  if (!id) {
-    cb(new Error('参数有误'))
-    return
-  }
-  try {
-    let info = await dao.list('Enventory', {columns: {id}})
-    info = info[0]
-    let data = JSON.parse(info.data)
-    let list = data.list
-    const workbook = new ExcelJS.Workbook();
-    const sheet = workbook.addWorksheet('报价清单', {views:[{state: 'frozen', xSplit: 0, ySplit:1}]});
-    sheet.columns = [
-      {header: '序号', key: 'idx', width: 5},
-      {header: '图片', key: 'url', width: 10},
-      {header: '产品描述', key: 'desc', width: 20},
-      {header: '规格', key: 'spec', width: 10},
-      {header: '数量', key: 'count', width: 8},
-      {header: '单价', key: 'price', width: 8},
-    ];
-    await util.loadImg(list)
-    sheet.getRow(1).height = 42.5
-    sheet.getRow(1).eachCell({includeEmpty: false}, (cell) => {
-      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: {argb: 'FFdddbb0'} }
-      cell.font = {size: 16, bold: true}
-      cell.alignment = {vertical: 'middle', horizontal: 'center'}
-    })
-    let idx = 1
-    for (const item of list) {
-      idx += 1
-      sheet.addRow({idx: idx - 1, url: '', desc: item.desc, spec: item.spec, count: item.count, price: item.price})
-      sheet.getRow(idx).height = 42.5
-      sheet.getRow(idx).eachCell({includeEmpty: false}, (cell, i) => {
-        cell.alignment = {vertical: 'middle'}
-        if ([1,5,6].includes(i)) {
-          cell.alignment = {vertical: 'middle', horizontal: 'center'}
-        }
-      })
-      if (!item.img) continue
-      const imageId = workbook.addImage({ buffer: item.img, extension: 'jpeg'});
-      sheet.addImage(imageId, { tl: { col: 1, row: idx - 1 }, ext: { width: 50, height: 50 }});
-    }
-    idx += 1
-    sheet.addRow([`总价格： ${data.totalPrice}`])
-    sheet.mergeCells(`A${idx}:F${idx}`)
-    sheet.getRow(idx).eachCell({includeEmpty: false}, (cell) => {
-      cell.alignment = {vertical: 'middle'}
-      cell.font = {size: 15, bold: true}
-    })
-
-    idx += 1
-    sheet.addRow([`总数量： ${data.totalCount}`])
-    sheet.mergeCells(`A${idx}:F${idx}`)
-    sheet.getRow(idx).eachCell({includeEmpty: false}, (cell) => {
-      cell.alignment = {vertical: 'middle'}
-      cell.font = {size: 15, bold: true}
-    })
-
-    idx += 1
-    sheet.addRow([`备注： ${data.remark}`])
-    sheet.mergeCells(`A${idx}:F${idx}`)
-    sheet.getRow(idx).eachCell({includeEmpty: false}, (cell) => {
-      cell.alignment = {vertical: 'middle'}
-      cell.font = {size: 15, bold: true}
-    })
-
-    idx += 1
-    sheet.addRow([`收货地址： ${data.address}`])
-    sheet.mergeCells(`A${idx}:F${idx}`)
-    sheet.getRow(idx).eachCell({includeEmpty: false}, (cell) => {
-      cell.alignment = {vertical: 'middle'}
-      cell.font = {size: 15, bold: true}
-    })
-
-    idx += 1
-    const dateStr = util.dateTs2Str(info.add_time, 'YYYY/MM/DD HH:mm')
-    sheet.addRow([`创建时间： ${dateStr}`])
-    sheet.mergeCells(`A${idx}:F${idx}`)
-    sheet.getRow(idx).eachCell({includeEmpty: false}, (cell) => {
-      cell.alignment = {vertical: 'middle'}
-    })
-
-    const md5 = crypto.createHash('md5').update(`${id}-${util.getNowTime()}`).digest('hex')
-    const env = util.getConfig('default.env')
-    let fileName = `/tmp/报价单-${md5}.xlsx`
-    if (env === 'dev') {
-      fileName = path.join(process.cwd(),`tmp/报价单-${md5}.xlsx`)
-    }
-    
-    await workbook.xlsx.writeFile(fileName)
-    setTimeout(() => {
-      fs.unlink(fileName, (err) => {
-        console.error(err)
-      })
-    }, 10000);
-    cb(null, fileName)
-  } catch (e) {
     cb(e)
   }
 }

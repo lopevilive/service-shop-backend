@@ -345,20 +345,6 @@ router.post('/GetInventory',
   }
 )
 
-
-router.get('/ExportInventory1', // 弃用
-  async (req, res, next) => {
-    albumService.exportInventory(req, (err, data) => {
-      if (err) {
-        res.sendResult(null, CODE_UNKNOWN, err.message)
-      } else {
-        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-        res.sendfile(data)
-      }
-    })(req, res, next)
-  }
-)
-
 router.get('/ExportInventory',
   async (req, res, next) => {
     albumService.exportInventoryV2(req, (err, data) => {
