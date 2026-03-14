@@ -1494,16 +1494,22 @@ module.exports.getSharePoster = async (req, cb) => {
       
       // 预处理文字（替换 emoji，去换行，截断）
       let rawText = util.emojiReplaceStr(task.text).replace(/[\r\n]/g, '');
+      rawText = rawText.trim()
       if (task.limit && rawText.length > task.limit) {
         rawText = rawText.substring(0, task.limit) + '...';
       }
-
-      const { image: textImg, width } = await renderTextToJimp(rawText, task.size, '#ffffff', task.bold);
-      let posX = task.x;
-      if (task.align === 'center') posX = task.x - width / 2;
+      if (!rawText) continue;
       
-      // 直接 composite，省去了 Jimp.read(buffer) 的开销
-      base.composite(textImg, posX, task.y);
+      try {
+        const { image: textImg, width } = await renderTextToJimp(rawText, task.size, '#ffffff', task.bold);
+        let posX = task.x;
+        if (task.align === 'center') posX = task.x - width / 2;
+        
+        base.composite(textImg, posX, task.y);
+      } catch(e) {
+        console.error('TextRenderAll Error:', e)
+      }
+
     }
     console.timeEnd('TextRenderAll');
 
