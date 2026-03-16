@@ -16,6 +16,7 @@ const PImage = require('pureimage');
 const { PassThrough } = require('stream');
 
 
+// 入库前文本校验
 const validExec = async (strList, payload) => {
   const {openid, userId, shopId, type = 0} = payload
   const newStrList = util.joinStrArrayWithLimit(strList, 2000)
@@ -129,8 +130,12 @@ module.exports.productMod = async (req ,cb) => {
   }
   if (id === 0) { // 创建
     try {
-      let countRes = await dao.count('Product', {shopId})
-      const count = countRes[0]['total']
+      const countQueryBuild = await dao.createQueryBuilder('Product')
+      countQueryBuild.select("COUNT(*)", "total");
+      countQueryBuild.where('shopId = :shopId', {shopId})
+      countQueryBuild.andWhere('(mode & 1) = 0')
+      const result = await countQueryBuild.getRawOne();
+      const count = Number(result.total || 0);
       const vailRes = util.vailCount(req.shopInfo, count)
       if (!vailRes.pass) {
         // 超过限制数量
@@ -138,8 +143,15 @@ module.exports.productMod = async (req ,cb) => {
         return
       }
       let maxPos = 0
-      const res = await dao.list('Product', {columns: {shopId}, only: ['id', 'pos'], order: {pos: 'DESC'}, take: 1})
+      const query = await dao.createQueryBuilder('Product', 'Product');
+      query.select(['Product.id', 'Product.pos']);
+      query.where('shopId = :shopId', { shopId });
+      query.andWhere('(mode & 1) = 0')
+      query.orderBy('pos', 'DESC')
+      query.take(1);
+      const res = await query.getMany();
       if (res.length === 1) {
+        console.log(res)
         maxPos = res[0].pos
       }
       const data = await dao.create('Product', {...params, add_time: util.getNowTime(), pos: maxPos + 10000})
@@ -177,6 +189,7 @@ module.exports.getProduct = async (req ,cb) => {
       'Product.attr', 'Product.isSpec', 'Product.upd_time', 'Product.specDetials', 'Product.descUrl', 'Product.isMulType'
     ])
     queryBuild.where('1 = 1')
+    queryBuild.andWhere('(Product.mode & 1) = 0')
     if (shopId) queryBuild.andWhere('Product.shopId = :shopId', {shopId})
     if (productId) {
       let ids = productId
@@ -220,20 +233,19 @@ module.exports.getProduct = async (req ,cb) => {
     const data = await queryBuild.getMany()
 
     if (shopId) {
-      let shopInfo = await dao.list('Shop', {columns: {id: shopId}})
+      let shopInfo = await dao.list('Shop', {columns: {id: shopId}, only: ['level', 'expiredTime', 'id']})
       shopInfo = shopInfo[0]
-      const countRes = await dao.count('Product', {shopId, status: 0}, 'productType')
-      for (const item of countRes) {
-        total += Number(item.total) // 总数
-        if (!item.productType) {
-          unCateNum += Number(item.total) // 未分类数量
-        }
-      }
-      const downNumRes = await dao.count('Product', {shopId, status: 1})
-      if (downNumRes && downNumRes[0] && downNumRes[0].total) {
-        downNum = Number(downNumRes[0].total); // 下架数量
-        total += downNum;
-      }
+      const countQueryBuild = await dao.createQueryBuilder('Product');
+      countQueryBuild.select("SUM(CASE WHEN status IN (0, 1) THEN 1 ELSE 0 END)", "total");
+      countQueryBuild.addSelect("SUM(CASE WHEN status = 1 THEN 1 ELSE 0 END)", "downNum");
+      countQueryBuild.addSelect("SUM(CASE WHEN status = 0 AND (productType IS NULL OR productType = '') THEN 1 ELSE 0 END)", "unCateNum");
+      countQueryBuild.where("shopId = :shopId", { shopId });
+      countQueryBuild.andWhere('(mode & 1)  = 0');
+      const stats = await countQueryBuild.getRawOne(); // 因为是聚合查询，用 getRawOne 获取原始对象
+      // 处理结果（注意：数据库返回的 SUM 通常是字符串类型，需要转数字）
+      total = Number(stats.total || 0);
+      downNum = Number(stats.downNum || 0);
+      unCateNum = Number(stats.unCateNum || 0);
       let vailRes = util.vailCount(shopInfo, total)
       limit = vailRes.limit
     }
@@ -246,11 +258,19 @@ module.exports.getProduct = async (req ,cb) => {
   }
 }
 
+// 置顶产品
 module.exports.moveTopProduct = async (params, cb) => {
   const {shopId, id} = params
   let sort = 0
   try {
-    let res = await dao.list('Product', {columns: {shopId}, order: {sort: 'DESC'}, take: 1})
+    // let res = await dao.list('Product', {columns: {shopId}, order: {sort: 'DESC'}, take: 1})
+    const query = await dao.createQueryBuilder('Product', 'Product');
+    query.select(['Product.id', 'Product.sort']);
+    query.where('Product.shopId = :shopId', { shopId });
+    query.andWhere('(Product.mode & 1) = 0');
+    query.orderBy('Product.sort', 'DESC');
+    query.limit(1)
+    const res = await query.getMany();
     if (res.length === 1) {
       sort = res[0].sort + 1
     }
@@ -1019,6 +1039,7 @@ module.exports.modProductPos = async (req, cb) => {
     const queryBuild = await dao.createQueryBuilder('Product')
     queryBuild.select(['Product.id', 'Product.pos'])
     queryBuild.where('Product.shopId = :shopId', {shopId})
+    queryBuild.andWhere('(Product.mode & 1) = 0')
     let typeDone = false
     if (productType === '-1') {
       queryBuild.andWhere('Product.productType = :productType', {productType: ''})
@@ -1114,8 +1135,11 @@ module.exports.report = async (req, cb) => {
   const {field, shopId, isAdmin} = req.body
   try {
     const ts = util.getTodayTs()
-    const res = await dao.count('cus_logs', {upd_time: ts})
-    let total = Number(res[0].total)
+    const queryBuild = await dao.createQueryBuilder('CusLogs');
+    queryBuild.select("COUNT(*)", "total");
+    queryBuild.where("upd_time = :ts", { ts });
+    const result = await queryBuild.getRawOne();
+    const total = Number(result.total || 0);
     if (total === 0) { // 插入初始数据
       await dao.create('CusLogs', { logType: 4, content: '{}', add_time: util.getNowTime(), upd_time: ts })
     }
@@ -1168,7 +1192,6 @@ module.exports.wxMsgVerify = async (req, cb) => {
 // 微信推送的消息，只会在生产环境触发
 module.exports.wxMsgRec = async (req, cb) => {
   try {
-    cb(null) // 直接回复微信
     await util.sleep(3000) // 这里避免太快还没创建数据
     const {Event, trace_id} = req.body
     if (Event !== 'wxa_media_check') return
@@ -1180,6 +1203,7 @@ module.exports.wxMsgRec = async (req, cb) => {
     content.res = req.body
     await dao.update('XaCache', id, {content: JSON.stringify(content), dataType: 11, upd_time: util.getNowTime()})
     await contentValid.albumHandleWxMediaCheck()
+    cb(null) // 直接回复微信
   } catch(e) {
     cb(e)
   }

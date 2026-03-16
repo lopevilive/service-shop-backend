@@ -1,3 +1,9 @@
+// let current = 6; // 二进制 0110
+// let mask = 1 << 1; // 二进制 0010
+
+// // 抹除 1 << 1 这一位
+// let result = current & ~mask;
+
 const path = require("path");
 const dao = require(path.join(process.cwd(),"dao/DAO"));
 const util = require(path.join(process.cwd(),"util/index"))
@@ -315,12 +321,97 @@ module.exports.formatSpecPrice = async () => {
   console.log(data)
 }
 
+// 根据 shopId 插入指定数量的产品
+module.exports.createProducts = async (shopId, count) => {
+  const imageUrl = '//upload-1259129443.cos.ap-guangzhou.myqcloud.com/5_e07dd185b9d5880b942a468705f14329.jpg'
+  const currentTime = util.getNowTime()
+  
+  for (let i = 1; i <= count; i++) {
+    const product = {
+      shopId: shopId, name: `产品${i}`, url: imageUrl, price: '100', isSpec: 0, productType: '', isMulType: 0,
+      desc: `产品${i}的描述`, status: 0, sort: 0, pos: 0, add_time: currentTime, upd_time: currentTime, modelUrl: ''
+    }
+    await dao.create('Product', product)
+  }
+  console.log(`已为 shop id=${shopId} 插入 ${count} 个产品`)
+}
 
 
+// 根据 shopId 将该店铺所有产品的 mode 改为 0
+module.exports.resetProductMode = async (shopId) => {
+  const shopIds = Array.isArray(shopId) ? shopId : [shopId]
+  let totalUpdated = 0
+  
+  for (const id of shopIds) {
+    let shopInfo = await dao.list('Shop', {columns: {id}, only: ['id', 'mode']})
+    shopInfo =  shopInfo[0]
+    let mode = shopInfo.mode
+    mode = mode & ~1<<0
+    await dao.update('Shop', id, {mode})
+
+    const products = await dao.list('Product', {columns: {shopId: id, mode: 1}, only: ['id']})
+    if (products.length === 0) {
+      console.log(`Shop ${id}: 没有 mode 为 1 的产品`)
+      continue
+    }
+    const idsToUpdate = products.map(p => p.id)
+    await dao.update('Product', idsToUpdate, {mode: 0})
+    console.log(`Shop ${id}: 已将 ${products.length} 个产品的 mode 重置为 0`)
+    totalUpdated += products.length
+  }
+  
+  console.log(`总计: 已将 ${totalUpdated} 个产品的 mode 重置为 0`)
+}
+
+
+
+const getExpiredShop = async (expiredDays) =>{
+  const now = util.getNowTime()
+  const expiredTimeThreshold = now - (expiredDays * 24 * 3600)
+  
+  const queryBuild = await dao.createQueryBuilder('Shop')
+  queryBuild.select(['Shop.id', 'Shop.level', 'Shop.expiredTime','Shop.status', 'Shop.auditing', 'Shop.add_time', 'Shop.mode'])
+  queryBuild.where('1 = 1')
+  queryBuild.andWhere('Shop.level > 0')
+  queryBuild.andWhere('(Shop.mode & 1) = 0')
+  queryBuild.andWhere('Shop.expiredTime <= :a', {a: expiredTimeThreshold})
+  queryBuild.limit(50)
+  const data = await queryBuild.getMany()
+  const ret = data.map(item => ({
+    ...item,
+    expiredTimeStr: util.dateTs2Str(item.expiredTime, 'YYYY-MM-DD HH:mm:ss'),
+    expiredDays: Math.floor((now - item.expiredTime) / (24 * 3600))
+  }))
+  return ret
+}
+
+const handleExpiredProd = async (shopList) => {
+    // 根据 Shop.id 取出对应的 Product
+  for (const shopItem of shopList) {
+    const products = await dao.list('Product', {columns: {shopId: shopItem.id}})
+    // 前50个保持不变，后面的把 mode 字段改为1
+    if (products.length > 50) {
+      const productsToUpdate = products.slice(50)
+      const idsToUpdate = productsToUpdate.map(p => p.id)
+      await dao.update('Product', idsToUpdate, {mode: 1})
+      console.log(`Shop ${shopItem.id}: 已更新 ${productsToUpdate.length} 个产品的 mode 为 1`)
+    }
+    let mode = shopItem.mode
+    mode = mode | 1<<0
+    await dao.update('Shop', shopItem.id, {mode})
+  }
+}
+
+module.exports.vipExpiredHandle = async (expiredDays = 0) => {
+  const shopList = await getExpiredShop(expiredDays) // 取出过期店铺
+  console.log(shopList)
+  await handleExpiredProd(shopList) // 软删除产品
+}
 
 const init = async () => {
   setTimeout(() => {
-    console.log(1)
+    this.vipExpiredHandle(30)
+    // this.resetProductMode(5)
   }, 0);
 }
 

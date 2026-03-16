@@ -123,7 +123,21 @@ const handleOrder = async (orderInfo, shopInfo) => {
     if (shopInfo.expiredTime > base) base = shopInfo.expiredTime
   }
   const expiredTime = base + duration * (12 * 30 + 7) * 24 * 60 * 60
-  await dao.update('Shop', shopId, {level, expiredTime})
+  await dao.update('Shop', shopId, {level, expiredTime, mode: 0});
+  try {
+    const query = await dao.createQueryBuilder('Product','Product');
+    query.select(['Product.id']);
+    query.where('Product.shopId = :shopId', { shopId })
+    query.andWhere('(Product.mode & 1) = 1')
+    const products = await query.getMany()
+    if (products.length) {
+      const idsToUpdate = products.map(p => p.id)
+      await dao.update('Product', idsToUpdate, {mode: 0})
+    }
+  } catch(e){
+    console.error(e)
+  }
+  
 }
 
 module.exports.queryOrder = async (id, shopInfo) => {

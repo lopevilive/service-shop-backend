@@ -22,6 +22,7 @@ module.exports = {
     pos: {type: 'int', default: 0}, // 产品顺序，越大越在前面
     attr: {type: 'text', nullable: true}, // 产品的一些属性 json 字符串格式
     descUrl: {type: 'text', nullable: true}, // 详情图
+    mode: {type: 'int', default: 0}, // 1-会员过期软删除产品
     add_time: {type: 'int', nullable: true},
     upd_time: {type: 'int', nullable: true},
   }
