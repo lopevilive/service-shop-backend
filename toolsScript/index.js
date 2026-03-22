@@ -405,12 +405,12 @@ const handleExpiredProd = async (shopList) => {
 module.exports.vipExpiredHandle = async (expiredDays = 0) => {
   const shopList = await getExpiredShop(expiredDays) // 取出过期店铺
   console.log(shopList)
-  await handleExpiredProd(shopList) // 软删除产品
+  // await handleExpiredProd(shopList) // 软删除产品
 }
 
 const init = async () => {
   setTimeout(() => {
-    this.vipExpiredHandle(30)
+    // this.vipExpiredHandle(30)
     // this.resetProductMode(5)
   }, 0);
 }

@@ -96,31 +96,32 @@ module.exports.vailCount = ({level, expiredTime}, count) => {
   }
 }
 
-module.exports.loadImg = async (list) => {
-  let reso
-  let p = new Promise((resolve) => {
-    reso = resolve
-  })
-  let num = 0
-  for (const item of list) {
-    let tmp = item.url
-    tmp = tmp.replace(/quality\/\d+/,'quality/2')
-    let url = `http:${tmp}`
-    axios({
-      method: 'get', url, responseType: 'arraybuffer'
-    }).then((res) => {
-      num += 1
-      item.img = res.data
-      if (num === list.length) reso()
-    }).catch((e) => {
-      num += 1
-      item.img = ''
-      console.error(e)
-      if (num === list.length) reso()
-    })
+module.exports.loadImg = async (list, limit = 10) => {
+  // 1. 预处理队列：过滤掉没有 URL 的项
+  const queue = list.filter(item => item.url);
+  let index = 0;
+
+  // 2. 定义单个执行单元
+  const worker = async () => {
+    while (index < queue.length) {
+      const item = queue[index++]; // 抢占下一个任务序号
+      try {
+        let tmp = item.url.replace(/quality\/\d+/, 'quality/20');
+        let url = tmp.startsWith('http') ? tmp : `http:${tmp}`;
+        const res = await axios({ method: 'get',url, responseType: 'arraybuffer', timeout: 5000 });
+        item.img = res.data;
+      } catch (e) {
+        console.error(`图片加载失败 [${item.url}]:`, e.message);
+        item.img = ''; // 失败占位
+      }
+    }
+  };
+  const workers = [];
+  for (let i = 0; i < Math.min(limit, queue.length); i++) {
+    workers.push(worker());
   }
-  return p
-}
+  await Promise.all(workers);
+};
 
 module.exports.rand = (min, max) => {
   return Math.floor(Math.random() * (max - min)) + min;

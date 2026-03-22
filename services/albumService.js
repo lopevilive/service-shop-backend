@@ -688,30 +688,198 @@ module.exports.createInventory = async (req, cb) => {
 
 module.exports.getInventory = async (req, cb) => {
   const {id, userId, shopId, limit, type} = req.body
-  const columns = {type: 0}
-  if (type) columns.type = type
-  if (id) {
-    columns.id =  id
-  }
-  if (userId) {
-    columns.userId = userId
-  }
-  if (shopId) {
-    columns.shopId = shopId
-  }
-  if (!id && !userId) {
-    cb(new Error('参数有误'))
-    return
-  }
-  const take = limit ? limit : 5
-  const only = ['id', 'add_time', 'data', 'status', 'orderId', 'userId']
   try {
-    const ret = await dao.list('Enventory', {columns, only, take, order: {id: 'DESC'}})
-    cb(null, ret)
+    if (!id && !userId) return cb(new Error('参数有误'));
+    const query = await dao.createQueryBuilder('Enventory', 'Enventory');
+    query.select([ 'Enventory.id', 'Enventory.add_time', 'Enventory.data', 'Enventory.status',
+      'Enventory.orderId', 'Enventory.userId', 'Enventory.shopId'
+    ]);
+    query.andWhere('Enventory.type = :type', { type: type || 0 });
+    if (id) {
+      let ids = id;
+      if (!Array.isArray(id)) {
+        ids = [id];
+      }
+      query.andWhere('Enventory.id IN (:...ids)', { ids });
+    }
+    if (userId) query.andWhere('Enventory.userId = :userId', { userId });
+    if (shopId) query.andWhere('Enventory.shopId = :shopId', { shopId });
+    query.orderBy('Enventory.id', 'DESC');
+    query.take(limit || 5);
+    const ret = await query.getMany();
+    cb(null, ret);
   } catch(e) {
     cb(e)
   }
 }
+
+
+module.exports.exportInventoryV3 = async (req, cb) => {
+  const { id } = req.body;
+  if (!id) return cb(new Error('参数有误'));
+
+  const idList = Array.isArray(id) ? id : [id];
+
+  try {
+    // 1. 获取数据 (TypeORM QueryBuilder)
+    const query = await dao.createQueryBuilder('Enventory', 'Enventory');
+    query.select(['Enventory.id', 'Enventory.shopId', 'Enventory.data', 'Enventory.add_time']);
+    query.where('Enventory.id IN (:...ids)', { ids: idList });
+    const infoList = await query.getMany();
+    if (!infoList || infoList.length === 0) return cb(new Error('数据不存在'));
+
+    // 2. 初始化 Workbook
+    const workbook = new ExcelJS.Workbook();
+    const usedSheetNames = new Set();
+
+    // 3. 循环处理每一个清单 (生成各 Sheet)
+    for (let index = 0; index < infoList.length; index++) {
+      const info = infoList[index];
+      const data = JSON.parse(info.data || '{}');
+      const list = data.list || [];
+
+      // --- 动态 Sheet 命名逻辑 ---
+      let baseName = '';
+      if (infoList.length === 1) {
+        baseName = '报价清单';
+      } else {
+        const addr = data.address || '';
+        // 过滤：1.Emoji 2.换行与空格 3.Excel禁用字符
+        let cleanAddr = util.emojiReplaceStr(addr);
+        cleanAddr = cleanAddr.replace(/\s+/g, ''); // 去除所有空格和换行
+        cleanAddr = cleanAddr.replace(/[\\/?*\[\]:]/g, '').trim();
+        baseName = cleanAddr ? cleanAddr.substring(0, 8) : '报价清单';
+      }
+
+      let finalSheetName = baseName;
+      let suffix = 1;
+      while (usedSheetNames.has(finalSheetName)) {
+        finalSheetName = `${baseName}_${suffix}`;
+        suffix++;
+      }
+      usedSheetNames.add(finalSheetName);
+
+      const sheet = workbook.addWorksheet(finalSheetName, {
+        views: [{ state: 'frozen', xSplit: 0, ySplit: 1 }]
+      });
+
+      sheet.columns = [
+        { header: '序号', key: 'idx', width: 6 },
+        { header: '图片', key: 'url', width: 12 },
+        { header: '产品描述', key: 'desc', width: 30 },
+        { header: '规格', key: 'spec', width: 15 },
+        { header: '数量', key: 'count', width: 10 },
+        { header: '单价', key: 'price', width: 10 },
+      ];
+
+      // 4. 加载图片并填充行
+      await util.loadImg(list, 10);
+
+      const headerRow = sheet.getRow(1);
+      headerRow.height = 42.5;
+      headerRow.eachCell({ includeEmpty: false }, (cell) => {
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFdddbb0' } };
+        cell.font = { size: 16, bold: true };
+        cell.alignment = { vertical: 'middle', horizontal: 'center' };
+      });
+
+      list.forEach((item, i) => {
+        const row = sheet.addRow({
+          idx: i + 1,
+          url: '',
+          desc: item.desc,
+          spec: item.spec,
+          count: item.count,
+          price: item.price
+        });
+        row.height = 42.5;
+        row.eachCell({ includeEmpty: false }, (cell, colNum) => {
+          cell.alignment = { 
+            vertical: 'middle', 
+            horizontal: [1, 5, 6].includes(colNum) ? 'center' : 'left',
+            wrapText: true
+          };
+        });
+        if (item.img) {
+          const imageId = workbook.addImage({ buffer: item.img, extension: 'jpeg' });
+          sheet.addImage(imageId, {
+            tl: { col: 1, row: i + 1 },
+            ext: { width: 50, height: 50 },
+            editAs: 'oneCell'
+          });
+        }
+      });
+
+      const summaryData = [
+        `总价格： ${data.totalPrice}`,
+        `总数量： ${data.totalCount}`,
+        `备注： ${data.remark}`,
+        `收货地址： ${data.address}`,
+        `创建时间： ${util.dateTs2Str(info.add_time, 'YYYY/MM/DD HH:mm')}`
+      ];
+      summaryData.forEach((text, i) => {
+        sheet.addRow([text]);
+        const lastRow = sheet.lastRow;
+        sheet.mergeCells(`A${lastRow.number}:F${lastRow.number}`);
+        lastRow.height = 42.5;
+        lastRow.getCell(1).alignment = { vertical: 'middle', wrapText: true };
+        if (i < 4) lastRow.getCell(1).font = { size: 15, bold: true };
+      });
+    }
+
+    // 5. 生成 Excel Buffer
+    const excelBuffer = await workbook.xlsx.writeBuffer();
+    const nowTimeStr = util.getNowTime(); 
+    const md5 = crypto.createHash('md5').update(`${idList.join('-')}-${nowTimeStr}`).digest('hex');
+    const finalKey = `album-export/inven${infoList[0].shopId}-${md5}.xlsx`;
+
+    // 6. 上传 COS
+    const url = await new Promise((resolve, reject) => {
+      cos.cosInstance.putObject({
+        Bucket: cos.cfg.bucket,
+        Region: cos.cfg.region,
+        Key: finalKey,
+        Body: excelBuffer,
+        ACL: 'public-read',
+        ContentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      }, (err, resData) => {
+        if (err) reject(err);
+        else resolve(`https://${resData.Location}`);
+      });
+    });
+
+    // --- 7. 动态文件名生成逻辑 (严格过滤非法字符、空格及换行) ---
+    let finalFileName = '';
+    const illegalChars = /[\\/:*?"<>|]/g; 
+
+    if (infoList.length === 1) {
+      const singleData = JSON.parse(infoList[0].data || '{}');
+      // 1.去表情 2.去所有空格和换行 3.去非法字符
+      let addrName = util.emojiReplaceStr(singleData.address || '');
+      addrName = addrName.replace(/\s+/g, ''); // 核心修改：去除所有空白字符
+      addrName = addrName.replace(illegalChars, '');
+      
+      if (addrName) {
+        finalFileName = addrName.substring(0, 8);
+      } else {
+        const randomStr = Math.floor(Math.random() * 9000 + 1000);
+        finalFileName = `报价清单_${nowTimeStr}_${randomStr}`;
+      }
+    } else {
+      finalFileName = `批量报价清单_${nowTimeStr}`;
+    }
+
+    // 最终兜底清洗
+    finalFileName = finalFileName.replace(illegalChars, '').replace(/\s+/g, '');
+    const ret = {url, fileName: `${finalFileName}.xlsx`};
+
+    cb(null, ret);
+  } catch (e) {
+    console.error('导出异常:', e);
+    cb(e);
+  }
+};
+
 
 module.exports.exportInventoryV2 = async (req, cb) => {
   const {id} = req.query
@@ -959,9 +1127,9 @@ module.exports.auditingImg = async (req, cb) => {
 }
 
 module.exports.getCusInventory = async (req, cb) => {
-  const {shopId, pageSize, currPage, status} = req.body
+  const {shopId, pageSize, currPage, status, keyword, timeS, timeE} = req.body
   try {
-    const queryBuild = await dao.createQueryBuilder('Enventory')
+    const queryBuild = await dao.createQueryBuilder('Enventory', 'Enventory')
     queryBuild.select([
       'Enventory.id', 'Enventory.add_time', 'Enventory.data', 'Enventory.status', 'Enventory.orderId'
     ])
@@ -971,6 +1139,15 @@ module.exports.getCusInventory = async (req, cb) => {
       queryBuild.andWhere('Enventory.status = :status', {status})
     }
     queryBuild.andWhere('Enventory.type = 0')
+    if (timeS) {
+      queryBuild.andWhere('Enventory.add_time >= :timeS', {timeS})
+    }
+    if (timeE) {
+      queryBuild.andWhere('Enventory.add_time <= :timeE', {timeE})
+    }
+    if (keyword) {
+      queryBuild.andWhere('(Enventory.data LIKE :kw OR Enventory.orderId LIKE :kw)',{ kw: `%${keyword}%` });
+    }
     const sizeLimit = pageSize || 10;
     queryBuild.limit(sizeLimit);
     if (currPage > 0) queryBuild.offset(currPage * sizeLimit);
