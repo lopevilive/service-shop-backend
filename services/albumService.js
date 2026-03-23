@@ -721,6 +721,8 @@ module.exports.exportInventoryV3 = async (req, cb) => {
   const idList = Array.isArray(id) ? id : [id];
 
   try {
+    const maxCount = 10
+    if (idList.length > maxCount) throw new Error(`最多导出 ${maxCount} 个清单`)
     // 1. 获取数据 (TypeORM QueryBuilder)
     const query = await dao.createQueryBuilder('Enventory', 'Enventory');
     query.select(['Enventory.id', 'Enventory.shopId', 'Enventory.data', 'Enventory.add_time']);
