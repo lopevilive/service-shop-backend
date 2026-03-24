@@ -174,103 +174,367 @@ module.exports.formatInventory = async () => {
   console.log(id)
 }
 
-
-
-module.exports.clearImgs = async () => {
-  // Feedback.url
-  // Product.url
-  // Product.descUrl
-  // Product.specDetials
-  // Shop.url
-  // Shop.bannerCfg
-  // WatermarkCfg.previewUrl
-  // WatermarkCfg.cfg
-  // WatermarkCfg.configkey
-  // 大户：20、25、50、88、173、175、176、179、518、532、1074、1094、1158、1201
-
-  // const shopId = 1211
-  const Marker = ''
-
-  if (!shopId) return
-
-  const strList = [
-    'upload-1259129443.cos.ap-guangzhou.myqcloud.com/5_3_dda7b2170dac6b8a161f072b4b6a62b9.jpg',
-    'upload-1259129443.cos.ap-guangzhou.myqcloud.com/5_3_f0fb6556d51a4f1da626a6d92064ac1c.png',
-    'upload-1259129443.cos.ap-guangzhou.myqcloud.com/5_3_19a302d6f831268825df5f881abf9b95.png',
-    'upload-1259129443.cos.ap-guangzhou.myqcloud.com/5_3_24fd435bee5b919a4c0db50415bf6b97.png'
-  ]
-  const addData = (list, k) => {
-    for (const item of list) {
-      if (item[k]) strList.push(item[k])
-    }
-  }
-
-  const getData = async () => {
-    let ret = await dao.list('Feedback')
-    addData(ret, 'url')
-    ret = await dao.list('Product', {columns: {shopId}})
-    addData(ret, 'url')
-    addData(ret, 'descUrl')
-    addData(ret, 'specDetials')
-    ret = await dao.list('Shop', {columns: {id: shopId}})
-    addData(ret, 'url')
-    addData(ret, 'bannerCfg')
-    addData(ret, 'qrcodeUrl')
-    ret = await dao.list('WatermarkCfg', {columns: {shopId}})
-    addData(ret, 'cfg')
-    addData(ret, 'configkey')
-  }
-
-  const isUsed = async (key) => {
-    for (const str of strList) {
-      if (str.includes(key)) return true
-    }
-    return false
-  }
-
-  await getData()
-  const moveImg = async (key) => {
-    const CopySource = `${cfg.bucket}.cos.${cfg.region}.myqcloud.com/${key}`
-    let ret = await cosInstance.sliceCopyFile({
-      Bucket: cfg.bucket,
-      Region: cfg.region,
-      Key: `nouse_${key}`,
-      CopySource,
-    })
-    if (ret.statusCode !== 200) {
-      throw new Error('复制出错')
-    }
-    ret = await cosInstance.deleteObject({
-      Bucket: cfg.bucket,
-      Region: cfg.region,
-      Key: key
-    })
-    if (ret.statusCode !== 204) {
-      throw new Error('删除出错')
-    }
-  }
+/**
+ * 统计 nouse 备份文件数量及体积
+ * @param {Object} params - 配置对象
+ * @param {Number|String} params.id - (可选) 商家ID，不传则统计全桶所有 nouse 文件
+ */
+module.exports.countNouseFiles = async ({ id } = {}) => {
+  const { cosInstance, cfg } = cos;
   
-  const {cosInstance, cfg} = cos
-  const res = await cosInstance.getBucket({
-    Bucket: cfg.bucket,
-    Region: cfg.region,
-    Prefix: `${shopId}_`,
-    Marker,
-    MaxKeys: '1000'
-  })
-  let lastKey = ''
-  console.log('length:', strList.length)
-  for (const item of res.Contents) {
-    const ret = await isUsed(item.Key)
-    if (ret) { // 在使用
-      lastKey = item.Key
-    } else { // 没在使用
-      console.log('nouse: ', item.Key)
-      await moveImg(item.Key)
+  // 如果传了 id，前缀就是 nouse_ID_，否则统计所有 nouse_
+  const prefix = id ? `nouse_${id}_` : `nouse_`;
+  
+  let totalCount = 0;
+  let totalSizeByte = 0;
+  let marker = '';
+  let isTruncated = true;
+  let requestCount = 0;
+
+  console.log(`\n📊 开始统计 COS 备份文件...`);
+  console.log(`   🔎 扫描前缀: "${prefix}"`);
+
+  try {
+    while (isTruncated) {
+      requestCount++;
+      const res = await cosInstance.getBucket({
+        Bucket: cfg.bucket,
+        Region: cfg.region,
+        Prefix: prefix,
+        Marker: marker,
+        MaxKeys: '1000'
+      });
+
+      if (res.Contents && res.Contents.length > 0) {
+        totalCount += res.Contents.length;
+        // 累加文件大小
+        for (const file of res.Contents) {
+          totalSizeByte += parseInt(file.Size || 0);
+        }
+      }
+
+      // 实时打印扫描进度（每 1000 个跳一次，避免刷屏）
+      process.stdout.write(`\r      已扫描文件数: ${totalCount} ... `);
+
+      isTruncated = res.IsTruncated === 'true' || res.IsTruncated === true;
+      marker = res.NextMarker;
+    }
+
+    const totalSizeMB = (totalSizeByte / 1024 / 1024).toFixed(2);
+    const totalSizeGB = (totalSizeByte / 1024 / 1024 / 1024).toFixed(3);
+
+    console.log(`\n\n===========================================`);
+    console.log(`📈 统计报告 [${id ? '商家 ' + id : '全桶汇总'}]`);
+    console.log(`-------------------------------------------`);
+    console.log(`   - 备份文件总数: ${totalCount} 个`);
+    console.log(`   - 累计占用空间: ${totalSizeMB} MB (${totalSizeGB} GB)`);
+    console.log(`   - API 请求次数: ${requestCount} 次`);
+    console.log(`===========================================\n`);
+
+    return { totalCount, totalSizeByte };
+    
+  } catch (err) {
+    console.error(`\n❌ 统计过程出错: ${err.message}`);
+  }
+};
+
+
+/**
+ * 还原 COS 垃圾图片插件 (恢复模式)
+ * @param {Object} params - 配置对象
+ * @param {Number|Array|Object} params.id - 商家ID：支持数字、数组或范围
+ * @param {Boolean} params.isExec - 是否正式执行还原：true 则执行，false 仅预览
+ * @param {Number} params.concurrency - 并发数，默认 10
+ */
+module.exports.restoreImgs = async ({ 
+  id, 
+  isExec = false, 
+  concurrency = 5 
+}) => {
+  if (!id) {
+    console.error('❌ 未传入 id 参数');
+    return;
+  }
+
+  // 1. 参数解析
+  let targetShopIds = [];
+  if (typeof id === 'number' || typeof id === 'string') {
+    targetShopIds.push(Number(id));
+  } else if (Array.isArray(id)) {
+    targetShopIds = id;
+  } else if (typeof id === 'object' && id.start !== undefined && id.end !== undefined) {
+    for (let i = id.start; i <= id.end; i++) {
+      targetShopIds.push(i);
     }
   }
-  console.log(`lastKey:`, lastKey)
-}
+
+  const { cosInstance, cfg } = cos;
+  let globalTotalRestored = 0;
+
+  // 2. 内部方法：获取所有已标记为 nouse_ 的文件
+  const getNouseFiles = async (shopId) => {
+    let allFiles = []; let marker = ''; let isTruncated = true;
+    while (isTruncated) {
+      const res = await cosInstance.getBucket({
+        Bucket: cfg.bucket,
+        Region: cfg.region,
+        Prefix: `nouse_${shopId}_`, // 只找被清理掉的
+        Marker: marker,
+        MaxKeys: '1000'
+      });
+      if (res.Contents) allFiles = allFiles.concat(res.Contents);
+      isTruncated = res.IsTruncated === 'true' || res.IsTruncated === true;
+      marker = res.NextMarker;
+    }
+    return allFiles;
+  };
+
+  /**
+   * 执行单条还原：nouse_A.jpg -> A.jpg
+   */
+  const doRestore = async (nouseKey, current, total) => {
+    const originalKey = nouseKey.replace(/^nouse_/, '');
+    const CopySource = `${cfg.bucket}.cos.${cfg.region}.myqcloud.com/${nouseKey}`;
+    
+    try {
+      // 1. 复制回原名
+      await cosInstance.sliceCopyFile({
+        Bucket: cfg.bucket, Region: cfg.region, Key: originalKey, CopySource,
+      });
+      // 2. 删除 nouse_ 备份
+      await cosInstance.deleteObject({ Bucket: cfg.bucket, Region: cfg.region, Key: nouseKey });
+      
+      process.stdout.write(`\r      ♻️ 正在还原: [${current}/${total}] ... `);
+      return true;
+    } catch (e) {
+      console.log(`\n      ❌ 还原失败 [${nouseKey}]: ${e.message}`);
+      return false;
+    }
+  };
+
+  // 3. 执行流程
+  const modeName = isExec ? "🛠️ 正式还原模式" : "🔍 还原预览模式";
+  console.log(`\n===========================================`);
+  console.log(`${modeName}`);
+  console.log(`目标商家数: ${targetShopIds.length} | 并发数: ${concurrency}`);
+  console.log(`===========================================\n`);
+
+  for (const shopId of targetShopIds) {
+    try {
+      const nouseFiles = await getNouseFiles(shopId);
+      
+      console.log(`[Shop ${shopId}] 发现可还原文件: ${nouseFiles.length} 个`);
+
+      if (nouseFiles.length > 0 && isExec) {
+        // 分批并发处理
+        for (let i = 0; i < nouseFiles.length; i += concurrency) {
+          const chunk = nouseFiles.slice(i, i + concurrency);
+          await Promise.all(chunk.map((file, index) => {
+            return doRestore(file.Key, i + index + 1, nouseFiles.length);
+          }));
+          globalTotalRestored += chunk.length;
+        }
+        console.log(` ✅ 还原完成`);
+      }
+    } catch (err) {
+      console.error(`❌ [Shop ${shopId}] 还原过程出错: ${err.message}`);
+    }
+  }
+
+  console.log(`\n===========================================`);
+  console.log(`✨ 还原任务结束！累计还原文件: ${globalTotalRestored}`);
+  if (!isExec) console.log(`ℹ️ 当前为预览模式，未实际操作。`);
+  console.log(`===========================================\n`);
+};
+
+
+// Feedback.url
+// Product.url
+// Product.descUrl
+// Product.specDetials
+// Shop.url
+// Shop.bannerCfg
+// Shop.specsCfg
+// Shop.homePageCfg
+// Shop.qrcodeUrl
+// WatermarkCfg.previewUrl
+// WatermarkCfg.cfg
+// WatermarkCfg.configkey
+// 大户：20、25、50、88、173、175、176、179、518、532、1074、1094、1158、1201
+
+/**
+ * 清理 COS 垃圾图片插件 (并发控制版)
+ * @param {Object} params - 配置对象
+ * @param {Number|Array|Object} params.id - 商家ID
+ * @param {Boolean} params.isExec - 是否正式清理
+ * @param {Boolean} params.showDetails - 是否列出详情
+ * @param {Number} params.bufferHour - 安全缓冲时间(小时)
+ * @param {Number} params.concurrency - 并发数，默认 10
+ */
+module.exports.clearImgs = async ({ 
+  id, 
+  isExec = false, 
+  showDetails = false, 
+  bufferHour = 1,
+  concurrency = 5
+}) => {
+  if (!id) {
+    console.error('❌ 未传入 id 参数，终止执行');
+    return;
+  }
+  const env = util.getConfig('default.env')
+  if (env !== 'test') {
+    console.error('❌ 请连接正式db，终止执行');
+    return;
+  }
+
+  // 1. 参数解析
+  let targetShopIds = [];
+  if (typeof id === 'number' || typeof id === 'string') {
+    targetShopIds.push(Number(id));
+  } else if (Array.isArray(id)) {
+    targetShopIds = id;
+  } else if (typeof id === 'object' && id.start !== undefined && id.end !== undefined) {
+    for (let i = id.start; i <= id.end; i++) {
+      targetShopIds.push(i);
+    }
+  }
+
+  let globalTotalScanned = 0;
+  let globalTotalTrash = 0;
+  let globalTotalSize = 0;
+  let globalProcessedCount = 0;
+
+  const { cosInstance, cfg } = cos;
+  const BUFFER_TIME_MS = bufferHour * 60 * 60 * 1000;
+  const NOW = Date.now();
+
+  // 2. 内部方法
+  const getUsedImageListFromDB = async (shopId) => {
+    const strList = [
+      'upload-1259129443.cos.ap-guangzhou.myqcloud.com/5_3_dda7b2170dac6b8a161f072b4b6a62b9.jpg',
+      'upload-1259129443.cos.ap-guangzhou.myqcloud.com/5_3_f0fb6556d51a4f1da626a6d92064ac1c.png',
+      'upload-1259129443.cos.ap-guangzhou.myqcloud.com/5_3_19a302d6f831268825df5f881abf9b95.png',
+      'upload-1259129443.cos.ap-guangzhou.myqcloud.com/5_3_24fd435bee5b919a4c0db50415bf6b97.png'
+    ];
+    const addData = (list, k) => {
+      if (!list) return;
+      for (const item of list) { if (item[k]) strList.push(item[k]); }
+    };
+    let ret = await dao.list('Feedback'); addData(ret, 'url');
+    ret = await dao.list('Product', { columns: { shopId } }); addData(ret, 'url'); addData(ret, 'descUrl'); addData(ret, 'specDetials');
+    ret = await dao.list('Shop', { columns: { id: shopId } }); addData(ret, 'url'); addData(ret, 'bannerCfg'); addData(ret, 'specsCfg'); addData(ret, 'homePageCfg'); addData(ret, 'qrcodeUrl');
+    ret = await dao.list('WatermarkCfg', { columns: { shopId } }); addData(ret, 'previewUrl'); addData(ret, 'cfg'); addData(ret, 'configkey');
+    return strList;
+  };
+
+  const getAllCosFiles = async (shopId) => {
+    let allFiles = []; let marker = ''; let isTruncated = true;
+    while (isTruncated) {
+      const res = await cosInstance.getBucket({
+        Bucket: cfg.bucket, Region: cfg.region, Prefix: `${shopId}_`, Marker: marker, MaxKeys: '1000'
+      });
+      if (res.Contents && res.Contents.length > 0) {
+        const filtered = res.Contents.filter(file => {
+          const mTime = new Date(file.LastModified).getTime();
+          return mTime < (NOW - BUFFER_TIME_MS);
+        });
+        allFiles = allFiles.concat(filtered);
+      }
+      isTruncated = res.IsTruncated === 'true' || res.IsTruncated === true;
+      marker = res.NextMarker;
+    }
+    return allFiles;
+  };
+
+  /**
+   * 备份并删除单个文件
+   */
+  const backupAndDelete = async (key, current, total) => {
+    const CopySource = `${cfg.bucket}.cos.${cfg.region}.myqcloud.com/${key}`;
+    try {
+      await cosInstance.sliceCopyFile({
+        Bucket: cfg.bucket, Region: cfg.region, Key: `nouse_${key}`, CopySource,
+      });
+      await cosInstance.deleteObject({ Bucket: cfg.bucket, Region: cfg.region, Key: key });
+      // 并发模式下使用 \r 刷新同一行进度，避免刷屏
+      process.stdout.write(`\r      🚀 正在执行清理: [${current}/${total}] ... `);
+      return true;
+    } catch (e) {
+      console.log(`\n      ❌ 失败 [${key}]: ${e.message}`);
+      return false;
+    }
+  };
+
+  // 3. 执行流程
+  const modeName = isExec ? "🔥 正式清理模式" : "🔍 预览统计模式";
+  console.log(`\n===========================================`);
+  console.log(`${modeName}`);
+  console.log(`商家总数: ${targetShopIds.length} | 并发数: ${concurrency} | 缓冲: ${bufferHour}h`);
+  console.log(`===========================================\n`);
+
+  for (const shopId of targetShopIds) {
+    if (shopId === 5) continue
+    try {
+      const [usedList, allFiles] = await Promise.all([
+        getUsedImageListFromDB(shopId),
+        getAllCosFiles(shopId)
+      ]);
+
+      const trashFiles = [];
+      let currentShopTrashSize = 0;
+
+      for (const file of allFiles) {
+        const isUsed = usedList.some(str => str.includes(file.Key));
+        if (!isUsed && !file.Key.startsWith('nouse_')) {
+          trashFiles.push(file);
+          currentShopTrashSize += parseInt(file.Size || 0);
+        }
+      }
+
+      globalTotalScanned += allFiles.length;
+      globalTotalTrash += trashFiles.length;
+      globalTotalSize += currentShopTrashSize;
+
+      const sizeMB = (currentShopTrashSize / 1024 / 1024).toFixed(2);
+      console.log(`[Shop ${shopId}] 扫描文件: ${allFiles.length} | 发现垃圾: ${trashFiles.length} 张 (${sizeMB} MB)`);
+
+      if (trashFiles.length > 0) {
+        if (showDetails && !isExec) {
+          trashFiles.forEach(f => console.log(`   └─ 待删: ${f.Key} (${(f.Size/1024).toFixed(1)}KB)`));
+        }
+
+        if (isExec) {
+          // --- 并发处理核心逻辑 ---
+          for (let i = 0; i < trashFiles.length; i += concurrency) {
+            const chunk = trashFiles.slice(i, i + concurrency);
+            await Promise.all(chunk.map((file, index) => {
+              const currentCount = i + index + 1;
+              return backupAndDelete(file.Key, currentCount, trashFiles.length);
+            }));
+            globalProcessedCount += chunk.length;
+          }
+          console.log(` ✅ 完成`);
+        }
+      }
+    } catch (err) {
+      console.error(`❌ [Shop ${shopId}] 发生错误: ${err.message}`);
+    }
+  }
+
+  // 4. 汇总报告
+  const totalSizeMB = (globalTotalSize / 1024 / 1024).toFixed(2);
+  console.log(`\n===========================================`);
+  console.log(`✨ 任务完成！`);
+  console.log(`📊 汇总报告：`);
+  console.log(`   - 扫描商家: ${targetShopIds.length}`);
+  console.log(`   - 扫描文件: ${globalTotalScanned}`);
+  console.log(`   - 垃圾总数: ${globalTotalTrash}`);
+  console.log(`   - 释放空间: ${totalSizeMB} MB`);
+  if (isExec) console.log(`   - 成功处理: ${globalProcessedCount}`);
+  console.log(`===========================================\n`);
+};
+
 
 module.exports.formatReport = async () => {
   let data = await dao.list('CusLogs', {order: {id: 'DESC'}, take: 30, columns: {logType: 4} })
@@ -410,6 +674,9 @@ module.exports.vipExpiredHandle = async (expiredDays = 0) => {
 
 const init = async () => {
   setTimeout(() => {
+    // this.clearImgs({ showDetails: false, id: {start: 2300, end: 2400}, isExec: false }) // 清理图片
+    // this.countNouseFiles()  // 统计多少垃圾图片
+    // this.restoreImgs({id: 11}) // 还原图片
     // this.vipExpiredHandle(30)
     // this.resetProductMode(5)
   }, 0);
