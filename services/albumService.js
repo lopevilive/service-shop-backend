@@ -122,7 +122,7 @@ module.exports.productMod = async (req ,cb) => {
   }
   try {
     await validExec([
-      params.desc, params.specDetials, params.price, params.attr
+      params.desc, params.specDetials, params.price, params.attr, params.specs
     ], {openid: userInfo.openid, userId: userInfo.id, shopId})
   } catch(e) {
     cb(e)
@@ -151,7 +151,6 @@ module.exports.productMod = async (req ,cb) => {
       query.take(1);
       const res = await query.getMany();
       if (res.length === 1) {
-        console.log(res)
         maxPos = res[0].pos
       }
       const data = await dao.create('Product', {...params, add_time: util.getNowTime(), pos: maxPos + 10000})
@@ -173,6 +172,7 @@ module.exports.productMod = async (req ,cb) => {
 
 module.exports.getProduct = async (req ,cb) => {
   const params = req.body
+  const {userInfo} = req
   const {
     shopId, productId, pageSize, currPage, productType, status, searchStr, priceSort
   } = params
@@ -183,11 +183,30 @@ module.exports.getProduct = async (req ,cb) => {
     let unCateNum = 0;
     let downNum = 0;
     const queryBuild = await dao.createQueryBuilder('Product')
-    queryBuild.select([
+    const selectFields = [
       'Product.id', 'Product.desc', 'Product.price', 'Product.productType', 'Product.shopId', 'Product.url',
-      'Product.type3D', 'Product.model3D', 'Product.modelUrl', 'Product.status', 'Product.fields', 'Product.sort',
-      'Product.attr', 'Product.isSpec', 'Product.upd_time', 'Product.specDetials', 'Product.descUrl', 'Product.isMulType'
-    ])
+      'Product.status', 'Product.fields', 'Product.sort', 'Product.attr', 'Product.isSpec', 'Product.upd_time',
+      'Product.specDetials', 'Product.descUrl', 'Product.isMulType'
+    ]
+    if (shopId) {
+      while(true) {
+        let shopInfo = await dao.list('Shop', {columns:  {id: shopId}, only: ['userId']})
+        shopInfo = shopInfo[0]
+        if (shopInfo.userId === userInfo.id) {
+          selectFields.push('Product.specs')
+          break
+        }
+        const staffList = await dao.list('Staff',{ columns: {userId: userInfo.id, shopId, type: 1, status: 4}, only: ['id'] })
+        if (staffList.length) {
+          selectFields.push('Product.specs')
+          break
+        }
+        const sups = util.getConfig('album.superAdmin')
+        if (sups.includes(userInfo.id)) selectFields.push('Product.specs');
+        break
+      }
+    }
+    queryBuild.select(selectFields)
     queryBuild.where('1 = 1')
     queryBuild.andWhere('(Product.mode & 1) = 0')
     if (shopId) queryBuild.andWhere('Product.shopId = :shopId', {shopId})

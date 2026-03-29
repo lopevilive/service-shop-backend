@@ -593,7 +593,7 @@ module.exports.createProducts = async (shopId, count) => {
   for (let i = 1; i <= count; i++) {
     const product = {
       shopId: shopId, name: `产品${i}`, url: imageUrl, price: '100', isSpec: 0, productType: '', isMulType: 0,
-      desc: `产品${i}的描述`, status: 0, sort: 0, pos: 0, add_time: currentTime, upd_time: currentTime, modelUrl: ''
+      desc: `产品${i}的描述`, status: 0, sort: 0, pos: 0, add_time: currentTime, upd_time: currentTime,
     }
     await dao.create('Product', product)
   }
@@ -672,13 +672,14 @@ module.exports.vipExpiredHandle = async (expiredDays = 0) => {
   // await handleExpiredProd(shopList) // 软删除产品
 }
 
+
 const init = async () => {
   setTimeout(() => {
     // this.clearImgs({ showDetails: false, id: {start: 2300, end: 2400}, isExec: false }) // 清理图片
     // this.countNouseFiles()  // 统计多少垃圾图片
     // this.restoreImgs({id: 11}) // 还原图片
-    // this.vipExpiredHandle(30)
-    // this.resetProductMode(5)
+    // this.vipExpiredHandle(5) // 处理过期会员
+    // this.resetProductMode(5) // 把产品mode 置 0
   }, 0);
 }
 

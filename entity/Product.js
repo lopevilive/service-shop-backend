@@ -4,18 +4,18 @@ module.exports = {
   columns: {
     id: {type: 'int', generated: true, primary: true},
     shopId: {type: 'int'},
-    name: {type: 'varchar'}, // 弃用
+    name: {type: 'varchar', nullable: true}, // 弃用
     url: {type: 'text'},
     price: {type: 'varchar'},
     isSpec: {type: 'int', default: 0},// 是否多规格 0-否、1-单级规格、2-多级规格
-    specs: {type: 'varchar', nullable: true }, // 多规格配置 //弃用
+    specs: {type: 'text', nullable: true }, // 内部参数
     specDetials: { type: 'text', nullable: true },  // 多规格详情
     productType: {type: 'varchar'},
     isMulType: {type: 'int', default: 0}, // 是否多分类 0-否、1-是
     desc: {type: 'varchar', length: 800},
     type3D: {type: 'int', nullable: true}, // 0-无、1-默认、2-url
     model3D: {type: 'int', nullable: true}, // 1-衣柜、2-地板、3-瓷砖
-    modelUrl: {type: 'varchar'},
+    modelUrl: {type: 'varchar', nullable: true},
     fields: {type: 'varchar', nullable: true}, // 行业个性字段
     status: {type: 'int', default: 0}, // 0-正常、1-下架
     sort: {type: 'int', default: 0}, // 置顶排序，越大越在前面

@@ -101,7 +101,8 @@ const rulesMap = {
     modInventoryStatus: {rid: 2},
     modProductPos: {rid: 2},
     getVipInfo: {rid: 2},
-    textImgCheck: {rid: 1}
+    textImgCheck: {rid: 1},
+    getProduct: {rid: 1}
   },
   userService: {
     getUserInfo: {rid: 1},
