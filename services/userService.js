@@ -121,7 +121,10 @@ module.exports.setViewLogs = async (req, cb) => {
 
 module.exports.createOrder = async (req, cb) => {
   try {
-    const {id: userId, openid} = req.userInfo
+    const {id: userId, openid} = req.userInfo;
+    const logContent = JSON.stringify({userId, shopInfo: req.shopInfo})
+    dao.create('XaCache', { dataType: 15, add_time: util.getNowTime(), content: logContent})
+    throw new Error('系统繁忙')
     const {level} = req.body
     const data = await pay.createOrder({userId, openid, shopInfo: req.shopInfo, level})
     cb(null, data)
