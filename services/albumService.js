@@ -487,6 +487,21 @@ module.exports.getStaff = async (req, cb) => {
   } 
 }
 
+module.exports.getInfoStaff = async (req, cb) => {
+  try {
+    const {id} = req.body
+    if (!id) throw new Error('参数有误')
+    const queryBuild = await dao.createQueryBuilder('Staff', 'Staff');
+    queryBuild.select(['Staff.type', 'Staff.status', 'Staff.id']);
+    queryBuild.where('id = :id', {id});
+    queryBuild.take(1);
+    const data = await queryBuild.getMany()
+    cb(null, data)
+  } catch(e) {
+    cb(e)
+  }
+}
+
 module.exports.createStaff = async (req, cb) => {
   const {shopInfo, userInfo} = req
   const {nickName, type} = req.body

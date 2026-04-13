@@ -57,7 +57,7 @@ const useIsAdmin = async (req) => {
   const {userInfo, shopInfo} = req
   const testEnvAuditor = util.getConfig('album.testEnvAuditor')
   if (testEnvAuditor.includes(shopInfo.id)) return true
-  const res = await dao.list('Staff', {columns: {userId: userInfo.id,shopId: shopInfo.id, status: 4}})
+  const res = await dao.list('Staff', {columns: {userId: userInfo.id,shopId: shopInfo.id, status: 4, type: 1}})
   if (res.length) {
     return true
   }
@@ -68,7 +68,7 @@ const rulesMap = {
   albumService: {
     shopMod: {rid: 2, shopIdKey: 'id'},
     /**
-     * rid:0-游客、1-需要登录、2-管理员或者创建者、3-创建者、10-需要手机认证、99-超级管理员
+     * rid:0-游客、1-需要登录、2-管理员或者创建者、3-创建者、4-分销员、10-需要手机认证、99-超级管理员
      * shopIdKey 图册id 的字段，默认 shopId
      */
     shopCreate: {rid: 10},
@@ -80,6 +80,7 @@ const rulesMap = {
     productTypesDel: {rid: 2},
     getCosTempKeys: {rid: 10},
     getStaff: {rid: 3},
+    getInfoStaff: {rid: 10},
     delStaff: {rid: 3},
     createStaff: {rid: 3},
     verfiyStaff: {rid: 10},
