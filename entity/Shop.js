@@ -33,6 +33,7 @@ module.exports = {
     business: {type: 'int', nullable: true},
     mode: {type: 'int', default: 0}, // 1-会员过期已处理
     homePageCfg: {type: 'text', nullable: true},
+    hidePrice: {type: 'int', default: 0}, // 是否隐藏价格。0-显示、1-隐藏
     add_time: {type: 'int', nullable: true},
     upd_time: {type: 'int', nullable: true},
   }

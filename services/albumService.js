@@ -49,7 +49,7 @@ module.exports.getShop = async (params ,cb) => {
     'id', 'desc', 'url', 'name', 'area', 'address', 'phone', 'qrcodeUrl', 'business',
     'attrs', 'level', 'status', 'encry', 'waterMark', 'auditing', 'addressStatus',
     'inveExportStatus', 'bannerStatus', 'bannerCfg', 'expiredTime', 'requiredType', 'typeStatus',
-    'forwardPermi', 'typeSideMod', 'specsCfg', 'showContact', 'homePageCfg'
+    'forwardPermi', 'typeSideMod', 'specsCfg', 'showContact', 'homePageCfg', 'hidePrice'
   ]
   cond.take = 100 // 限制数量
   try {
@@ -182,6 +182,11 @@ module.exports.getProduct = async (req ,cb) => {
     let limit = 0
     let unCateNum = 0;
     let downNum = 0;
+    let shopInfo = null
+    if (shopId) {
+      const res = await dao.list('Shop', {columns:  {id: shopId}, only: ['userId', 'level', 'expiredTime', 'id', 'hidePrice']})
+      shopInfo = res[0]
+    }
     const queryBuild = await dao.createQueryBuilder('Product')
     const selectFields = [
       'Product.id', 'Product.desc', 'Product.price', 'Product.productType', 'Product.shopId', 'Product.url',
@@ -189,9 +194,7 @@ module.exports.getProduct = async (req ,cb) => {
       'Product.specDetials', 'Product.descUrl', 'Product.isMulType'
     ]
     if (shopId) {
-      while(true) {
-        let shopInfo = await dao.list('Shop', {columns:  {id: shopId}, only: ['userId']})
-        shopInfo = shopInfo[0]
+      while(true) { // 这里判断是否返回内部参数
         if (shopInfo.userId === userInfo.id) {
           selectFields.push('Product.specs')
           break
@@ -252,8 +255,6 @@ module.exports.getProduct = async (req ,cb) => {
     const data = await queryBuild.getMany()
 
     if (shopId) {
-      let shopInfo = await dao.list('Shop', {columns: {id: shopId}, only: ['level', 'expiredTime', 'id']})
-      shopInfo = shopInfo[0]
       const countQueryBuild = await dao.createQueryBuilder('Product');
       countQueryBuild.select("SUM(CASE WHEN status IN (0, 1) THEN 1 ELSE 0 END)", "total");
       countQueryBuild.addSelect("SUM(CASE WHEN status = 1 THEN 1 ELSE 0 END)", "downNum");
@@ -267,6 +268,42 @@ module.exports.getProduct = async (req ,cb) => {
       unCateNum = Number(stats.unCateNum || 0);
       let vailRes = util.vailCount(shopInfo, total)
       limit = vailRes.limit
+
+      let needHidePrice = false
+      while(true) { // 这里判断是否需要隐藏价格
+        if (shopInfo.hidePrice === 0) break // 没开启隐藏价格
+        if (shopInfo.userId === userInfo.id) break // 图册创建者
+        const sups = util.getConfig('album.superAdmin')
+        if (sups.includes(userInfo.id)) break // 超级管理员
+        const query = await dao.createQueryBuilder('Staff', 'Staff')
+        query.select(['Staff.id'])
+        query.where('type in (:...types)', {types: [1,2]})
+        query.andWhere('shopId = :shopId', {shopId});
+        query.andWhere('status = 4');
+        const list = await query.getMany()
+        if (list.length === 0) needHidePrice = true
+        break
+      }
+
+      if (needHidePrice) {
+        try {
+          for (const item of data) {
+            item.price = ''
+            if ([1,2].includes(item.isSpec)) {
+              let specDetials = item.specDetials
+              specDetials = JSON.parse(specDetials)
+              for (const mulSpecItem of specDetials.mulSpecPriceList) {
+                mulSpecItem.price = ''
+              }
+              for (const singSpecItem of specDetials.singleSpecs) {
+                singSpecItem.price = ''
+              }
+              item.specDetials = JSON.stringify(specDetials)
+            }
+          }
+        } catch(e) {}
+      }
+
     }
 
     const ret = {list: data, total, limit, unCateNum, downNum}
