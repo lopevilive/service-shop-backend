@@ -280,6 +280,7 @@ module.exports.getProduct = async (req ,cb) => {
         query.where('type in (:...types)', {types: [1,2]})
         query.andWhere('shopId = :shopId', {shopId});
         query.andWhere('status = 4');
+        query.andWhere('userId = :userId', {userId: userInfo.id})
         const list = await query.getMany()
         if (list.length === 0) needHidePrice = true
         break
