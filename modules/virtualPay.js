@@ -11,7 +11,7 @@ const wxApi = require(path.join(process.cwd(),"modules/wxApi"))
 
 const vPayEnv = 0; // 0：现网环境(正式环境)，1：沙箱环境
 const testProductId = 'vip_lv_test'
-const testPrice = 1
+const testPrice = 100
 
 
 // 4. 内置 HmacSHA256 签名算法
@@ -211,6 +211,7 @@ module.exports.queryWxVirtualOrder = async (outTradeNo, openid) => {
           await dao.create('XaCache', {dataType: 31, add_time: util.getNowTime(), content: JSON.stringify({
             errcode: resData.errcode, errmsg: resData.errmsg, outTradeNo, openid,
           })})
+          if (resData.errcode === 268490002) return 2
           return 0
         }
         const queryRet = resData.order;
