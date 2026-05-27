@@ -109,7 +109,9 @@ const rulesMap = {
     getUserInfo: {rid: 1},
     setViewLogs: {rid: 1},
     createOrder: {rid: 2},
-    queryOrder: {rid: 2}
+    queryOrder: {rid: 2},
+    createVirtualOrder: {rid: 2},
+    queryVirtualOrder: {rid: 2},
   }
 }
 

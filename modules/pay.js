@@ -1,3 +1,4 @@
+// 微信常规支付-弃用
 const path = require("path");
 const util = require(path.join(process.cwd(),"util/index"))
 const crypto = require('crypto');

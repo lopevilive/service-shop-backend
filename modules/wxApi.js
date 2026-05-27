@@ -14,7 +14,7 @@ module.exports.labelCodeMap = [
  * 这里封装统一的微信相关的工具
  */
 
-const getWxOpenid = async (code, appid, secret) => {
+module.exports.getWxOpenid = async (code, appid, secret) => {
   try {
     const reqPayload = {appid, secret, js_code: code, grant_type: 'authorization_code'}
     const {data} = await axios.get('https://api.weixin.qq.com/sns/jscode2session', {params: reqPayload})
@@ -71,7 +71,7 @@ module.exports.getAccessToken = async (payload) => {
 
 module.exports.login = async (payload)=> {
   const {code, appid, secret, dbName} = payload
-  const { openid } = await getWxOpenid(code, appid, secret)
+  const { openid } = await this.getWxOpenid(code, appid, secret)
   if (!openid) throw new Error('获取openid 失败')
   const res = await dao.list(dbName, {columns: {openid}})
   if (res.length === 0) { // 新用户，先创建

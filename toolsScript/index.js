@@ -700,7 +700,7 @@ const init = async () => {
   setTimeout(() => {
     // this.clearImgs({ showDetails: false, id: {start: 2000, end: 2500}, isExec: false }) // 清理图片
     // this.countNouseFiles()  // 统计多少垃圾图片
-    // this.vipExpiredHandle(-10) // 处理过期会员，会把产品mode 置 1
+    // this.vipExpiredHandle(0) // 处理过期会员，会把产品mode 置 1
     // this.resetProductMode(5) // 把产品mode 置 0
     // this.handleLogsToHtml(100) // 统计日志
   }, 0);

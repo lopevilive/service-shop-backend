@@ -122,5 +122,29 @@ router.post('/QueryOrder',
   }
 )
 
+router.post('/CreateVirtualOrder',
+  async (req, res, next) => {
+    userService.createVirtualOrder(req, (err, data) => {
+      if (err) {
+        res.sendResult(null, CODE_UNKNOWN, err.message)
+      } else {
+        res.sendResult(data, CODE_SUCC, 'succ')
+      }
+    })(req, res, next)
+  }
+)
+
+router.post('/QueryVirtualOrder',
+  async (req, res, next) => {
+    userService.queryVirtualOrder(req, (err, data) => {
+      if (err) {
+        res.sendResult(null, CODE_UNKNOWN, err.message)
+      } else {
+        res.sendResult(data, CODE_SUCC, 'succ')
+      }
+    })(req, res, next)
+  }
+)
+
 
 module.exports = router;

@@ -3,7 +3,8 @@ const util = require(path.join(process.cwd(),"util/index"))
 const dao = require(path.join(process.cwd(),"dao/DAO"));
 const ticketManage = require(path.join(process.cwd(),"modules/ticketManage"));
 const axios = require('axios');
-const pay = require(path.join(process.cwd(),"modules/pay"));
+// const pay = require(path.join(process.cwd(),"modules/pay"));
+const virtualPay = require(path.join(process.cwd(),"modules/virtualPay"));
 const wxApi = require(path.join(process.cwd(),"modules/wxApi"))
 
 
@@ -122,25 +123,44 @@ module.exports.setViewLogs = async (req, cb) => {
   }
 }
 
-module.exports.createOrder = async (req, cb) => {
+// module.exports.createOrder = async (req, cb) => {
+//   try {
+//     const {id: userId, openid} = req.userInfo;
+//     const logContent = JSON.stringify({userId, shopInfo: req.shopInfo})
+//     dao.create('XaCache', { dataType: 15, add_time: util.getNowTime(), content: logContent})
+//     throw new Error('系统繁忙')
+//     const {level} = req.body
+//     const data = await pay.createOrder({userId, openid, shopInfo: req.shopInfo, level})
+//     cb(null, data)
+//   } catch(e) {
+//     cb(e)
+//   }
+// }
+
+// module.exports.queryOrder = async (req, cb) => {
+//   try {
+//     const {id} = req.body
+//     const data = await pay.queryOrder(id, req.shopInfo)
+//     cb(null, data)
+//   } catch(e) {
+//     cb(e)
+//   }
+// }
+
+module.exports.createVirtualOrder = async (req,  cb) => {
   try {
-    const {id: userId, openid} = req.userInfo;
-    const logContent = JSON.stringify({userId, shopInfo: req.shopInfo})
-    dao.create('XaCache', { dataType: 15, add_time: util.getNowTime(), content: logContent})
-    throw new Error('系统繁忙')
-    const {level} = req.body
-    const data = await pay.createOrder({userId, openid, shopInfo: req.shopInfo, level})
-    cb(null, data)
+    const ret = await virtualPay.createWxVirtualOrder(req)
+    cb(null, ret)
   } catch(e) {
     cb(e)
   }
 }
 
-module.exports.queryOrder = async (req, cb) => {
+module.exports.queryVirtualOrder = async (req, cb) => {
   try {
-    const {id} = req.body
-    const data = await pay.queryOrder(id, req.shopInfo)
-    cb(null, data)
+    const {body: {outTradeNo }, userInfo: {openid}} = req
+    const ret = await virtualPay.queryWxVirtualOrder(outTradeNo, openid)
+    cb(null, ret)
   } catch(e) {
     cb(e)
   }
