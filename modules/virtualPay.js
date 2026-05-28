@@ -238,21 +238,28 @@ module.exports.queryWxVirtualOrder = async (outTradeNo, openid) => {
             }
             endTime = base + orderInfo.duration * (12 * 30 + 7) * 24 * 60 * 60
             await transactionalEntityManager.update('Shop', {id: shopInfo.id}, {
-              level: targetLevel, expiredTime: endTime, upd_time: util.getNowTime()
+              level: targetLevel, expiredTime: endTime, upd_time: util.getNowTime(), mode: 0
             })
             const notifyRet = await notifyProvideGoods({outTradeNo, wxOrderId: queryRet.wx_order_id, AppKey, accessToken })
             if (notifyRet) { // 通知微信发货成功
-              await transactionalEntityManager.update('AlbumVirtualOrder', {id: orderInfo.id}, {
+              await transactionalEntityManager.update('AlbumVirtualOrder', {id: orderInfo.id}, { // 更新订单状态
                 status: 1, upd_time: util.getNowTime(), order_type: queryRet.order_type, wx_order_id: queryRet.wx_order_id,
                 wxpay_order_id: queryRet.wxpay_order_id, wxPayStatus: queryRet.status, pay_time: queryRet.paid_time
               })
-              dao.create('CusLogs', {logType: 5, add_time: util.getNowTime(), shopId, content: JSON.stringify({
+              dao.create('CusLogs', {logType: 5, add_time: util.getNowTime(), shopId, content: JSON.stringify({ // 记录会员变化
                 preLevel: currLevel,
                 preExpiredTime: shopInfo.expiredTime,
                 targetLevel: targetLevel,
                 targetExpiredTime: endTime,
                 outTradeNo
               })})
+              
+              const products = await dao.list('Product', {columns: {shopId, mode: 1}, only: ['id']})
+              if (products.length !== 0) {
+                const idsToUpdate = products.map(p => p.id)
+                await dao.update('Product', idsToUpdate, {mode: 0})
+              }
+
               return 1
             } else { // 通知微信发货失败，订单进入异常状态
               await transactionalEntityManager.update('AlbumVirtualOrder', {id: orderInfo.id}, {
