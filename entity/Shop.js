@@ -7,10 +7,10 @@ module.exports = {
     name: {type: 'varchar'},
     desc: {type: 'varchar'},
     url: {type: 'text'},
-    area: {type: 'varchar'},
-    address: {type: 'varchar'},
-    phone: {type: 'varchar'},
-    qrcodeUrl: {type: 'varchar'},
+    area: {type: 'varchar'}, // 联系方式-省份
+    address: {type: 'varchar'}, // 联系方式-地址
+    phone: {type: 'varchar'}, // 联系方式-电话
+    qrcodeUrl: {type: 'varchar'}, // 联系方式-二维码
     attrs: {type: 'text', nullable: true}, // 配置的属性历史
     specCfg: {type: 'varchar', nullable: true}, // 配置的规格历史 弃用
     specsCfg: {type: 'text', nullable: true}, // 常用规格
@@ -32,7 +32,7 @@ module.exports = {
     showContact: {type: 'int', default: 0}, // 是否展示联系方式。0-展示、1-隐藏
     business: {type: 'int', nullable: true},
     mode: {type: 'int', default: 0}, // 1-会员过期已处理
-    homePageCfg: {type: 'text', nullable: true},
+    homePageCfg: {type: 'text', nullable: true}, // 首页装修配置信息
     hidePrice: {type: 'int', default: 0}, // 是否隐藏价格。0-显示、1-隐藏
     add_time: {type: 'int', nullable: true},
     upd_time: {type: 'int', nullable: true},

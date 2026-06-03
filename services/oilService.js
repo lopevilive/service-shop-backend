@@ -160,6 +160,30 @@ const getAveOilPrice = async (dateList, oilType = 'brent') => {
   return ret
 }
 
+/**
+ * 按5的倍数区间中间值取整（≥中间值返回上一个5的倍数，<中间值返回下一个）
+ * 兼容数字/字符串输入，统一返回字符串格式（如44→"45"、42→"40"、-166→"-165"）
+ */
+const roundDownToMultipleOfFive = (num) => {
+    // 1. 统一转换输入为数字并校验类型
+  let numVal;
+  if (typeof num === 'number' || typeof num === 'string') {
+    numVal = Number(num);
+  } else {
+    console.warn('输入必须是数字或字符串格式的数字');
+    return "";
+  }
+  // 2. 校验是否为有效数字
+  if (isNaN(numVal)) {
+    console.warn('输入无法转换为有效数字');
+    return "";
+  }
+  // 3. 核心逻辑：按5的倍数中间值取整（等价于四舍五入）
+  // 原理：num/5后四舍五入，再乘5（如44/5=8.8→9→45；42/5=8.4→8→40；-166/5=-33.2→-33→-165）
+  const resultNum = Math.round(numVal / 5) * 5;
+  return resultNum.toString();
+}
+
 const calcuRawOil = async (ts) => {
   const curryear = util.getBeijingYear()
   const weekDays = [ ...util.getYearWorkdays(curryear - 1), ...util.getYearWorkdays(), ...util.getYearWorkdays(curryear + 1) ]
@@ -190,7 +214,7 @@ const calcuRawOil = async (ts) => {
   const res = util.calculateOilPriceAdjustment(prev, curr, '7.01')
   // console.log(preList)
   // console.log(nextList)
-  return util.roundDownToMultipleOfFive(res)
+  return roundDownToMultipleOfFive(res)
 }
 
 // 更新计算的原油变化
@@ -244,6 +268,30 @@ const updateCalcuPrice = async (transactionalEntityManager, payload) => {
   await transactionalEntityManager.update('ZaList', {id: currData.id}, {content: JSON.stringify(currContent)})
 }
 
+/**
+ * 移除行政区划后缀（省/市/自治区/特别行政区等）
+ * @param {string} region - 带后缀的地区名称（如：广东省、北京市、广西壮族自治区）
+ * @returns {string} 移除后缀后的纯地区名（如：广东、北京、广西壮族）
+ */
+const removeRegionSuffix = (region) => {
+  // 1. 容错处理：非字符串/空值直接返回空字符串
+  if (typeof region !== 'string' || !region.trim()) {
+    return '';
+  }
+  // 2. 定义需要移除的行政区划后缀（按「长后缀优先」排序，避免短后缀匹配覆盖长后缀）
+  const suffixes = [ '特别行政区', '自治区','自治州', '自治县', '省', '市', '盟', '地区'];
+  let result = region.trim();
+  // 3. 遍历后缀，匹配到则移除
+  for (const suffix of suffixes) {
+    if (result.endsWith(suffix)) {
+      result = result.slice(0, -suffix.length);
+      break; // 匹配到一个后缀后立即退出，避免重复移除
+    }
+  }
+  return result;
+}
+
+
 // 获取单个地区的接口
 /**
  * {
@@ -257,7 +305,7 @@ const updateCalcuPrice = async (transactionalEntityManager, payload) => {
  */
 const singleApiList = [
   async (ts,  prov) => {
-    const ret = await axios.get(`https://api.qqsuu.cn/api/dm-oilprice?prov=${util.removeRegionSuffix(prov)}`)
+    const ret = await axios.get(`https://api.qqsuu.cn/api/dm-oilprice?prov=${removeRegionSuffix(prov)}`)
     const data = ret.data.data
     // console.log(data)
     const retTs = util.dateStr2Ts(data.time)
@@ -277,7 +325,7 @@ const mulApiList = [
       const retTs = util.dateStr2Ts(item.date)
       if (retTs >= ts) {
         list.push({
-          prov: util.removeRegionSuffix(item.regionName),
+          prov: removeRegionSuffix(item.regionName),
           p0: String(item.n0),
           p92: String(item.n92),
           p95: String(item.n95),
@@ -315,7 +363,7 @@ const updateWithApi = async (transactionalEntityManager, payload) => {
   }
   if (!apiRet) return
   for (const item of currContent.oilList) {
-    const itemProv = util.removeRegionSuffix(item.prov)
+    const itemProv = removeRegionSuffix(item.prov)
     const matchedApiItem = apiRet.find((tmp) => tmp.prov === itemProv)
     if (!matchedApiItem) continue
     const pList = ['p0', 'p92', 'p95', 'p98'] 

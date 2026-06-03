@@ -619,6 +619,30 @@ router.post('/GetSharePoster',
   }
 )
 
+router.post('/GetUsage',
+  async (req, res, next) => {
+    albumService.getUsage(req, (err, data) => {
+      if (err) {
+        res.sendResult(null, CODE_UNKNOWN, err.message)
+      } else {
+        res.sendResult(data, CODE_SUCC, 'succ')
+      }
+    })(req, res, next)
+  }
+)
+
+router.post('/ProcessVideo',
+  async (req, res, next) => {
+    albumService.processVideo(req, (err, data) => {
+      if (err) {
+        res.sendResult(null, CODE_UNKNOWN, err.message)
+      } else {
+        res.sendResult(data, CODE_SUCC, 'succ')
+      }
+    })(req, res, next)
+  }
+)
+
 
 
 

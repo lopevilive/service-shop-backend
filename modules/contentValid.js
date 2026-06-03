@@ -17,29 +17,6 @@ const getMsg = (label) => {
   return `请勿输入${matchedItem.msg}等文字内容~`
 }
 
-// 记录审核次数记录
-const secCheckCount = async (logType) => {
-  try {
-    const manager = await dao.getManager()
-    await manager.transaction(async (transactionalEntityManager) => {
-      const instance = await transactionalEntityManager.createQueryBuilder('CusLogs', 'CusLogs');
-      instance.setLock('pessimistic_write');
-      instance.where('CusLogs.logType = :logType', {logType});
-      const data = await instance.getOne()
-      if (!data) {
-        await transactionalEntityManager.save('CusLogs', { logType, add_time: util.getNowTime(), content: '1'})
-      } else {
-        const {id, content} = data
-        let count = Number(content) + 1
-        await transactionalEntityManager.update('CusLogs', {id}, {content: String(count), upd_time: util.getNowTime()})
-      }
-    })
-  } catch(e) {
-    console.log(e)
-  }
-}
-
-
 /**
  * 校验文本
  * payload.content 要校验的文本
@@ -55,7 +32,7 @@ module.exports.albumValidText = async (payload) => {
   try {
     let ret = await wxApi.msgSecCheck({content, appid, secret, openid})
     const logContent = JSON.stringify({ret, openid, appid, userId, shopId, text: content})
-    secCheckCount(3) // 记录次数
+    util.secCheckCount(3) // 记录次数
     let recorded = false // 是否已经记录这条数据，避免重复记录
     if (type && (type & 1)) { // 需要记录数据
       recorded = true
@@ -120,11 +97,12 @@ const albumIsNeedCosCheck = async (shopId) => {
 module.exports.albumWxSecCheck = async (payload) => {
   const {fileName, shopId, userId, openid, appid, secret, type = 0} = payload
   const {bucket, region} = cos.cfg
-  const media_url = `https://${bucket}.cos.${region}.myqcloud.com/${fileName}?imageMogr2/quality/40`
+  const media_url = `https://${bucket}.cos.${region}.myqcloud.com/${fileName}?imageMogr2/quality/70/thumbnail/800x/strip`
+  //cdn.xiaoguoyun.top/5_3_bd9a4e2d8ee1aab3ef91674d16720d5b.png?imageMogr2/quality/70/thumbnail/800x/strip
   try {
     const trace_id = await wxApi.mediaSecCheck({openid, appid, secret, media_url})
     // const trace_id = '6965ef8b-628096bc-2190c0ef'
-    secCheckCount(2)
+    util.secCheckCount(2)
     const resContent = JSON.stringify({
       req: {media_url, shopId, userId, openid, appid},
       res: {}, // 微信的异步返回结果，此时还是空的
@@ -140,8 +118,8 @@ module.exports.albumWxSecCheck = async (payload) => {
 
 
 /**
- * 
- * 图册上传图片审核。双重审核：cos 接口同步审核、小程序官方接口异步审核
+ * 双重审核
+ * 图册上传图片cos审核，同步接口
  * 返回 0 说明同步审核通过，1 不通过
  */
 module.exports.albumValidImg = async (payload) => {
@@ -157,7 +135,7 @@ module.exports.albumValidImg = async (payload) => {
   const cosCheck = await albumIsNeedCosCheck(shopId)
   if (cosCheck === false) return 0
   const audRes = await cos.getImageAuditing(fileName)
-  secCheckCount(1)
+  util.secCheckCount(1)
   const {RecognitionResult: {PornInfo}} = audRes
   const score = Number(PornInfo.Score)
   if (score <= 85) { // 85分以下不处理
@@ -180,6 +158,42 @@ module.exports.albumValidImg = async (payload) => {
   }
 }
 
+// 视频截贞处理
+const handleVideoCheck = async (transactionalEntityManager, content) => {
+  try {
+    const {req: {jobId, key}, res} = content
+    const instance = await transactionalEntityManager.createQueryBuilder('XaCache', 'XaCache')
+    instance.setLock('pessimistic_write')
+    instance.where('XaCache.dataType = 16')
+    instance.andWhere('XaCache.key2 = :jobId', {jobId})
+    const data = await instance.getOne()
+    if (!data) return
+    const videoCheckContent = JSON.parse(data.content)
+    const {taskList} = videoCheckContent
+    let isPass = true // 判断视频是否已经通过审核
+    for (const checkItem of taskList) {
+      if (checkItem.key === key) {
+        checkItem.checkRes = res
+        checkItem.checkStatus = res.result.suggest
+      }
+      if (['pending', 'risky'].includes(checkItem.checkStatus)) isPass = false
+    }
+    await transactionalEntityManager.update('XaCache', {id: data.id}, {
+      upd_time: util.getNowTime(), content: JSON.stringify(videoCheckContent)
+    })
+    if (isPass) { // 此处把记录标记为已通过，一般通过后会马上删除
+      await transactionalEntityManager.update('XaCache', {id: data.id}, {upd_time: util.getNowTime(), dataType: 21})
+      const keys = taskList.map((item) => item.key)
+      cos.deleteMedia(keys) // 删除视频截贞
+      await transactionalEntityManager.delete('XaCache', {id: data.id})
+    }
+  } catch(e) {
+    console.log('update-err', e)
+  }
+  
+}
+
+
 // 微信异步返回结果后，读取db进行数据处理
 module.exports.albumHandleWxMediaCheck = async () => {
   const manager = await dao.getManager()
@@ -191,9 +205,13 @@ module.exports.albumHandleWxMediaCheck = async () => {
     for (const dataItem of data) {
       try {
         const content = JSON.parse(dataItem.content)
+        // type 1-不用删除记录、1<<1-不用封禁逻辑、1<<2-只接收微信回包，不用额外处理、1<<3-视频截贞
         const {req: {userId, shopId}, res: {result, errcode}, type} = content
         if (errcode !== 0) continue
         if (type && (type & 1<<2)) continue // 这个状态用来过滤本地发起的审核，交由本地处理，此处跳过
+        if (type && (type & 1<<3)) { // 视频截贞图片
+          await handleVideoCheck(transactionalEntityManager, content)
+        }
         if (result.suggest === 'pass') { // 无风险字段
           await transactionalEntityManager.update('XaCache', {id: dataItem.id}, {dataType: 12,upd_time: util.getNowTime()})
           if (!(type && (type & 1))) {

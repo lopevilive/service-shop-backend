@@ -15,7 +15,6 @@ const opentype = require('opentype.js');
 const PImage = require('pureimage');
 const { PassThrough } = require('stream');
 
-
 // 入库前文本校验
 const validExec = async (strList, payload) => {
   const {openid, userId, shopId, type = 0} = payload
@@ -191,7 +190,8 @@ module.exports.getProduct = async (req ,cb) => {
     const selectFields = [
       'Product.id', 'Product.desc', 'Product.price', 'Product.productType', 'Product.shopId', 'Product.url',
       'Product.status', 'Product.fields', 'Product.sort', 'Product.attr', 'Product.isSpec', 'Product.upd_time',
-      'Product.specDetials', 'Product.descUrl', 'Product.isMulType'
+      'Product.specDetials', 'Product.descUrl', 'Product.isMulType', 'Product.videoUrl', 'Product.videoStatus',
+      'Product.videoCover'
     ]
     if (shopId) {
       while(true) { // 这里判断是否返回内部参数
@@ -255,6 +255,7 @@ module.exports.getProduct = async (req ,cb) => {
     const data = await queryBuild.getMany()
 
     if (shopId) {
+      // todo 后面接口替换后删除此处逻辑
       const countQueryBuild = await dao.createQueryBuilder('Product');
       countQueryBuild.select("SUM(CASE WHEN status IN (0, 1) THEN 1 ELSE 0 END)", "total");
       countQueryBuild.addSelect("SUM(CASE WHEN status = 1 THEN 1 ELSE 0 END)", "downNum");
@@ -286,9 +287,9 @@ module.exports.getProduct = async (req ,cb) => {
         break
       }
 
-      if (needHidePrice) {
-        try {
-          for (const item of data) {
+      for (const item of data) {
+        if (needHidePrice) { // 需要隐藏价格
+          try {
             item.price = ''
             if ([1,2].includes(item.isSpec)) {
               let specDetials = item.specDetials
@@ -301,10 +302,28 @@ module.exports.getProduct = async (req ,cb) => {
               }
               item.specDetials = JSON.stringify(specDetials)
             }
+          } catch(e) {
+            dao.create('XaCache', {dataType: 51, add_time: util.getNowTime(), content: JSON.stringify({
+              shopId: shopId || 0, msg: e.message || '未知错误'
+            })})
           }
-        } catch(e) {}
+        }
+        
+        while(item.videoUrl) { // 需要判断视频是否审核中
+          try {
+            const regex = /video\/trans_[^?]+/;
+            const match = item.videoUrl.match(regex);
+            if (!match) break
+            const key = match[0].replace(/trans/, 'raw')
+            let checkData = await dao.list('XaCache', {columns: {dataType: 16, key1: key}})
+            if (checkData.length === 0) break
+            item.videoUrl = item.videoUrl.replace(/\.mp4/, '.check')
+            break
+          } catch(e) {
+            break
+          }
+        }
       }
-
     }
 
     const ret = {list: data, total, limit, unCateNum, downNum}
@@ -1412,8 +1431,6 @@ module.exports.report = async (req, cb) => {
       await transactionalEntityManager.update('CusLogs', {id: data.id}, {
         content: JSON.stringify(content)
       })
-      // await util.sleep(3000)
-      // console.log('done')
     })
     cb(null)
   } catch(e) {
@@ -1443,7 +1460,7 @@ module.exports.wxMsgVerify = async (req, cb) => {
 // 微信推送的消息，只会在生产环境触发
 module.exports.wxMsgRec = async (req, cb) => {
   try {
-    await util.sleep(3000) // 这里避免太快还没创建数据
+    await util.sleep(2000) // 这里避免太快还没创建数据
     const {Event, trace_id} = req.body
     if (Event !== 'wxa_media_check') return
     if (!trace_id) return
@@ -1453,18 +1470,40 @@ module.exports.wxMsgRec = async (req, cb) => {
     content = JSON.parse(content)
     content.res = req.body
     await dao.update('XaCache', id, {content: JSON.stringify(content), dataType: 11, upd_time: util.getNowTime()})
-    await contentValid.albumHandleWxMediaCheck()
+    contentValid.albumHandleWxMediaCheck()
     cb(null) // 直接回复微信
   } catch(e) {
     cb(e)
   }
 }
 
+// 替换 trace_id 来模拟微信返回
 // this.wxMsgRec({
-//  body: {
-//    Event: 'wxa_media_check',
-//     trace_id: '6965ef8b-628096bc-2190c0ef'
-//  }
+//   body: {
+//     "ToUserName": "gh_3bd32b7cd8ac",
+//     "FromUserName": "oJtiB7b-KChcEIN5dRqbhJzixvHE",
+//     "CreateTime": 1779156866,
+//     "MsgType": "event",
+//     "Event": "wxa_media_check",
+//     "appid": "wxab6b38b8a7375611",
+//     "trace_id": "6a1fe21d-034d4b40-4fde4af5",
+//     "version": 2,
+//     "detail": [
+//       {
+//       "strategy": "content_model",
+//       "errcode": 0,
+//       "suggest": "pass",
+//       "label": 20002,
+//       "prob": 90
+//       }
+//     ],
+//     "errcode": 0,
+//     "errmsg": "ok",
+//     "result": {
+//       "suggest": "pass",
+//       "label": 20002
+//     }
+//   }
 // }, ()=> {})
 
 
@@ -1536,10 +1575,8 @@ module.exports.getSharePoster = async (req, cb) => {
     // --- 1. 字体初始化 (单例模式) ---
     const fontPath = path.join(process.cwd(), 'assets', 'AlibabaPuHuiTi-3-55-Regular.ttf');
     if (!fontInstance) {
-      console.time('FontLoad');
       // opentype.js 直接读取本地 ttf 文件，跨平台兼容性 100%
       fontInstance = opentype.loadSync(fontPath);
-      console.timeEnd('FontLoad');
     }
 
     // --- 2. 核心助手函数：基于 opentype 的纯 JS 渲染 ---
@@ -1660,7 +1697,6 @@ module.exports.getSharePoster = async (req, cb) => {
       { text: '微信扫描或长按识别进入小程序～', size: 24, y: 910, align: 'center', x: 350 }
     ];
 
-    console.time('TextRenderAll');
     for (const task of textTasks) {
       if (!task.text) continue;
       
@@ -1683,7 +1719,6 @@ module.exports.getSharePoster = async (req, cb) => {
       }
 
     }
-    console.timeEnd('TextRenderAll');
 
     // --- 6. 最终输出 ---
     const posterBuffer = await base.getBufferAsync(Jimp.MIME_PNG);
@@ -1692,5 +1727,46 @@ module.exports.getSharePoster = async (req, cb) => {
   } catch(e) {
     console.error('Poster Error:', e);
     cb(e);
+  }
+}
+
+// 获取资源使用情况
+module.exports.getUsage = async (req, cb) => {
+  const {shopInfo} = req
+  try {
+    const countQueryBuild = await dao.createQueryBuilder('Product');
+    countQueryBuild.select("SUM(CASE WHEN status IN (0, 1) THEN 1 ELSE 0 END)", "total");
+    countQueryBuild.addSelect("SUM(CASE WHEN status = 1 THEN 1 ELSE 0 END)", "downNum");
+    countQueryBuild.addSelect("SUM(CASE WHEN status = 0 AND (productType IS NULL OR productType = '') THEN 1 ELSE 0 END)", "unCateNum");
+    countQueryBuild.addSelect("SUM(CASE WHEN videoUrl IS NOT NULL AND videoUrl != '' THEN 1 ELSE 0 END)", "videoNum");
+    countQueryBuild.where("shopId = :shopId", { shopId: shopInfo.id });
+    countQueryBuild.andWhere('(mode & 1)  = 0');
+    const stats = await countQueryBuild.getRawOne();
+    const total = Number(stats.total || 0);
+    const downNum = Number(stats.downNum || 0);
+    const unCateNum = Number(stats.unCateNum || 0);
+    const videoNum = Number(stats.videoNum || 0);
+    const {limit, videoLimit, videoLimitS} = util.vailCount(shopInfo, total)
+
+    const ret = {
+      total, downNum, unCateNum, limit, videoLimit, videoNum, videoLimitS
+    }
+    cb(null, ret)
+  } catch(e) {
+    cb(e)
+  }
+
+}
+
+// 视频处理
+module.exports.processVideo = async (req, cb) => {
+  try {
+    const {body: {shopId, rawKey}, userInfo} = req
+    const instance = new cos.ProcessVideo({shopId, rawKey, userInfo})
+    instance.run()
+    const ret = instance.getApiRet()
+    cb(null, ret)
+  } catch(e) {
+    cb(e)
   }
 }

@@ -103,7 +103,9 @@ const rulesMap = {
     modProductPos: {rid: 2},
     getVipInfo: {rid: 2},
     textImgCheck: {rid: 1},
-    getProduct: {rid: 1}
+    getProduct: {rid: 1},
+    getUsage: {rid: 2},
+    processVideo: {rid: 2}
   },
   userService: {
     getUserInfo: {rid: 1},

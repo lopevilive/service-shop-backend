@@ -8,6 +8,16 @@ const { default: axios } = require("axios");
 
 const wxUrl = 'https://api.mch.weixin.qq.com'
 
+// 生成随机字符
+const generateNonceStr = (len) => {
+  let data = "ABCDEFGHJKMNPQRSTWXYZabcdefhijkmnprstwxyz2345678";
+  let str = "";
+  for (let i = 0; i < len; i++) {
+      str += data.charAt(Math.floor(Math.random() * data.length));
+  }
+  return str;
+}
+
 
 module.exports.createOrderSign = async (method, url, timestamp, nonce_str, body) => {
   // 签名串
@@ -23,7 +33,7 @@ module.exports.createOrderSign = async (method, url, timestamp, nonce_str, body)
 
 exports.createPaySign = async function (prepay_id) {
   const timeStamp = util.getNowTime();
-  const nonceStr = util.generateNonceStr(32);
+  const nonceStr = generateNonceStr(32);
   const { appid } = util.getConfig('album.appInfo');
   let signStr = `${appid}\n${timeStamp}\n${nonceStr}\nprepay_id=${prepay_id}\n`;
   let cert = fs.readFileSync(path.join(process.cwd(),"config/apiclient_key.pem"), "utf-8"); 
@@ -83,7 +93,7 @@ module.exports.createOrder = async ({userId, openid, shopInfo, level: targetLeve
     amount: {total: totalFee, currency: 'CNY'},
     payer: {openid}
   }
-  let nonce_str = util.generateNonceStr(32);
+  let nonce_str = generateNonceStr(32);
   try {
     let signature = await this.createOrderSign('POST', '/v3/pay/transactions/jsapi', nowTime, nonce_str, JSON.stringify(wxOrderInfo))
     let Authorization = `WECHATPAY2-SHA256-RSA2048 mchid="${mchid}",nonce_str="${nonce_str}",timestamp="${nowTime}",signature="${signature}",serial_no="${serial_no}"`;
@@ -148,7 +158,7 @@ module.exports.queryOrder = async (id, shopInfo) => {
   const {orderId, status} = orderInfo
   if (status === 1) return status
   const nowTime = util.getNowTime()
-  const nonce_str = util.generateNonceStr(32);
+  const nonce_str = generateNonceStr(32);
   const mchid = util.getConfig('default.wxPay.mchid')
   const serial_no = util.getConfig('default.wxPay.serial_no')
   const wxPath = `/v3/pay/transactions/out-trade-no/${orderId}?mchid=${mchid}`

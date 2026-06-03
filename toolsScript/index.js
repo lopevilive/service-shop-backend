@@ -250,12 +250,7 @@ module.exports.clearImgs = async ({
 
   // 2. 内部方法
   const getUsedImageListFromDB = async (shopId) => {
-    const strList = [
-      'upload-1259129443.cos.ap-guangzhou.myqcloud.com/5_3_dda7b2170dac6b8a161f072b4b6a62b9.jpg',
-      'upload-1259129443.cos.ap-guangzhou.myqcloud.com/5_3_f0fb6556d51a4f1da626a6d92064ac1c.png',
-      'upload-1259129443.cos.ap-guangzhou.myqcloud.com/5_3_19a302d6f831268825df5f881abf9b95.png',
-      'upload-1259129443.cos.ap-guangzhou.myqcloud.com/5_3_24fd435bee5b919a4c0db50415bf6b97.png'
-    ];
+    const strList = [];
     const addData = (list, k) => {
       if (!list) return;
       for (const item of list) { if (item[k]) strList.push(item[k]); }
@@ -700,7 +695,7 @@ const init = async () => {
   setTimeout(() => {
     // this.clearImgs({ showDetails: false, id: {start: 2000, end: 2500}, isExec: false }) // 清理图片
     // this.countNouseFiles()  // 统计多少垃圾图片
-    // this.vipExpiredHandle(0) // 处理过期会员，会把产品mode 置 1
+    // this.vipExpiredHandle(0, false) // 处理过期会员，会把产品mode 置 1
     // this.resetProductMode(5) // 把产品mode 置 0
     // this.handleLogsToHtml(100) // 统计日志
   }, 0);

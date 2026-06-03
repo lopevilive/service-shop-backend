@@ -92,7 +92,9 @@ module.exports.vailCount = ({level, expiredTime}, count) => {
   return {
     limit: matchItem.limit,
     curr: count,
-    pass: matchItem.limit > count
+    videoLimit: matchItem.videoC,
+    videoLimitS: matchItem.videoS,
+    pass: matchItem.limit > count,
   }
 }
 
@@ -175,16 +177,6 @@ module.exports.createOrderId = (type, add_time) => {
   return `${type}${timeStr}${timeSub}${randNum}`
 }
 
-// 生成随机字符
-module.exports.generateNonceStr = (len) => {
-  let data = "ABCDEFGHJKMNPQRSTWXYZabcdefhijkmnprstwxyz2345678";
-  let str = "";
-  for (let i = 0; i < len; i++) {
-      str += data.charAt(Math.floor(Math.random() * data.length));
-  }
-  return str;
-}
-
 module.exports.getRestAmount = (level, expiredTime) => {
   const levelCfg = this.getConfig('album.levelCfg')
   let price = 0
@@ -253,30 +245,9 @@ module.exports.validTs = (ts, num) => {
 }
 
 /**
- * 按5的倍数区间中间值取整（≥中间值返回上一个5的倍数，<中间值返回下一个）
- * 兼容数字/字符串输入，统一返回字符串格式（如44→"45"、42→"40"、-166→"-165"）
+ * 同时跑多个异步任务​，只要有一个成功，立刻返回结果
  */
-module.exports.roundDownToMultipleOfFive = (num) => {
-    // 1. 统一转换输入为数字并校验类型
-  let numVal;
-  if (typeof num === 'number' || typeof num === 'string') {
-    numVal = Number(num);
-  } else {
-    console.warn('输入必须是数字或字符串格式的数字');
-    return "";
-  }
-  // 2. 校验是否为有效数字
-  if (isNaN(numVal)) {
-    console.warn('输入无法转换为有效数字');
-    return "";
-  }
-  // 3. 核心逻辑：按5的倍数中间值取整（等价于四舍五入）
-  // 原理：num/5后四舍五入，再乘5（如44/5=8.8→9→45；42/5=8.4→8→40；-166/5=-33.2→-33→-165）
-  const resultNum = Math.round(numVal / 5) * 5;
-  return resultNum.toString();
-}
-
-class ConcurrencyManage {
+module.exports.ConcurrencyManage = class ConcurrencyManage {
   constructor() {
     this.taskList = []
     this.status = 'idle' // doing done
@@ -332,31 +303,6 @@ class ConcurrencyManage {
 
     return this.p
   }
-}
-
-module.exports.ConcurrencyManage = ConcurrencyManage
-
-/**
- * 移除行政区划后缀（省/市/自治区/特别行政区等）
- * @param {string} region - 带后缀的地区名称（如：广东省、北京市、广西壮族自治区）
- * @returns {string} 移除后缀后的纯地区名（如：广东、北京、广西壮族）
- */
-module.exports.removeRegionSuffix = (region) => {
-  // 1. 容错处理：非字符串/空值直接返回空字符串
-  if (typeof region !== 'string' || !region.trim()) {
-    return '';
-  }
-  // 2. 定义需要移除的行政区划后缀（按「长后缀优先」排序，避免短后缀匹配覆盖长后缀）
-  const suffixes = [ '特别行政区', '自治区','自治州', '自治县', '省', '市', '盟', '地区'];
-  let result = region.trim();
-  // 3. 遍历后缀，匹配到则移除
-  for (const suffix of suffixes) {
-    if (result.endsWith(suffix)) {
-      result = result.slice(0, -suffix.length);
-      break; // 匹配到一个后缀后立即退出，避免重复移除
-    }
-  }
-  return result;
 }
 
 /**
@@ -435,3 +381,107 @@ module.exports.emojiReplaceStr = (str) => {
   if (!str) return '';
   return str.replace(/[\uD83C|\uD83D|\uD83E][\uDC00-\uDFFF][\u200D|\uFE0F]|[\uD83C|\uD83D|\uD83E][\uDC00-\uDFFF]|[0-9|*|#]\uFE0F\u20E3|[0-9|#]\u20E3|[\u203C-\u3299]\uFE0F\u200D|[\u203C-\u3299]\uFE0F|[\u2122-\u2B55]|\u303D|[\A9|\AE]\u3030|\uA9|\uAE|\u3030/ig, '');
 };
+
+/**
+ * 升级版限制器：支持最大并发控制 与 每秒速率(QPS)控制
+ */
+module.exports.SmartLimiter = class SmartLimiter {
+  /**
+   * @param {Object} options
+   * @param {number} options.maxConcurrent 最大并发数（同时在跑的请求数）
+   * @param {number} options.maxPerSecond 每秒允许的最大请求数（QPS）
+   */
+  constructor({ maxConcurrent = 10, maxPerSecond = 50 } = {}) {
+    this.maxConcurrent = maxConcurrent;
+    this.maxPerSecond = maxPerSecond;
+
+    this.currentCount = 0; // 当前正在执行的任务数
+    this.queue = [];        // 任务队列
+
+    // 用于速率限制的计数器
+    this.currentWindowRequests = 0; 
+    this.lastWindowTimestamp = Date.now();
+  }
+
+  /**
+   * 执行任务
+   * @param {Function} taskFn 返回 Promise 的函数
+   */
+  async run(taskFn) {
+    return new Promise((resolve, reject) => {
+      this.queue.push({ taskFn, resolve, reject });
+      this.next();
+    });
+  }
+
+  /**
+   * 核心调度逻辑
+   */
+  next() {
+    // 1. 如果队列空了，直接返回
+    if (this.queue.length === 0) return;
+
+    // 2. 检查【并发限制】
+    if (this.currentCount >= this.maxConcurrent) return;
+
+    // 3. 检查【速率限制】
+    const now = Date.now();
+    // 如果已经过了 1 秒（1000ms），重置时间窗口和计数器
+    if (now - this.lastWindowTimestamp >= 1000) {
+      this.lastWindowTimestamp = now;
+      this.currentWindowRequests = 0;
+    }
+
+    // 如果在当前 1 秒的时间窗口内，请求数已经达到了上限
+    if (this.currentWindowRequests >= this.maxPerSecond) {
+      // 计算距离进入下一个 1 秒窗口还需要多少毫秒
+      const delay = 1000 - (now - this.lastWindowTimestamp);
+      // 延迟触发下一次检查，不阻塞当前线程
+      setTimeout(() => this.next(), delay);
+      return;
+    }
+
+    // 4. 校验通过，取出任务并执行
+    const { taskFn, resolve, reject } = this.queue.shift();
+    
+    this.currentCount++;
+    this.currentWindowRequests++;
+
+    taskFn()
+      .then(res => resolve(res))
+      .catch(err => reject(err))
+      .finally(() => {
+        this.currentCount--;
+        // 某个任务结束了，或者并发空出来了，立刻尝试调度下一个
+        this.next();
+      });
+
+    // 只要拿出了一个任务，且队列里还有，就继续尝试看能不能连着发（满足 QPS 和并发的前提下）
+    if (this.queue.length > 0) {
+      setImmediate(() => this.next());
+    }
+  }
+}
+
+// 记录审核次数记录
+module.exports.secCheckCount = async (logType) => {
+  try {
+    const dao = require(path.join(process.cwd(),"dao/DAO"));
+    const manager = await dao.getManager()
+    await manager.transaction(async (transactionalEntityManager) => {
+      const instance = await transactionalEntityManager.createQueryBuilder('CusLogs', 'CusLogs');
+      instance.setLock('pessimistic_write');
+      instance.where('CusLogs.logType = :logType', {logType});
+      const data = await instance.getOne()
+      if (!data) {
+        await transactionalEntityManager.save('CusLogs', { logType, add_time: this.getNowTime(), content: '1'})
+      } else {
+        const {id, content} = data
+        let count = Number(content) + 1
+        await transactionalEntityManager.update('CusLogs', {id}, {content: String(count), upd_time: this.getNowTime()})
+      }
+    })
+  } catch(e) {
+    console.log(e)
+  }
+}

@@ -23,6 +23,9 @@ module.exports = {
     attr: {type: 'text', nullable: true}, // 产品的一些属性 json 字符串格式
     descUrl: {type: 'text', nullable: true}, // 详情图
     mode: {type: 'int', default: 0}, // 1-会员过期软删除产品
+    videoUrl: {type: 'varchar', nullable: true}, // 视频url，正常后缀为.mp4。当后缀为.check 说明为审核状态
+    videoStatus: {type: 'int', default: 0}, // 0-未启用视频、1-启用视频
+    videoCover: {type: 'varchar', nullable: true}, // 视频封面url，当为空时，取视频首贞
     add_time: {type: 'int', nullable: true},
     upd_time: {type: 'int', nullable: true},
   }

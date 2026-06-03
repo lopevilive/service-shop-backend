@@ -81,7 +81,7 @@ module.exports.login = async (payload)=> {
   return token
 }
 
-// 文本校验
+// 文本校验-同步
 module.exports.msgSecCheck = async (payload) => {
   // return { suggest: 'pass', label: 100 } // 防止校验接口崩溃影响业务
   const {appid, secret, content, openid, scene} = payload
@@ -98,17 +98,25 @@ module.exports.msgSecCheck = async (payload) => {
   return result
 }
 
-// 图片校验
+const limiter = new util.SmartLimiter({
+  maxConcurrent: 5,
+  maxPerSecond: 50
+})
+
+// 图片校验-异步
 module.exports.mediaSecCheck = async (payload) => {
   const {openid, appid, secret, scene = 1, media_url} = payload
-  const access_token = await this.getAccessToken({appid, secret})
-  const res = await axios.post(`https://api.weixin.qq.com/wxa/media_check_async?access_token=${access_token}`, {
-    media_url, media_type: 2, version: 2, scene, openid
+  const ret = await limiter.run(async () => {
+    const access_token = await this.getAccessToken({appid, secret})
+    const res = await axios.post(`https://api.weixin.qq.com/wxa/media_check_async?access_token=${access_token}`, {
+      media_url, media_type: 2, version: 2, scene, openid
+    })
+    const {errcode, errmsg, trace_id} = res.data
+    if (errcode !== 0) {
+      throw new Error(`errcode:${errcode};errmsg:${errmsg || '校验出错'}`)
+    }
+    return trace_id
   })
-  const {errcode, errmsg, trace_id} = res.data
-  if (errcode !== 0) {
-    throw new Error(`errcode:${errcode};errmsg:${errmsg || '校验出错'}`)
-  }
-  return trace_id
+  return ret
 }
 
