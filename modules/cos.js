@@ -40,24 +40,6 @@ module.exports.getTempKeys = async () => {
   // 获取临时密钥
 var shortBucketName = config.bucket.substr(0 , config.bucket.lastIndexOf('-'));
 var appId = config.bucket.substr(1 + config.bucket.lastIndexOf('-'));
-// var policy = {
-//     'version': '2.0',
-//     'statement': [{
-//         'action': config.allowActions,
-//         'effect': 'allow',
-//         'principal': {'qcs': ['*']},
-//         'resource': [
-//             'qcs::cos:' + config.region + ':uid/' + appId + ':prefix//' + appId + '/' + shortBucketName + '/' + config.allowPrefix,
-//         ],
-//         // condition生效条件，关于 condition 的详细设置规则和COS支持的condition类型可以参考https://cloud.tencent.com/document/product/436/71306
-//         // 'condition': {
-//         //   // 比如限定ip访问
-//         //   'ip_equal': {
-//         //     'qcs:ip': '10.121.2.10/24'
-//         //   }
-//         // }
-//     }],
-// };
 var policy = {
   'version': '2.0',
   'statement': [{
@@ -164,7 +146,24 @@ module.exports.ProcessVideo = class ProcessVideo {
             },
             Transcode: {
               Container: { Format: 'mp4' },
-              Video: { Codec: 'H.264' }
+              Video: {
+                Codec: 'H.264',
+                Profile: 'high',       // 启用高阶压缩配置，同等体积下画质细节更细腻（家具木纹、皮质尤为明显）
+                LongEdge: '1280',      // 强行锁死长边最大 1280。横屏则宽1280，竖屏则高1280，短边自动等比缩放
+                
+                // 💥 锁死码率双保险组合拳：
+                Crf: '24',             // 恒定质量因子，24 是兼顾体积与小屏清晰度的“业界公认黄金值”
+                Bitrate: '1500',       // 封顶最高码率 1500kbps (1.5Mbps)，防止极个别复杂动态画面导致体积失控
+                Bufsize: '3000',       // 缓冲区大小
+                Maxrate: '2000'        // 峰值码率限制
+              },
+              // 核心修复：显式配置音频参数，保留并转码音频轨道
+              Audio: {
+                Codec: 'aac',         // 必须是 aac，移动端和微信 H5 兼容性最好
+                Samplerate: '44100',  // 采样率，标准 CD 级音质
+                Bitrate: '128',       // 音频比特率 (单位: kbps)
+                Channels: '2'         // 双声道
+              }
             }
           },
           // 子任务二：单张截图
