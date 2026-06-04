@@ -396,10 +396,20 @@ module.exports.ProcessVideo = class ProcessVideo {
       })
     })
   }
+
+  // 检测是否需要创建审核任务，比如避免重复创建
+  async isNeedCheck() {
+    const {rawKey} = this
+    const list = await dao.list('XaCache', {columns: {key1: rawKey, dataType: 16}})
+    if (list.length) return false
+    return true
+  }
   
   async run() {
     try {
       if (!this.rawKey) throw new Error('参数有误');
+      const pass = await this.isNeedCheck()
+      if (!pass) return // 可能是有相同的视频在审核中
       await this.transHandle() // 把视频转.mp4 和截首贞
       await this.snapshotList() // 异步截图
       await this.createCheckTask() // 创建审核任务
