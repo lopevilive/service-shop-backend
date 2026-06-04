@@ -30,7 +30,6 @@ const validExec = async (strList, payload) => {
   }
 }
 
-
 module.exports.getShop = async (params ,cb) => {
   const {userId, shopId} = params
   let cond = {}
@@ -177,10 +176,6 @@ module.exports.getProduct = async (req ,cb) => {
   } = params
 
   try {
-    let total = 0
-    let limit = 0
-    let unCateNum = 0;
-    let downNum = 0;
     let shopInfo = null
     if (shopId) {
       const res = await dao.list('Shop', {columns:  {id: shopId}, only: ['userId', 'level', 'expiredTime', 'id', 'hidePrice']})
@@ -255,21 +250,6 @@ module.exports.getProduct = async (req ,cb) => {
     const data = await queryBuild.getMany()
 
     if (shopId) {
-      // todo 后面接口替换后删除此处逻辑
-      const countQueryBuild = await dao.createQueryBuilder('Product');
-      countQueryBuild.select("SUM(CASE WHEN status IN (0, 1) THEN 1 ELSE 0 END)", "total");
-      countQueryBuild.addSelect("SUM(CASE WHEN status = 1 THEN 1 ELSE 0 END)", "downNum");
-      countQueryBuild.addSelect("SUM(CASE WHEN status = 0 AND (productType IS NULL OR productType = '') THEN 1 ELSE 0 END)", "unCateNum");
-      countQueryBuild.where("shopId = :shopId", { shopId });
-      countQueryBuild.andWhere('(mode & 1)  = 0');
-      const stats = await countQueryBuild.getRawOne(); // 因为是聚合查询，用 getRawOne 获取原始对象
-      // 处理结果（注意：数据库返回的 SUM 通常是字符串类型，需要转数字）
-      total = Number(stats.total || 0);
-      downNum = Number(stats.downNum || 0);
-      unCateNum = Number(stats.unCateNum || 0);
-      let vailRes = util.vailCount(shopInfo, total)
-      limit = vailRes.limit
-
       let needHidePrice = false
       while(true) { // 这里判断是否需要隐藏价格
         if (shopInfo.hidePrice === 0) break // 没开启隐藏价格
@@ -326,7 +306,7 @@ module.exports.getProduct = async (req ,cb) => {
       }
     }
 
-    const ret = {list: data, total, limit, unCateNum, downNum}
+    const ret = {list: data}
     ret.finished = data.length === sizeLimit ? false: true
     cb(null, ret)
   } catch(e) {
@@ -1761,10 +1741,9 @@ module.exports.getUsage = async (req, cb) => {
 // 视频处理
 module.exports.processVideo = async (req, cb) => {
   try {
-    const {body: {shopId, rawKey}, userInfo} = req
-    const instance = new cos.ProcessVideo({shopId, rawKey, userInfo})
-    instance.run()
-    const ret = instance.getApiRet()
+    const {body: {shopId, rawKey}, userInfo, shopInfo} = req
+    const instance = new cos.ProcessVideo({shopId, rawKey, userInfo, shopInfo})
+    const ret = await instance.getData()
     cb(null, ret)
   } catch(e) {
     cb(e)

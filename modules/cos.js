@@ -115,10 +115,12 @@ module.exports.getImageAuditing = async (fileName) => {
 
 module.exports.ProcessVideo = class ProcessVideo {
   constructor(payload) {
-    const {shopId, rawKey, userInfo} = payload
+    const {shopId, rawKey, userInfo, shopInfo} = payload
     this.shopId = shopId
     this.rawKey = rawKey;
-    this.userInfo = userInfo
+    this.userInfo = userInfo;
+    this.shopInfo = shopInfo
+    this.videoInfo = null
     this.transcodeKey = rawKey.replace(/raw_/, 'trans_').replace(/\.[^.]+$/, '.mp4');
     this.snapshotKey = rawKey.replace(/raw_/, 'cover_').replace(/\.[^.]+$/, '.jpg');
     this.checkKey = this.transcodeKey.replace(/\.[^.]+$/, '.check')
@@ -200,6 +202,24 @@ module.exports.ProcessVideo = class ProcessVideo {
     });
   }
 
+  async getVideoInfo () {
+    if (this.videoInfo) return this.videoInfo
+    const ret = await new Promise((resolve, reject) => {
+      module.exports.cosInstance.request({
+        Bucket: config.bucket,
+        Region: config.region,
+        Method: 'GET',
+        Key: this.rawKey,
+        Query: { 'ci-process': 'videoinfo' }
+      }, (err, data) => {
+        if (err) reject(err);
+        else resolve(data.Response.MediaInfo);
+      });
+    });
+    this.videoInfo = ret;
+    return this.videoInfo
+  }
+
   /**
   * 截图
   * preSec 是多少秒截一次图。首贞跟尾贞要截上
@@ -207,20 +227,9 @@ module.exports.ProcessVideo = class ProcessVideo {
   async snapshotList (preSec = 1) {
     try {
       // 1. 获取视频时长
-      const videoInfo = await new Promise((resolve, reject) => {
-        module.exports.cosInstance.request({
-          Bucket: config.bucket,
-          Region: config.region,
-          Method: 'GET',
-          Key: this.rawKey,
-          Query: { 'ci-process': 'videoinfo' }
-        }, (err, data) => {
-          if (err) reject(err);
-          else resolve(data.Response.MediaInfo);
-        });
-      });
-
+      const videoInfo = await this.getVideoInfo()
       const duration = parseFloat(videoInfo.Format.Duration) || 0;
+
       if (duration <= 0) {
         throw new Error('无法获取视频时长');
       }
@@ -406,9 +415,31 @@ module.exports.ProcessVideo = class ProcessVideo {
     }
   }
 
-  getApiRet () {
+  // 视频预检测
+  async videoPreCheck () {
+    const videoInfo = await this.getVideoInfo()
+    const duration = Math.floor(videoInfo.Format.Duration) || 0;
+    const cfg = util.getConfig('album.levelCfg')
+    const {level} = this.shopInfo
+    const matchItem = cfg.find((item) => item.level === level)
+    if (!matchItem) throw new Error('参数有误，请联系管理员~')
+    const { videoS } = matchItem
+    if (duration > videoS) { // 超出时长
+      return { status: 1, duration }      
+    }
+    return {status: 0}
+  }
+
+  async getData () {
     const {bucket, region} = config
-    return { key: `https://${bucket}.cos.${region}.myqcloud.com/${this.checkKey}`}
+    const ret = await this.videoPreCheck()
+    if (ret.status === 0) {
+      this.run()
+      ret.key = `https://${bucket}.cos.${region}.myqcloud.com/${this.checkKey}`
+      return ret
+    } else {
+      return ret
+    }
   }
 
 
