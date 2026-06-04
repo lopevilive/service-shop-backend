@@ -291,12 +291,16 @@ module.exports.getProduct = async (req ,cb) => {
         
         while(item.videoUrl) { // 需要判断视频是否审核中
           try {
-            const regex = /video\/trans_[^?]+/;
-            const match = item.videoUrl.match(regex);
-            if (!match) break
-            const key = match[0].replace(/trans/, 'raw')
-            let checkData = await dao.list('XaCache', {columns: {dataType: 16, key1: key}})
-            if (checkData.length === 0) break
+            let str = ''
+            const match = item.videoUrl.match(/trans_([^.]+)/)
+            if (match) str = match[1]
+            if (!str) break
+            const checkQuery = await dao.createQueryBuilder('XaCache', 'XaCache')
+            checkQuery.select(['XaCache.id'])
+            checkQuery.where('XaCache.dataType = 16')
+            checkQuery.andWhere('XaCache.key1 like :kw', {kw: `%${str}%`})
+            const list = await checkQuery.getMany()
+            if (list.length === 0) break
             item.videoUrl = item.videoUrl.replace(/\.mp4/, '.check')
             break
           } catch(e) {
