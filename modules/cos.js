@@ -387,7 +387,7 @@ module.exports.ProcessVideo = class ProcessVideo {
         item.trace_id = trace_id
         dao.create('XaCache', {dataType: 10, add_time: util.getNowTime(), key1: trace_id, content: JSON.stringify({
           type: 1 << 3,
-          req: {key: item.key, jobId},
+          req: {key: item.key, jobId, shopId: this.shopId, userId: this.userInfo.id, openid: this.userInfo.openid},
           res: {}
         })})
       }
