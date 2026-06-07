@@ -1372,12 +1372,16 @@ module.exports.getVipInfo = async (req, cb) => {
     let shopInfo = await dao.list('Shop', {columns: {id: shopId}})
     if (shopInfo.length !== 1) throw new Error('请求出错')
     shopInfo = shopInfo[0]
+    const cfg = JSON.parse(JSON.stringify(util.getConfig('album.levelCfg')));
+    if (![5, 8].includes(shopId)) { // todo
+      cfg.pop()
+    }
     const ret = {
       shopId,
       amount: util.getRestAmount(shopInfo.level, shopInfo.expiredTime), // 剩余金额
       level: shopInfo.level,
       expiredTime: shopInfo.expiredTime || 0,
-      cfg: util.getConfig('album.levelCfg')
+      cfg
     }
     cb(null, ret)
   } catch(e) {
@@ -1470,7 +1474,7 @@ module.exports.wxMsgRec = async (req, cb) => {
 //     "MsgType": "event",
 //     "Event": "wxa_media_check",
 //     "appid": "wxab6b38b8a7375611",
-//     "trace_id": "6a1fe21d-034d4b40-4fde4af5",
+//     "trace_id": "6a2587c9-6b0327e5-28162723",
 //     "version": 2,
 //     "detail": [
 //       {

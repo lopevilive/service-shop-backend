@@ -288,7 +288,7 @@ module.exports.ProcessVideo = class ProcessVideo {
 
   async createCheckTask () {
     const {rawKey} = this
-    const content = { taskList: [] }
+    const content = { taskList: [], shopId: this.shopId }
     for (const imgKey of this.imgList) {
       content.taskList.push({ key: imgKey, checkRes: {}, trace_id: '', checkStatus: 'pending'})
     }

@@ -182,10 +182,19 @@ const handleVideoCheck = async (transactionalEntityManager, content) => {
       upd_time: util.getNowTime(), content: JSON.stringify(videoCheckContent)
     })
     if (isPass) { // 此处把记录标记为已通过，一般通过后会马上删除
-      await transactionalEntityManager.update('XaCache', {id: data.id}, {upd_time: util.getNowTime(), dataType: 21})
+      const { shopId } = videoCheckContent
+      let shopInfo = await dao.list('shop', {columns: {id: shopId}})
+      shopInfo = shopInfo[0]
+      let needDel = true
+      if (shopInfo.level === 0 || shopInfo.auditing === 2) { // 需要人工审核
+        needDel = false
+      }
+      if (needDel) {
+        await transactionalEntityManager.update('XaCache', {id: data.id}, {upd_time: util.getNowTime(), dataType: 21})
+        await transactionalEntityManager.delete('XaCache', {id: data.id})
+      }
       const keys = taskList.map((item) => item.key)
       cos.deleteMedia(keys) // 删除视频截贞
-      await transactionalEntityManager.delete('XaCache', {id: data.id})
     }
   } catch(e) {
     console.log('update-err', e)
