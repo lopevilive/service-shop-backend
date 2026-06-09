@@ -1373,9 +1373,9 @@ module.exports.getVipInfo = async (req, cb) => {
     if (shopInfo.length !== 1) throw new Error('请求出错')
     shopInfo = shopInfo[0]
     const cfg = JSON.parse(JSON.stringify(util.getConfig('album.levelCfg')));
-    if (![5, 8].includes(shopId)) { // todo
-      cfg.pop()
-    }
+    // if (![5, 8].includes(shopId)) {
+    //   cfg.pop()
+    // }
     const ret = {
       shopId,
       amount: util.getRestAmount(shopInfo.level, shopInfo.expiredTime), // 剩余金额
