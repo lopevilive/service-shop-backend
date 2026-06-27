@@ -47,10 +47,10 @@ var policy = {
     'effect': 'allow',
     'principal': {'qcs': ['*']},
     'resource': [
-        // 1. COS 资源授权 (保持你原来的)
+        // 1. COS 资源授权
         'qcs::cos:' + config.region + ':uid/' + appId + ':' + config.bucket + '/' + config.allowPrefix,
         
-        // 2. CI 任务流授权 (解决你现在的报错)
+        // 2. CI 任务流授权
         // 必须显式授权到 bucket 级别下的 job 路径
         'qcs::ci:' + config.region + ':uid/' + appId + ':bucket/' + config.bucket + '/job/*',
         
@@ -82,6 +82,7 @@ module.exports.cosInstance = new COS({
 });
 
 
+// 图片同步审核
 module.exports.getImageAuditing = async (fileName) => {
   let resolve;
   let reject;
@@ -113,6 +114,7 @@ module.exports.getImageAuditing = async (fileName) => {
   return p
 }
 
+// 视频处理
 module.exports.ProcessVideo = class ProcessVideo {
   constructor(payload) {
     const {shopId, rawKey, userInfo, shopInfo} = payload
@@ -455,8 +457,7 @@ module.exports.ProcessVideo = class ProcessVideo {
 
 }
 
-/**
- * 封装媒体文件删除方法（新增）
+/** 封装媒体文件删除方法（新增）
  * @param {String|Array} keys - 可以传入单个文件Key字符串，或多个文件Key组成的数组
  */
 module.exports.deleteMedia = async (keys) => {

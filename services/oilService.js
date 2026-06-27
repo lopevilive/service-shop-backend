@@ -378,6 +378,15 @@ const updateWithApi = async (transactionalEntityManager, payload) => {
 
 }
 
+const validTs = (ts, num) => {
+  if (!ts) return false
+  const t = Number(ts)
+  const nowTs = util.getNowTime()
+  const range = nowTs - t
+  if (range >= num) return false
+  return true
+}
+
 const updateCurrOilInfo = async (transactionalEntityManager, payload) => {
   const {preDate, currDate, prov} = payload
   const currData = await getOilData(transactionalEntityManager, currDate)

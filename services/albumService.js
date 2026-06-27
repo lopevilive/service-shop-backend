@@ -47,7 +47,7 @@ module.exports.getShop = async (params ,cb) => {
     'id', 'desc', 'url', 'name', 'area', 'address', 'phone', 'qrcodeUrl', 'business',
     'attrs', 'level', 'status', 'encry', 'waterMark', 'auditing', 'addressStatus',
     'inveExportStatus', 'bannerStatus', 'bannerCfg', 'expiredTime', 'requiredType', 'typeStatus',
-    'forwardPermi', 'typeSideMod', 'specsCfg', 'showContact', 'homePageCfg', 'hidePrice'
+    'forwardPermi', 'typeSideMod', 'specsCfg', 'showContact', 'homePageCfg', 'hidePrice', 'openInH5'
   ]
   cond.take = 100 // 限制数量
   try {
@@ -170,17 +170,31 @@ module.exports.productMod = async (req ,cb) => {
 
 module.exports.getProduct = async (req ,cb) => {
   const params = req.body
-  const {userInfo} = req
   const {
     shopId, productId, pageSize, currPage, productType, status, searchStr, priceSort
   } = params
 
   try {
     let shopInfo = null
+    let userInfo = null
     if (shopId) {
       const res = await dao.list('Shop', {columns:  {id: shopId}, only: ['userId', 'level', 'expiredTime', 'id', 'hidePrice']})
       shopInfo = res[0]
     }
+    const {headers: {authorization}} = req
+    if (authorization) {
+      try {
+        const {status, rawStr: openid} = verifyTicket(authorization)
+        if (status === 0) {
+          let userInfoRet = await dao.list('User', {columns: {openid}})
+          if (userInfoRet.length === 1) userInfo = userInfoRet[0]
+        }
+      } catch(e) {}
+    }
+    
+    let openInH5 = false
+    if (shopInfo && shopInfo.openInH5 === 1) openInH5 = true
+    if (!openInH5 && !userInfo) throw new Error('系统繁忙，请稍后重试～')
     const queryBuild = await dao.createQueryBuilder('Product')
     const selectFields = [
       'Product.id', 'Product.desc', 'Product.price', 'Product.productType', 'Product.shopId', 'Product.url',
@@ -190,12 +204,14 @@ module.exports.getProduct = async (req ,cb) => {
     ]
     if (shopId) {
       while(true) { // 这里判断是否返回内部参数
-        if (shopInfo.userId === userInfo.id) {
+        if (!userInfo) break
+        if (!userInfo.id) break
+        if (shopInfo.userId === userInfo.id) { // 创建者
           selectFields.push('Product.specs')
           break
         }
         const staffList = await dao.list('Staff',{ columns: {userId: userInfo.id, shopId, type: 1, status: 4}, only: ['id'] })
-        if (staffList.length) {
+        if (staffList.length) { // 管理员
           selectFields.push('Product.specs')
           break
         }
@@ -253,6 +269,14 @@ module.exports.getProduct = async (req ,cb) => {
       let needHidePrice = false
       while(true) { // 这里判断是否需要隐藏价格
         if (shopInfo.hidePrice === 0) break // 没开启隐藏价格
+        if (!userInfo) {
+          needHidePrice = true
+          break
+        }
+        if (!userInfo.id) {
+          needHidePrice = true
+          break
+        }
         if (shopInfo.userId === userInfo.id) break // 图册创建者
         const sups = util.getConfig('album.superAdmin')
         if (sups.includes(userInfo.id)) break // 超级管理员
@@ -1059,24 +1083,6 @@ module.exports.exportInventoryV2 = async (req, cb) => {
   }
 }
 
-module.exports.getwxacodeunlimit = async (req, cb) => {
-  try {
-    const {appid, secret} = util.getConfig('album.appInfo');
-    const {scene} = req.body;
-    // 获取 access_token
-    const access_token = await wxApi.getAccessToken({appid, secret})
-    let url = `https://api.weixin.qq.com/wxa/getwxacodeunlimit?access_token=${access_token}`
-    const {data} = await axios.post(url, { scene, is_hyaline: true }, { responseType: 'arraybuffer'})
-    const base64 = data.toString('base64')
-    if (base64.length < 5000) {
-      // 不是图片
-      throw new Error('获取小程序二维码失败')
-    }
-    cb(null, base64)
-  }catch(e) {
-    cb(e)
-  }
-}
 
 module.exports.encryAlbum = async (req, cb) => {
   try {
@@ -1753,6 +1759,18 @@ module.exports.processVideo = async (req, cb) => {
     const instance = new cos.ProcessVideo({shopId, rawKey, userInfo, shopInfo})
     const ret = await instance.getData()
     cb(null, ret)
+  } catch(e) {
+    cb(e)
+  }
+}
+
+module.exports.getQrCode = async (req, cb) => {
+  try {
+    const {str} = req.body
+    if (!str) throw new Error('参数有误')
+    const qrCodeManage = new util.QrCodeManage()
+    const url = await qrCodeManage.getSingleQr(str)
+    cb(null, url)
   } catch(e) {
     cb(e)
   }

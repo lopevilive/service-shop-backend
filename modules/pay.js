@@ -48,6 +48,14 @@ exports.createPaySign = async function (prepay_id) {
   };
 }
 
+const getVipPrice = (level) => {
+  const levelCfg = util.getConfig('album.levelCfg')
+  for (const item of levelCfg) {
+    if (item.level === level) return item.price
+  }
+  return 0
+}
+
 module.exports.createOrder = async ({userId, openid, shopInfo, level: targetLevel}) => {
   const nowTime = util.getNowTime()
   const orderId = util.createOrderId('EE', nowTime)

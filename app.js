@@ -85,24 +85,41 @@ app.use('/api/album', albumRoutes) // 图册
 app.use('/api/user', userRoutes) //  图册登录
 app.use('/api/oil', oilRoutes) // 油价
 
+const pathMap = [
+  {reg: /dist\/product-manage\/hWz9nuJO91/, retFile: path.join(process.cwd(), 'hWz9nuJO91.txt')},
+  {reg: /dist/, retFile: path.join(process.cwd(), 'dist/index.html')}, // 核心，这里返回前端首页
+  {reg: /hWz9nuJO91/, retFile: path.join(process.cwd(), 'hWz9nuJO91.txt')},
+  {reg: /tencent3622040499476384665/, retFile: path.join(process.cwd(), 'tencent3622040499476384665.txt')},
+  {reg: /tencent12649019064503544745/, retFile: path.join(process.cwd(), 'tencent12649019064503544745.txt')},
+  {reg: /tencent4971961837305385002/, retFile: path.join(process.cwd(), 'tencent4971961837305385002.txt')},
+]
+
 /**
- * 统一处理无响应
+ * 统一兜底处理
  */
-// 如果没有路径处理就返回 Not Found
 app.use(function(req, res, next) {
-  console.log('not found~~~~')
-  if (/dist/.test(req.path)) {
-    res.sendfile('./dist/index.html')
-  } else if (/hWz9nuJO91/.test(req.path)) {
-    res.sendfile('./hWz9nuJO91.txt')
-  } else if (/tencent3622040499476384665/.test(req.path)) {
-    res.sendfile('./tencent3622040499476384665.txt')
-  }else if (/tencent12649019064503544745/.test(req.path)) {
-    res.sendfile('./tencent12649019064503544745.txt')
-  } else if (/tencent4971961837305385002/.test(req.path)) {
-    res.sendfile('./tencent4971961837305385002.txt')
-  } else {
-    res.sendResult(null, 404, 'Not Found')
+  let matched = false
+  for (const {reg, retFile} of pathMap) {
+    if (reg.test(req.path)) {
+      matched = true
+      res.sendFile(retFile)
+      break
+    }
   }
+  if (matched) return
+  res.sendResult(null, 404, 'Not Found')
+  // if (/dist/.test(req.path)) { // 核心，这里返回前端首页
+  //   res.sendfile('./dist/index.html')
+  // } else if (/hWz9nuJO91/.test(req.path)) {
+  //   res.sendfile('./hWz9nuJO91.txt')
+  // } else if (/tencent3622040499476384665/.test(req.path)) {
+  //   res.sendfile('./tencent3622040499476384665.txt')
+  // }else if (/tencent12649019064503544745/.test(req.path)) {
+  //   res.sendfile('./tencent12649019064503544745.txt')
+  // } else if (/tencent4971961837305385002/.test(req.path)) {
+  //   res.sendfile('./tencent4971961837305385002.txt')
+  // } else {
+  //   res.sendResult(null, 404, 'Not Found')
+  // }
 })
 app.listen(9000)

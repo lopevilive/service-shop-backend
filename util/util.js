@@ -8,8 +8,7 @@ module.exports.getNowTime = () => {
   return Math.floor(Date.now() / 1000)
 }
 
-/**
- * 安全获取对象嵌套值，路径不存在（undefined/null）返回null，其他值（0/''等）正常返回
+/* 安全获取对象嵌套值，路径不存在（undefined/null）返回null，其他值（0/''等）正常返回
  * @param {Object} obj - 目标对象（可传null/undefined）
  * @param {string} path - 嵌套路径，如 'a.b.c'
  * @returns {*} 路径对应值（不存在返回null，存在则返回原值）
@@ -47,6 +46,7 @@ module.exports.getConfig = (keyPath) => {
   return ret
 }
 
+// 加密字符串
 module.exports.encryptAES = (str) => {
   // const validAes192Key = crypto.randomBytes(24).toString('hex');
   // console.log(validAes192Key)
@@ -64,6 +64,7 @@ module.exports.encryptAES = (str) => {
   return ivHex + ret;
 }
 
+// 解密字符串
 module.exports.deEncryptAES = (ticket) => {
   const aesKeyHex = this.getConfig('default.aesKey');
   const aesKey = Buffer.from(aesKeyHex, 'hex');
@@ -81,6 +82,7 @@ module.exports.deEncryptAES = (ticket) => {
   return rawStr;
 }
 
+// 校验产品容量
 module.exports.vailCount = ({level, expiredTime}, count) => {
   count = Number(count)
   const levelCfg = this.getConfig('album.levelCfg')
@@ -98,6 +100,7 @@ module.exports.vailCount = ({level, expiredTime}, count) => {
   }
 }
 
+// 并发加载图片
 module.exports.loadImg = async (list, limit = 10) => {
   // 1. 预处理队列：过滤掉没有 URL 的项
   const queue = list.filter(item => item.url);
@@ -125,6 +128,7 @@ module.exports.loadImg = async (list, limit = 10) => {
   await Promise.all(workers);
 };
 
+// 生成随机数
 module.exports.rand = (min, max) => {
   return Math.floor(Math.random() * (max - min)) + min;
 }
@@ -134,8 +138,7 @@ module.exports.isIntegerString = (str) => {
   return /^[+-]?\d+$/.test(str);
 }
 
-/**
- * 格式化时间
+/** 格式化时间
  * ts 秒
  * ruleStr 规则，比如YYYY-MM-DD:HH:mm
  */
@@ -146,8 +149,7 @@ module.exports.dateTs2Str = (ts, ruleStr) => {
   return dayjs(beijingTimeMs).utc().format(ruleStr);
 }
 
-/**
- * 北京时间日期字符串 → 秒级时间戳（不依赖服务器时区）
+/** 北京时间日期字符串 → 秒级时间戳（不依赖服务器时区）
  * @param {string} dateStr - 格式 YYYY-MM-DD（如 2025-11-25）
  * @returns {number} 秒级时间戳
  */
@@ -177,6 +179,7 @@ module.exports.createOrderId = (type, add_time) => {
   return `${type}${timeStr}${timeSub}${randNum}`
 }
 
+// 传入等级和过期时间，计算剩余金额
 module.exports.getRestAmount = (level, expiredTime) => {
   const levelCfg = this.getConfig('album.levelCfg')
   let price = 0
@@ -195,14 +198,6 @@ module.exports.getRestAmount = (level, expiredTime) => {
   let ret = day * preDayPrice
   ret = Math.ceil(ret / 100) * 100 // 这里向上取整
   return ret
-}
-
-module.exports.getVipPrice = (level) => {
-  const levelCfg = this.getConfig('album.levelCfg')
-  for (const item of levelCfg) {
-    if (item.level === level) return item.price
-  }
-  return 0
 }
 
 // 获取今天0点时间戳，单位 秒
@@ -229,24 +224,8 @@ module.exports.sleep = async (times) => {
   })
 }
 
-/**
- * 检查时间戳是否有效期
- * ts 时间戳 单位秒，为空或者过期都会返回false
- * num 有效期，单位秒
- */
 
-module.exports.validTs = (ts, num) => {
-  if (!ts) return false
-  const t = Number(ts)
-  const nowTs = this.getNowTime()
-  const range = nowTs - t
-  if (range >= num) return false
-  return true
-}
-
-/**
- * 同时跑多个异步任务​，只要有一个成功，立刻返回结果
- */
+// 同时跑多个异步任务​，只要有一个成功，立刻返回结果
 module.exports.ConcurrencyManage = class ConcurrencyManage {
   constructor() {
     this.taskList = []
@@ -305,8 +284,7 @@ module.exports.ConcurrencyManage = class ConcurrencyManage {
   }
 }
 
-/**
- * 字符串数组分段拼接【精准分情况超长处理】
+/** 字符串数组分段拼接【精准分情况超长处理】
  * @param {string[]} strArr 原始字符串数组 例：['123','456','asd']
  * @param {number} [maxLen=2000] 每一项最大字符长度，可配置，默认2000
  * @returns {string[]} 处理后的数组，每项≤maxLen，兼顾完整性+合规性
@@ -377,14 +355,13 @@ module.exports.joinStrArrayWithLimit = (strArr, maxLen = 2000) => {
 }
 
 
+// 过滤 emoji
 module.exports.emojiReplaceStr = (str) => {
   if (!str) return '';
   return str.replace(/[\uD83C|\uD83D|\uD83E][\uDC00-\uDFFF][\u200D|\uFE0F]|[\uD83C|\uD83D|\uD83E][\uDC00-\uDFFF]|[0-9|*|#]\uFE0F\u20E3|[0-9|#]\u20E3|[\u203C-\u3299]\uFE0F\u200D|[\u203C-\u3299]\uFE0F|[\u2122-\u2B55]|\u303D|[\A9|\AE]\u3030|\uA9|\uAE|\u3030/ig, '');
 };
 
-/**
- * 升级版限制器：支持最大并发控制 与 每秒速率(QPS)控制
- */
+// 并发器
 module.exports.SmartLimiter = class SmartLimiter {
   /**
    * @param {Object} options
@@ -484,4 +461,18 @@ module.exports.secCheckCount = async (logType) => {
   } catch(e) {
     console.log(e)
   }
+}
+
+module.exports.QrCodeManage = class QrCodeManage {
+  constructor() {
+    this.QRCode = require('qrcode');
+  }
+  
+  // 生成单个二维码
+  async getSingleQr(str) {
+    const ret = await this.QRCode.toDataURL(str, {width: 300, margin: 2})
+    return ret
+  }
+
+
 }

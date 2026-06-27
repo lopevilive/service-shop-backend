@@ -385,21 +385,6 @@ router.post('/ExportInventoryV3',
 )
 
 
-// 获取小程序码
-router.post('/Getwxacodeunlimit',
-  async (req, res, next) => {
-    albumService.getwxacodeunlimit(req, (err, data) => {
-      if (err) {
-        res.sendResult(null, CODE_UNKNOWN, err.message)
-      } else {
-        res.sendResult(data, CODE_SUCC, 'succ')
-        // res.send(data)
-      }
-    })(req, res, next)
-  }
-)
-
-
 // 修改画册状态
 router.post('/ModShopStatus',
   async (req, res, next) => {
@@ -634,6 +619,18 @@ router.post('/GetUsage',
 router.post('/ProcessVideo',
   async (req, res, next) => {
     albumService.processVideo(req, (err, data) => {
+      if (err) {
+        res.sendResult(null, CODE_UNKNOWN, err.message)
+      } else {
+        res.sendResult(data, CODE_SUCC, 'succ')
+      }
+    })(req, res, next)
+  }
+)
+
+router.post('/GetQrCode',
+  async (req, res, next) => {
+    albumService.getQrCode(req, (err, data) => {
       if (err) {
         res.sendResult(null, CODE_UNKNOWN, err.message)
       } else {
