@@ -178,7 +178,9 @@ module.exports.getProduct = async (req ,cb) => {
     let shopInfo = null
     let userInfo = null
     if (shopId) {
-      const res = await dao.list('Shop', {columns:  {id: shopId}, only: ['userId', 'level', 'expiredTime', 'id', 'hidePrice']})
+      const res = await dao.list('Shop', {columns:  {id: shopId}, only: [
+        'userId', 'level', 'expiredTime', 'id', 'hidePrice', 'openInH5'
+      ]})
       shopInfo = res[0]
     }
     const {headers: {authorization}} = req
