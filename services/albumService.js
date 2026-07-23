@@ -2,18 +2,13 @@ const path = require("path");
 const dao = require(path.join(process.cwd(),"dao/DAO"));
 const util = require(path.join(process.cwd(),"util/index"))
 const cos = require(path.join(process.cwd(),"modules/cos"))
+const contentValid = require(path.join(process.cwd(),"modules/contentValid"));
 const {createTicket, verifyTicket} = require(path.join(process.cwd(),"modules/ticketManage"));
 const { In, Like, Brackets } = require("typeorm");
 const axios = require('axios');
-const ExcelJS = require('exceljs/dist/es5');
 const crypto = require('crypto');
-const mathjs = require('mathjs')
 const wxApi = require(path.join(process.cwd(),"modules/wxApi"))
-const contentValid = require(path.join(process.cwd(),"modules/contentValid"));
-const Jimp = require('jimp');
-const opentype = require('opentype.js');
-const PImage = require('pureimage');
-const { PassThrough } = require('stream');
+
 
 // 入库前文本校验
 const validExec = async (strList, payload) => {
@@ -749,6 +744,7 @@ module.exports.addressDel = async (req, cb) => {
 }
 
 module.exports.createInventory = async (req, cb) => {
+  const mathjs = require('mathjs')
   const {add, multiply, bignumber} = mathjs
   try {
     const {userInfo, body} = req
@@ -818,6 +814,7 @@ module.exports.getInventory = async (req, cb) => {
 module.exports.exportInventoryV3 = async (req, cb) => {
   const { id } = req.body;
   if (!id) return cb(new Error('参数有误'));
+  const ExcelJS = require('exceljs/dist/es5');
 
   const idList = Array.isArray(id) ? id : [id];
 
@@ -982,109 +979,6 @@ module.exports.exportInventoryV3 = async (req, cb) => {
     cb(e);
   }
 };
-
-
-module.exports.exportInventoryV2 = async (req, cb) => {
-  const {id} = req.query
-  if (!id) return cb(new Error('参数有误'))
-  try {
-    let info = await dao.list('Enventory', {columns: {id}})
-    info = info[0]
-    let data = JSON.parse(info.data)
-    let list = data.list
-    const workbook = new ExcelJS.Workbook();
-    const sheet = workbook.addWorksheet('报价清单', {views:[{state: 'frozen', xSplit: 0, ySplit:1}]});
-    sheet.columns = [
-      {header: '序号', key: 'idx', width: 5},
-      {header: '图片', key: 'url', width: 10},
-      {header: '产品描述', key: 'desc', width: 20},
-      {header: '规格', key: 'spec', width: 10},
-      {header: '数量', key: 'count', width: 8},
-      {header: '单价', key: 'price', width: 8},
-    ];
-    await util.loadImg(list)
-    sheet.getRow(1).height = 42.5
-    sheet.getRow(1).eachCell({includeEmpty: false}, (cell) => {
-      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: {argb: 'FFdddbb0'} }
-      cell.font = {size: 16, bold: true}
-      cell.alignment = {vertical: 'middle', horizontal: 'center'}
-    });
-    let idx = 1;
-    for (const item of list) {
-      idx += 1
-      sheet.addRow({idx: idx - 1, url: '', desc: item.desc, spec: item.spec, count: item.count, price: item.price})
-      sheet.getRow(idx).height = 42.5
-      sheet.getRow(idx).eachCell({includeEmpty: false}, (cell, i) => {
-        cell.alignment = {vertical: 'middle'}
-        if ([1,5,6].includes(i)) {
-          cell.alignment = {vertical: 'middle', horizontal: 'center'}
-        }
-      })
-      if (!item.img) continue
-      const imageId = workbook.addImage({ buffer: item.img, extension: 'jpeg'});
-      sheet.addImage(imageId, { tl: { col: 1, row: idx - 1 }, ext: { width: 50, height: 50 }});
-    }
-    idx += 1;
-    sheet.addRow([`总价格： ${data.totalPrice}`])
-    sheet.mergeCells(`A${idx}:F${idx}`)
-    sheet.getRow(idx).eachCell({includeEmpty: false}, (cell) => {
-      cell.alignment = {vertical: 'middle'}
-      cell.font = {size: 15, bold: true}
-    });
-    idx += 1;
-    sheet.addRow([`总数量： ${data.totalCount}`])
-    sheet.mergeCells(`A${idx}:F${idx}`)
-    sheet.getRow(idx).eachCell({includeEmpty: false}, (cell) => {
-      cell.alignment = {vertical: 'middle'}
-      cell.font = {size: 15, bold: true}
-    });
-    idx += 1;
-    sheet.addRow([`备注： ${data.remark}`])
-    sheet.mergeCells(`A${idx}:F${idx}`)
-    sheet.getRow(idx).eachCell({includeEmpty: false}, (cell) => {
-      cell.alignment = {vertical: 'middle'}
-      cell.font = {size: 15, bold: true}
-    });
-    idx += 1;
-    sheet.addRow([`收货地址： ${data.address}`])
-    sheet.mergeCells(`A${idx}:F${idx}`)
-    sheet.getRow(idx).eachCell({includeEmpty: false}, (cell) => {
-      cell.alignment = {vertical: 'middle'}
-      cell.font = {size: 15, bold: true}
-    });
-    idx += 1;
-    const dateStr = util.dateTs2Str(info.add_time, 'YYYY/MM/DD HH:mm')
-    sheet.addRow([`创建时间： ${dateStr}`])
-    sheet.mergeCells(`A${idx}:F${idx}`)
-    sheet.getRow(idx).eachCell({includeEmpty: false}, (cell) => {
-      cell.alignment = {vertical: 'middle'}
-    });
-    const md5 = crypto.createHash('md5').update(`${id}-${util.getNowTime()}`).digest('hex');
-    const excelBuffer = await workbook.xlsx.writeBuffer();
-    const url = await new Promise((resolve, reject) => {
-      cos.cosInstance.putObject({
-        Bucket: cos.cfg.bucket,
-        Region: cos.cfg.region,
-        Key: `album-export/inven${info.shopId}-${md5}.xlsx`,
-        Body: excelBuffer,
-        ACL: 'public-read',
-        ContentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-      }, (err, data) => {
-        if (err) {
-          console.error('COS上传失败：', err);
-          reject(err);
-        } else {
-          const cosUrl = `https://${data.Location}`;
-          resolve(cosUrl);
-        }
-      })
-    })
-    cb(null, url);
-  } catch(e) {
-    cb(e)
-  }
-}
-
 
 module.exports.encryAlbum = async (req, cb) => {
   try {
@@ -1564,6 +1458,10 @@ module.exports.textImgCheck = async (req, cb) => {
 
 let fontInstance = null;
 module.exports.getSharePoster = async (req, cb) => {
+  const Jimp = require('jimp');
+  const opentype = require('opentype.js');
+  const PImage = require('pureimage');
+  const { PassThrough } = require('stream');
   try {
     const { scene, url, title, desc1, desc2 } = req.body;
     const { appid, secret } = util.getConfig('album.appInfo');
@@ -1773,6 +1671,19 @@ module.exports.getQrCode = async (req, cb) => {
     const qrCodeManage = new util.QrCodeManage()
     const url = await qrCodeManage.getSingleQr(str)
     cb(null, url)
+  } catch(e) {
+    cb(e)
+  }
+}
+
+module.exports.processBatchZip = async (req, cb) => {
+  try {
+    const {body: {cosFileName, shopId}, userInfo: {id: userId}} = req
+    const { processBatchUploadInstance } = require(path.join(process.cwd(),"modules/batchUploadHandle"))
+    const taskId = await processBatchUploadInstance.addTask({cosFileName, shopId, userId})
+    const workers = require(path.join(process.cwd(),"wokers/index"))
+    workers.run('batchUpload', {taskId, cosFileName, shopId, userId})
+    cb(null, taskId)
   } catch(e) {
     cb(e)
   }

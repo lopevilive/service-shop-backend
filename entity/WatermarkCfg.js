@@ -7,7 +7,7 @@ module.exports = {
     type: {type: 'int'}, // 1-图片水印、2-文字水印
     text: {type: 'varchar', nullable: true}, // 文字水印内容
     cfg: {type: 'varchar', nullable: true, length: 1000}, // 水印配置
-    configkey: {type: 'varchar', nullable: true},
+    configkey: {type: 'varchar', nullable: true}, // 用户在调整水印样式的时候，在这张图基础上呈现水印样式
     previewUrl: {type: 'varchar', nullable: true},
     add_time: {type: 'int', nullable: true},
     upd_time: {type: 'int', nullable: true},

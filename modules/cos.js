@@ -7,8 +7,8 @@ const wxApi = require(path.join(process.cwd(),"modules/wxApi"))
 
 // 配置参数
 const config = {
-  secretId: util.getConfig("default.cos.secretId"), // 固定密钥
-  secretKey: util.getConfig("default.cos.secretKey"), // 固定密钥
+  secretId: util.getConfig("default.cloudApiKey.secretId"), // 固定密钥
+  secretKey: util.getConfig("default.cloudApiKey.secretKey"), // 固定密钥
   proxy: '',
   durationSeconds: 7200,
   // endpoint: 'sts.tencentcloudapi.com', // 域名，非必须，与host二选一，默认为 sts.tencentcloudapi.com
@@ -496,6 +496,34 @@ module.exports.deleteMedia = async (keys) => {
         reject(err);
       } else {
         resolve(data);
+      }
+    });
+  });
+};
+
+
+/*  从 COS 下载文件到本地
+ * @param {string} key - COS 中的文件路径
+ * @param {string} localPath - 本地保存路径（如 /tmp/xxx.zip）
+ * @returns {Promise<string>} 下载完成返回 localPath
+ */
+module.exports.downloadFile = async (key, localPath) => {
+  const fs = require('fs');
+  return new Promise((resolve, reject) => {
+    const writeStream = fs.createWriteStream(localPath);
+    module.exports.cosInstance.getObject({
+      Bucket: config.bucket,
+      Region: config.region,
+      Key: key,
+      Output: writeStream,
+    }, (err, data) => {
+      writeStream.close();
+      if (err) {
+        // 下载失败时清理残留文件
+        try { fs.unlinkSync(localPath); } catch(e) {}
+        reject(err);
+      } else {
+        resolve(localPath);
       }
     });
   });

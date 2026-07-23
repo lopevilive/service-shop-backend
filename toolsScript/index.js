@@ -13,8 +13,7 @@ const mathjs = require('mathjs');
 const fs = require('fs');
 
 
-/**
- * 统计 nouse 备份文件数量及体积
+/** 统计 nouse 备份文件数量及体积
  * @param {Object} params - 配置对象
  * @param {Number|String} params.id - (可选) 商家ID，不传则统计全桶所有 nouse 文件
  */
@@ -78,8 +77,7 @@ module.exports.countNouseFiles = async ({ id } = {}) => {
 };
 
 
-/**
- * 还原 COS 垃圾图片插件 (恢复模式)
+/** 还原 COS 垃圾图片插件 (恢复模式)
  * @param {Object} params - 配置对象
  * @param {Number|Array|Object} params.id - 商家ID：支持数字、数组或范围
  * @param {Boolean} params.isExec - 是否正式执行还原：true 则执行，false 仅预览
@@ -201,8 +199,7 @@ module.exports.restoreImgs = async ({
 // WatermarkCfg.configkey
 // 大户：20、25、50、88、173、175、176、179、518、532、1074、1094、1158、1201
 
-/**
- * 清理 COS 垃圾图片插件 (并发控制版)
+/** 清理 COS 垃圾图片插件 (并发控制版)
  * @param {Object} params - 配置对象
  * @param {Number|Array|Object} params.id - 商家ID
  * @param {Boolean} params.isExec - 是否正式清理
@@ -696,7 +693,7 @@ const init = async () => {
     // this.clearImgs({ showDetails: false, id: {start: 2000, end: 2500}, isExec: false }) // 清理图片
     // this.countNouseFiles()  // 统计多少垃圾图片
     // this.vipExpiredHandle(0, false) // 处理过期会员，会把产品mode 置 1
-    // this.resetProductMode(5) // 把产品mode 置 0
+    // this.resetProductMode(682) // 把产品mode 置 0
     // this.handleLogsToHtml(100) // 统计日志
   }, 0);
 }

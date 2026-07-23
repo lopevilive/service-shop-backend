@@ -105,15 +105,15 @@ const rulesMap = {
     textImgCheck: {rid: 1},
     // getProduct: {rid: 1},
     getUsage: {rid: 2},
-    processVideo: {rid: 2}
+    processVideo: {rid: 2},
+    processBatchZip: {rid: 2},
   },
   userService: {
     getUserInfo: {rid: 1},
     setViewLogs: {rid: 1},
-    createOrder: {rid: 2},
-    queryOrder: {rid: 2},
     createVirtualOrder: {rid: 2},
     queryVirtualOrder: {rid: 2},
+    createBatchUploadToken: {rid: 2},
   }
 }
 

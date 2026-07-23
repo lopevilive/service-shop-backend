@@ -3,7 +3,7 @@ const dao = require(path.join(process.cwd(),"dao/DAO"));
 const util = require(path.join(process.cwd(),"util/index"))
 const wxApi = require(path.join(process.cwd(),"modules/wxApi"))
 const axios = require('axios');
-const mathjs = require('mathjs')
+// const mathjs = require('mathjs')
 
 // const expiredTs = 60 * 60 * 0.001
 const expiredTs = 60 * 60 * 1

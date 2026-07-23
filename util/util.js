@@ -143,6 +143,8 @@ module.exports.isIntegerString = (str) => {
  * ruleStr 规则，比如YYYY-MM-DD:HH:mm
  */
 module.exports.dateTs2Str = (ts, ruleStr) => {
+  const utc = require('dayjs/plugin/utc')
+  dayjs.extend(utc)
    // 步骤1：秒转毫秒 + 北京时间8小时偏移（UTC+8）
   const beijingTimeMs = ts * 1000 + 8 * 3600 * 1000;
   // 步骤2：基于UTC格式化（彻底脱离服务器时区）
@@ -463,6 +465,7 @@ module.exports.secCheckCount = async (logType) => {
   }
 }
 
+// 二维码管理器
 module.exports.QrCodeManage = class QrCodeManage {
   constructor() {
     this.QRCode = require('qrcode');
@@ -473,6 +476,16 @@ module.exports.QrCodeManage = class QrCodeManage {
     const ret = await this.QRCode.toDataURL(str, {width: 300, margin: 2})
     return ret
   }
-
-
 }
+
+// 生成 uuid
+module.exports.createUUID = () => {
+  // 生成 16 字节随机数
+  const bytes = crypto.randomBytes(16);
+  // 设置版本号 (4)：第 7-8 字节的高 4 位设为 0100
+  bytes[6] = (bytes[6] & 0x0f) | 0x40;
+  // 设置变体 (10)：第 9 字节的高 2 位设为 10
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  // 转 hex 直接返回（无连字符）
+  return bytes.toString('hex');
+};

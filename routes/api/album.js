@@ -360,17 +360,6 @@ router.post('/GetInventory',
   }
 )
 
-router.get('/ExportInventory',
-  async (req, res, next) => {
-    albumService.exportInventoryV2(req, (err, data) => {
-      if (err) {
-        res.sendResult(null, CODE_UNKNOWN, err.message)
-      } else {
-        res.redirect(302, data)
-      }
-    })(req, res, next)
-  }
-)
 
 router.post('/ExportInventoryV3',
   async (req, res, next) => {
@@ -631,6 +620,18 @@ router.post('/ProcessVideo',
 router.post('/GetQrCode',
   async (req, res, next) => {
     albumService.getQrCode(req, (err, data) => {
+      if (err) {
+        res.sendResult(null, CODE_UNKNOWN, err.message)
+      } else {
+        res.sendResult(data, CODE_SUCC, 'succ')
+      }
+    })(req, res, next)
+  }
+)
+
+router.post('/ProcessBatchZip',
+  async (req, res, next) => {
+    albumService.processBatchZip(req, (err, data) => {
       if (err) {
         res.sendResult(null, CODE_UNKNOWN, err.message)
       } else {

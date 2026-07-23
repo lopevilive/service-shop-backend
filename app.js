@@ -5,7 +5,6 @@ const bodyParser = require('body-parser')
 const resextra = require('./modules/resextra')
 const albumRoutes = require('./routes/api/album.js')
 const userRoutes = require('./routes/api/user.js')
-const oilRoutes = require('./routes/api/oil.js')
 const compression = require('compression');
 const {ERR_CODE_MAP: {CODE_SUCC, CODE_PARAMS_ERR, CODE_UNKNOWN, CODE_LOGIN_ERR, CODE_PERMISSION_ERR}} = require(path.join(process.cwd(),"util/errCode"))
 
@@ -83,7 +82,6 @@ app.all('/api/*', setDefaultHeader)
 // 路由加载
 app.use('/api/album', albumRoutes) // 图册
 app.use('/api/user', userRoutes) //  图册登录
-app.use('/api/oil', oilRoutes) // 油价
 
 const pathMap = [
   {reg: /dist\/product-manage\/hWz9nuJO91/, retFile: path.join(process.cwd(), 'hWz9nuJO91.txt')},
@@ -108,18 +106,5 @@ app.use(function(req, res, next) {
   }
   if (matched) return
   res.sendResult(null, 404, 'Not Found')
-  // if (/dist/.test(req.path)) { // 核心，这里返回前端首页
-  //   res.sendfile('./dist/index.html')
-  // } else if (/hWz9nuJO91/.test(req.path)) {
-  //   res.sendfile('./hWz9nuJO91.txt')
-  // } else if (/tencent3622040499476384665/.test(req.path)) {
-  //   res.sendfile('./tencent3622040499476384665.txt')
-  // }else if (/tencent12649019064503544745/.test(req.path)) {
-  //   res.sendfile('./tencent12649019064503544745.txt')
-  // } else if (/tencent4971961837305385002/.test(req.path)) {
-  //   res.sendfile('./tencent4971961837305385002.txt')
-  // } else {
-  //   res.sendResult(null, 404, 'Not Found')
-  // }
 })
 app.listen(9000)

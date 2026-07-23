@@ -98,29 +98,29 @@ router.post('/SetViewLogs',
   }
 )
 
-router.post('/CreateOrder',
-  async (req, res, next) => {
-    userService.createOrder(req, (err, data) => {
-      if (err) {
-        res.sendResult(null, CODE_UNKNOWN, err.message)
-      } else {
-        res.sendResult(data, CODE_SUCC, 'succ')
-      }
-    })(req, res, next)
-  }
-)
+// router.post('/CreateOrder',
+//   async (req, res, next) => {
+//     userService.createOrder(req, (err, data) => {
+//       if (err) {
+//         res.sendResult(null, CODE_UNKNOWN, err.message)
+//       } else {
+//         res.sendResult(data, CODE_SUCC, 'succ')
+//       }
+//     })(req, res, next)
+//   }
+// )
 
-router.post('/QueryOrder',
-  async (req, res, next) => {
-    userService.queryOrder(req, (err, data) => {
-      if (err) {
-        res.sendResult(null, CODE_UNKNOWN, err.message)
-      } else {
-        res.sendResult(data, CODE_SUCC, 'succ')
-      }
-    })(req, res, next)
-  }
-)
+// router.post('/QueryOrder',
+//   async (req, res, next) => {
+//     userService.queryOrder(req, (err, data) => {
+//       if (err) {
+//         res.sendResult(null, CODE_UNKNOWN, err.message)
+//       } else {
+//         res.sendResult(data, CODE_SUCC, 'succ')
+//       }
+//     })(req, res, next)
+//   }
+// )
 
 router.post('/CreateVirtualOrder',
   async (req, res, next) => {
@@ -137,6 +137,30 @@ router.post('/CreateVirtualOrder',
 router.post('/QueryVirtualOrder',
   async (req, res, next) => {
     userService.queryVirtualOrder(req, (err, data) => {
+      if (err) {
+        res.sendResult(null, CODE_UNKNOWN, err.message)
+      } else {
+        res.sendResult(data, CODE_SUCC, 'succ')
+      }
+    })(req, res, next)
+  }
+)
+
+router.post('/CreateBatchUploadToken',
+  async (req, res, next) => {
+    userService.createBatchUploadToken(req, (err, data) => {
+      if (err) {
+        res.sendResult(null, CODE_UNKNOWN, err.message)
+      } else {
+        res.sendResult(data, CODE_SUCC, 'succ')
+      }
+    })(req, res, next)
+  }
+)
+
+router.post('/ValidBatchUploadToken',
+  async (req, res, next) => {
+    userService.validBatchUploadToken(req, (err, data) => {
       if (err) {
         res.sendResult(null, CODE_UNKNOWN, err.message)
       } else {

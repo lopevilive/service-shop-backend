@@ -1,5 +1,5 @@
 // 引入 mathjs 库（确保已安装：npm install mathjs@12.4.0）
-const math = require('mathjs');
+// const math = require('mathjs');
 
 /**
  * 油价调价额计算核心方法（适配成品油换算系数，零误差匹配官方值）

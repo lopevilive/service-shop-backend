@@ -3,7 +3,6 @@ const util = require(path.join(process.cwd(),"util/index"))
 const dao = require(path.join(process.cwd(),"dao/DAO"));
 const ticketManage = require(path.join(process.cwd(),"modules/ticketManage"));
 const axios = require('axios');
-// const pay = require(path.join(process.cwd(),"modules/pay"));
 const virtualPay = require(path.join(process.cwd(),"modules/virtualPay"));
 const wxApi = require(path.join(process.cwd(),"modules/wxApi"))
 
@@ -161,6 +160,35 @@ module.exports.queryVirtualOrder = async (req, cb) => {
     const {body: {outTradeNo }, userInfo: {openid}} = req
     const ret = await virtualPay.queryWxVirtualOrder(outTradeNo, openid)
     cb(null, ret)
+  } catch(e) {
+    cb(e)
+  }
+}
+
+module.exports.createBatchUploadToken = async (req, cb) => {
+  try {
+    const {body: {shopId}, userInfo: {id: userId}} = req
+    const str = `${shopId}|${userId}`
+    const token = ticketManage.createTicket(str, 60 * 60 * 24)
+    cb(null, token)
+  } catch(e) {
+    cb(e)
+  }
+}
+
+
+module.exports.validBatchUploadToken = async (req, cb) => {
+  try {
+    const {body: {ticket}} = req
+    if (!ticket) throw new Error('参数有误')
+    const {status, rawStr} = ticketManage.verifyTicket(ticket)
+    if (status !== 0) throw new Error(status)
+    const [shopId, userId] = rawStr.split('|')
+    let userInfo = await dao.list('User', {columns: {id: userId}})
+    if (userInfo.length !== 1) throw new Error('参数有误')
+    userInfo = userInfo[0]
+    const token = ticketManage.createTicket(userInfo.openid, 60 * 60 * 24)
+    cb(null, {shopId: Number(shopId), token, userId: Number(userId)})
   } catch(e) {
     cb(e)
   }
