@@ -51,6 +51,7 @@ class ProcessBatchUpload {
     this.shopInfo = {}
     this.dbProductTypesCache = []
     this.dbWatetMarkCache = null
+    this.userInfo = null
     // ------运行任务时，该任务需要用到的变量，完成任务需要初始化 --e
     
   }
@@ -67,6 +68,15 @@ class ProcessBatchUpload {
     this.zipPath = tmpPath
   }
 
+  async getLevelLimit() {
+    const {level} = this.shopInfo
+    const levelCfg = util.getConfig('album.levelCfg')
+    for (const item of levelCfg) {
+      if (item.level === level) return {...item}
+    }
+    return {...levelCfg[0]}
+  }
+
   async readZipPath () {
     // 读取 zip 中央目录（不解压全部内容，仅获取文件列表）
     const directory = await unzipper.Open.file(this.zipPath)
@@ -81,7 +91,10 @@ class ProcessBatchUpload {
       if (/\.xlsx?$/i.test(f.path)) {
         this.excelFile.push({ path: f.path, entry: f })
       } else if (/\.(jpg|jpeg|png|gif|webp)$/i.test(f.path)) {
-        this.imageFiles.push({ path: f.path, entry: f })
+        const sizeInMB = Number(((f.uncompressedSize || 0) / (1024 * 1024)).toFixed(2))
+        const {imgS} = await this.getLevelLimit()
+        if (sizeInMB > imgS) continue // 过滤超限图片
+        this.imageFiles.push({ path: f.path, entry: f, size: sizeInMB })
       }
     }
   }
@@ -128,11 +141,36 @@ class ProcessBatchUpload {
     const { cosFileName, shopId, userId } = content
     const sInfo = await dao.list('shop', {columns: {id: shopId}})
     this.shopInfo = sInfo[0]
+    const userInfo = await dao.list('user', {columns: {id: userId}})
+    this.userInfo = userInfo[0]
+    this.shopId = shopId
+    this.userId = userId
+    this.taskId = taskId
     return {taskId, resolve, reject, cosFileName, shopId, userId}
   }
 
   async clear () {
-
+    // 删除本地 zip 文件
+    try {
+      if (this.zipPath && fs.existsSync(this.zipPath)) {
+        fs.unlinkSync(this.zipPath)
+      }
+    } catch (e) {
+      console.error('清理 zip 文件失败:', e.message)
+    }
+    // 重置所有实例变量
+    this.zipPath = ''
+    this.excelFile = []
+    this.imageFiles = []
+    this.excelData = []
+    this.products = []
+    this.shopId = null
+    this.userId = null
+    this.taskId = null
+    this.shopInfo = {}
+    this.dbProductTypesCache = []
+    this.dbWatetMarkCache = null
+    this.userInfo = null
   }
 
   async formatProductInfo () {
@@ -145,9 +183,18 @@ class ProcessBatchUpload {
       const descImgs = []
       const reg = new RegExp(`/${rowNum}_\\d+`) // 产品主图
       const descReg = new RegExp(`/${rowNum}_desc_\\d+`) // 产品详情图
+      let {imgC, descImgC} = await this.getLevelLimit()
       for (const imgItem of this.imageFiles) {
-        if (reg.test(imgItem.path)) imgs.push(imgItem)
-        if (descReg.test(imgItem.path)) descImgs.push(imgItem)
+        if (reg.test(imgItem.path)) {
+          if (imgC <= 0) continue
+          imgC -= 1
+          imgs.push(imgItem)
+        }
+        if (descReg.test(imgItem.path)) {
+          if (descImgC <= 0) continue
+          descImgC -= 1
+          descImgs.push(imgItem)
+        }
       }
       if (!imgs.length) continue // 没有图片
       const dataItem = {
@@ -379,12 +426,9 @@ class ProcessBatchUpload {
     return ret
   }
   
-  async formatDescImgs() {
-
-  }
-
   async formatImgs(rawUrl) {
-    if (!rawUrl || !rawUrl.length) return []
+    const contentValid = require(path.join(process.cwd(),"modules/contentValid"));
+    if (!rawUrl || !rawUrl.length) return ''
     const waterCfg = await this.getWtCfg() // 水印配置（暂留，后续加水印处理
     let uploadRule = 'imageMogr2/format/jpg/auto-orient'
     if (waterCfg) uploadRule = `${uploadRule}|${waterCfg}`
@@ -398,12 +442,12 @@ class ProcessBatchUpload {
           // 2. MD5 计算
           const md5 = crypto.createHash('md5').update(buffer).digest('hex')
           let preKey = `${this.shopId}_${this.userId}`
-          preKey = `${this.shopId}_${this.userId}_test` // 测试专用
+          // preKey = `${this.shopId}_${this.userId}_test` // 测试专用 todo
           if (waterCfg) preKey = `${preKey}_${Math.floor(Math.random() * 1000)}`
           const cosKey = `${preKey}_${md5}.jpg`
 
           // 3. 上传到 COS（配置图片处理规则：转 jpg + 自动旋转）
-          const url = await new Promise((resolve, reject) => {
+          const uploadRet = await new Promise((resolve, reject) => {
             // resolve(`https://${cosKey}`)
             // return
             cos.cosInstance.putObject({
@@ -415,10 +459,16 @@ class ProcessBatchUpload {
               }
             }, (err, data) => {
               if (err) reject(err)
-              else resolve(data.Location)
+              else resolve({url: `//${data.Location}`, fileName: cosKey})
             })
           })
-          return url
+          // 此处执行图片审核
+          const {url, fileName} = uploadRet
+          const imgCheckRet = await contentValid.albumValidImg({fileName, shopId: this.shopId, userInfo: this.userInfo})
+          if (imgCheckRet !== 0) { // 校验没通过
+            return {pass: false, url}
+          }
+          return {pass: true, url}
         } finally {
           // 4. 释放内存（置 null 帮助 GC 回收）
           buffer = null
@@ -427,11 +477,29 @@ class ProcessBatchUpload {
     })
 
     const results = await Promise.allSettled(uploadTasks)
-    const urls = results
-      .filter(r => r.status === 'fulfilled')
-      .map(r => r.value)
-    console.log(urls, 'uuu')
-    return urls
+
+    const retUrls = []
+    for (const item of results) {
+      if (item.status !== 'fulfilled') continue
+      if (item.value.pass !== true) throw new Error(`图片校验没通过: ${item.value.url}`)
+      retUrls.push(item.value.url)
+    }
+    const ret = retUrls.join(',')
+    return ret
+  }
+
+  async textCheck(payload) {
+    const contentValid = require(path.join(process.cwd(),"modules/contentValid"));
+    const {desc, specDetials, price, attr, specs} = payload
+    const strList = util.joinStrArrayWithLimit([desc, specDetials, price, attr, specs], 2000)
+    const pList = strList.map((str) => {
+      return contentValid.albumValidText({openid: this.userInfo.openid, userId: this.userId, shopId: this.shopId, content: str, type: 0})
+    })
+    const validRes = await Promise.allSettled(pList)
+    for (const item of validRes) {
+      if (item.status !== 'fulfilled') throw new Error(`文本校验出错: desc：${desc}`)
+      if (item.value.pass !== true) throw new Error(`文本校验未通过: desc:：${desc}`)
+    }
   }
   
   async toUploadProd () {
@@ -447,48 +515,63 @@ class ProcessBatchUpload {
       prodInfo.specDetials = priceRet.specDetials
       prodInfo.attr = await this.formatAttr(rawInfo.attr)
       prodInfo.specs = await this.formatSpecs(rawInfo.specs)
-      const imgUploadRet = await this.formatImgs(rawInfo.url)
-      const descUploadRet = await this.formatDescImgs()
+      // 此处执行文本校验，校验通过后才传图片
+      await this.textCheck(prodInfo)
+      prodInfo.url = await this.formatImgs(rawInfo.url)
+      if (!prodInfo.url) continue // 没有图片成功上传，丢弃这条数据
+      prodInfo.descUrl = await this.formatImgs(rawInfo.descUrl)
+      prodInfo.id = 0
+      prodInfo.shopId = this.shopId
 
-      // console.log(prodInfo)
+      let maxPos = 0
+      const query = await dao.createQueryBuilder('Product', 'Product');
+      query.select(['Product.id', 'Product.pos']);
+      query.where('shopId = :shopId', { shopId: this.shopId });
+      query.andWhere('(mode & 1) = 0')
+      query.orderBy('pos', 'DESC')
+      query.take(1);
+      const res = await query.getMany();
+      if (res.length === 1) maxPos = res[0].pos
+      await dao.create('Product', {...prodInfo, add_time: util.getNowTime(), pos: maxPos + 10000}) // 写db
+      let data = await dao.list('XaCache', {columns: {dataType: 40, key1: this.taskId}}) // 更新任务数据
+      data = data[0]
+      const content = JSON.parse(data.content)
+      content.finishedNum += content.finishedNum
+      await dao.update('XaCache', data.id, {content: JSON.stringify(content), upd_time: util.getNowTime()})
     }
 
   }
   
   async start () {
     if (this.runingList.length) return
-    const {taskId, resolve, reject, cosFileName, shopId, userId} = await this.initTask() // 初始化任务
-    this.shopId = shopId
-    this.userId = userId
-    this.taskId = taskId
-
+    if (this.taskList.length === 0) return
+    const {resolve, reject, cosFileName} = await this.initTask() // 初始化任务
     try {
       await this.downloadZip(cosFileName) // 下载 zip 文件
       await this.readZipPath() // 读取 zip 目录
       await this.readExcel() // 读取excel 文件
       await this.formatProductInfo() // 初步处理产品信息
-      await this.preHandle() // 预处理
+      await this.preHandle() // 预处理，这里对数量限制做处理，
       await this.toUploadProd() // 开始上传
-
-
       await this.clear()
-      resolve({
-        // zipPath: this.zipPath,
-        // excelFile: this.excelFile,
-        // imageFiles: this.imageFiles,
-        // excelData: this.excelData
-        // products: this.products
-      })
 
+      let data = await dao.list('XaCache', {columns: {dataType: 40, key1: this.taskId}})
+      data = data[0]
+      const content = JSON.parse(data.content)
+      content.status = 2
+      await dao.update('XaCache', data.id, {content: JSON.stringify(content), upd_time: util.getNowTime()})
     } catch(e) {
       console.log(e)
-      let data = await dao.list('XaCache', {columns: {dataType: 40, key1: taskId}})
+      let data = await dao.list('XaCache', {columns: {dataType: 40, key1: this.taskId}})
       data = data[0]
       const content = JSON.parse(data.content)
       content.status = 3
       content.msg = e.message || '未知错误'
       await dao.update('XaCache', data.id, {content: JSON.stringify(content), upd_time: util.getNowTime()})
+    } finally {
       resolve()
+      this.runingList = []
+      this.start()
     }
   }
 
