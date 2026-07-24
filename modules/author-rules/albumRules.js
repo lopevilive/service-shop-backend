@@ -107,6 +107,7 @@ const rulesMap = {
     getUsage: {rid: 2},
     processVideo: {rid: 2},
     processBatchZip: {rid: 2},
+    fetchBatchUploadTask: {rid: 2},
   },
   userService: {
     getUserInfo: {rid: 1},

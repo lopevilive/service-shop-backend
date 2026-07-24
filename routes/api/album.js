@@ -641,6 +641,18 @@ router.post('/ProcessBatchZip',
   }
 )
 
+router.post('/FetchBatchUploadTask',
+  async (req, res, next) => {
+    albumService.fetchBatchUploadTask(req, (err, data) => {
+      if (err) {
+        res.sendResult(null, CODE_UNKNOWN, err.message)
+      } else {
+        res.sendResult(data, CODE_SUCC, 'succ')
+      }
+    })(req, res, next)
+  }
+)
+
 
 
 

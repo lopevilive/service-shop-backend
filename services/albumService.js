@@ -1688,3 +1688,15 @@ module.exports.processBatchZip = async (req, cb) => {
     cb(e)
   }
 }
+
+module.exports.fetchBatchUploadTask = async (req, cb) => {
+  try {
+    const {body: {taskId, shopId}} = req
+    const data = await dao.list('XaCache', {columns: {dataType: 40, key1: taskId}})
+    if (data.length === 0) throw new Error('任务不存在')
+    const content = JSON.parse(data[0].content)
+    cb(null, content)
+  } catch(e) {
+    cb(e)
+  }
+}

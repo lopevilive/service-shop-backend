@@ -4,6 +4,7 @@ const util = require(path.join(process.cwd(),"util/index"))
 const dao = require(path.join(process.cwd(),"dao/DAO"));
 const cos = require(path.join(process.cwd(),"modules/cos"))
 const fs = require("fs");
+const os = require('os')
 const unzipper = require('unzipper');
 const ExcelJS = require('exceljs');
 const crypto = require('crypto');
@@ -61,8 +62,15 @@ class ProcessBatchUpload {
   }
 
   async downloadZip (cosFileName) {
-    // 生成临时 zip 文件路径
-    const tmpPath = path.join(process.cwd(),`tmp/batch_${util.createUUID()}.zip`)
+     const env = util.getConfig('default.env')
+     let tmpPath = '' // 生成临时 zip 文件路径
+     if (env === 'prod') {
+      tmpPath = path.join(os.tmpdir(), `batch_${util.createUUID()}.zip`)
+     } else {
+      tmpPath = path.join(process.cwd(),`tmp/batch_${util.createUUID()}.zip`)
+     }
+     console.log(tmpPath, 'ttt')
+    
     // 从 COS 下载 zip 到本地
     await cos.downloadFile(cosFileName, tmpPath)
     this.zipPath = tmpPath
@@ -442,7 +450,7 @@ class ProcessBatchUpload {
           // 2. MD5 计算
           const md5 = crypto.createHash('md5').update(buffer).digest('hex')
           let preKey = `${this.shopId}_${this.userId}`
-          // preKey = `${this.shopId}_${this.userId}_test` // 测试专用 todo
+          // preKey = `${this.shopId}_${this.userId}_test` // 测试专用
           if (waterCfg) preKey = `${preKey}_${Math.floor(Math.random() * 1000)}`
           const cosKey = `${preKey}_${md5}.jpg`
 
@@ -536,7 +544,7 @@ class ProcessBatchUpload {
       let data = await dao.list('XaCache', {columns: {dataType: 40, key1: this.taskId}}) // 更新任务数据
       data = data[0]
       const content = JSON.parse(data.content)
-      content.finishedNum += content.finishedNum
+      content.finishedNum = content.finishedNum + 1
       await dao.update('XaCache', data.id, {content: JSON.stringify(content), upd_time: util.getNowTime()})
     }
 
@@ -553,13 +561,13 @@ class ProcessBatchUpload {
       await this.formatProductInfo() // 初步处理产品信息
       await this.preHandle() // 预处理，这里对数量限制做处理，
       await this.toUploadProd() // 开始上传
-      await this.clear()
 
       let data = await dao.list('XaCache', {columns: {dataType: 40, key1: this.taskId}})
       data = data[0]
       const content = JSON.parse(data.content)
       content.status = 2
       await dao.update('XaCache', data.id, {content: JSON.stringify(content), upd_time: util.getNowTime()})
+
     } catch(e) {
       console.log(e)
       let data = await dao.list('XaCache', {columns: {dataType: 40, key1: this.taskId}})
@@ -569,6 +577,7 @@ class ProcessBatchUpload {
       content.msg = e.message || '未知错误'
       await dao.update('XaCache', data.id, {content: JSON.stringify(content), upd_time: util.getNowTime()})
     } finally {
+      await this.clear()
       resolve()
       this.runingList = []
       this.start()

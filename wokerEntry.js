@@ -7,6 +7,5 @@ module.exports.main_handler = async (event, context) => {
   const fn = fnMap[fnName]
   if (!fn) return null
   const ret = await fn(payload)
-  console.dir(ret, {depth: null, colors: true})
   console.log('done')
 };

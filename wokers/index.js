@@ -25,13 +25,12 @@ module.exports.run = async (fnName, payload) => {
       profile: {}
     });
     const ret = await client.Invoke({
-      FunctionName: 'test',
+      FunctionName: 'woker-main',
       Namespace: 'default',
-      // InvocationType: 'Event',
-      InvocationType: 'RequestResponse',
+      InvocationType: 'Event',
+      // InvocationType: 'RequestResponse',
       ClientContext: JSON.stringify({ fnName, payload })
     })
-    console.log(ret, 'scfRet')
     return ret?.RequestId || ''
   } else {
     console.log('loacl')

@@ -169,7 +169,7 @@ module.exports.createBatchUploadToken = async (req, cb) => {
   try {
     const {body: {shopId}, userInfo: {id: userId}} = req
     const str = `${shopId}|${userId}`
-    const token = ticketManage.createTicket(str, 60 * 60 * 24)
+    const token = ticketManage.createTicket(str, 60 * 60 * 1.5)
     cb(null, token)
   } catch(e) {
     cb(e)
