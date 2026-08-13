@@ -688,14 +688,437 @@ module.exports.handleLogsToHtml = async (days = 7) => {
   console.log(`\n✨ [成功] 报表已生成！弹窗日期已修正为倒序排列。\n路径：${filePath}\n`);
 };
 
+
+
+
+/** 视频画质增强（超分 + 细节增强 + 色彩增强 + 去噪）
+ * 纯工具函数，不依赖任何业务表，只操作 COS/CI
+ *
+ * @param {Object} params
+ * @param {string} params.srcKey - 源视频 COS 路径，如 "raw_123.mp4"
+ * @param {Object} [params.options] - 可选参数覆盖
+ * @param {string} [params.options.superResVersion='Base'] - 超分版本 Base | Enhance
+ * @param {string} [params.options.superResResolution='1080'] - 超分目标分辨率
+ * @param {string} [params.options.detailStrength='50'] - 细节增强强度 0-100
+ * @param {string} [params.options.colorSaturation='1.1'] - 饱和度
+ * @param {string} [params.options.colorContrast='1.05'] - 对比度
+ * @param {string} [params.options.denoiseType='Weak'] - 去噪 Weak | Strong
+ * @param {string} [params.options.outWidth='1920'] - 输出宽
+ * @param {string} [params.options.outHeight='1080'] - 输出高
+ * @param {string} [params.options.outFps='30'] - 输出帧率
+ * @param {string} [params.options.outBitrate='5000'] - 输出码率 kbps
+ * @param {number} [params.options.pollInterval=8000] - 轮询间隔 ms
+ * @param {number} [params.options.pollTimeout=1800000] - 轮询超时 ms（默认30分钟）
+ * @returns {Promise<Object>} { jobId, srcKey, enhancedKey, enhancedUrl, state, duration }
+ */
+module.exports.enhanceVideo = async (params) => {
+  const COS = require('cos-nodejs-sdk-v5');
+  const { cosInstance, cfg } = cos;
+  const {
+    srcKey,
+    options = {},
+  } = params;
+
+  if (!srcKey) throw new Error('enhanceVideo: srcKey 不能为空');
+
+  // ---- 默认值合并 ----
+  const opt = {
+    superResVersion: 'Enhance',
+    superResResolution: '1080',
+    detailStrength: '80',        // 0-100，80=强细节恢复（羽毛球运动模糊改善明显）
+    colorSaturation: '105',     // 0-300，100=不变，105=微提5%，避免色彩过艳
+    colorContrast: '50',        // 0-100，50=不变，不额外拉对比度避免发白
+    denoiseType: 'Weak',        // Weak / Strong
+    outWidth: '1920',           // 输出 1080P
+    outHeight: '1080',
+    outFps: '30',
+    outBitrate: '5000',         // 1080P 给 5Mbps，保证画质
+    pollInterval: 8000,
+    pollTimeout: 30 * 60 * 1000,
+    ...options,
+  };
+
+  // ---- 输出路径：enhanced_ 前缀 ----
+  const ext = path.extname(srcKey) || '.mp4';
+  const baseName = path.basename(srcKey, ext);
+  const enhancedKey = `badm/enhanced_${baseName}${ext}`;
+
+  // ---- 构建 CI 任务 XML ----
+  const body = COS.util.json2xml({
+    Request: {
+      Tag: 'VideoEnhance',
+      Input: { Object: srcKey },
+      Operation: {
+        VideoEnhance: {
+          Transcode: {
+            Container: { Format: 'mp4' },
+            Video: {
+              Codec: 'H.264',
+              Width: opt.outWidth,
+              Height: opt.outHeight,
+              Fps: opt.outFps,
+              Bitrate: opt.outBitrate,
+            },
+            Audio: {
+              Codec: 'AAC',
+              Bitrate: '128',
+              Samplerate: '44100',
+              Channels: '2',
+            },
+          },
+          SuperResolution: {
+            Enable: 'true',
+            Version: opt.superResVersion,
+            Resolution: opt.superResResolution,
+          },
+          DetailEnhance: {
+            Enable: 'true',
+            Strength: opt.detailStrength,
+          },
+          ColorEnhance: {
+            Enable: 'true',
+            Saturation: opt.colorSaturation,
+            Contrast: opt.colorContrast,
+          },
+          Denoise: {
+            Enable: 'true',
+            Type: opt.denoiseType,
+          },
+        },
+        Output: {
+          Region: cfg.region,
+          Bucket: cfg.bucket,
+          Object: enhancedKey,
+        },
+      },
+    },
+  });
+
+  // ---- 提交任务 ----
+  const submitRes = await new Promise((resolve, reject) => {
+    cosInstance.request({
+      Method: 'POST',
+      Key: 'jobs',
+      Url: `https://${cfg.bucket}.ci.${cfg.region}.myqcloud.com/jobs`,
+      Body: body,
+      ContentType: 'application/xml',
+    }, (err, data) => {
+      if (err) reject(err);
+      else resolve(data);
+    });
+  });
+
+  const jobId = submitRes.Response?.JobsDetail?.JobId;
+  if (!jobId) throw new Error('enhanceVideo: 提交任务失败，未返回 JobId');
+
+  // ---- 轮询等待完成 ----
+  const startTime = Date.now();
+  let jobDetail = null;
+  let pollCount = 0;
+
+  console.log(`🎬 已提交增强任务, JobId: ${jobId}, 开始轮询...`);
+
+  while (true) {
+    await new Promise(r => setTimeout(r, opt.pollInterval));
+    pollCount++;
+    const elapsed = Math.floor((Date.now() - startTime) / 1000);
+
+    const detailRes = await new Promise((resolve, reject) => {
+      cosInstance.request({
+        Method: 'GET',
+        Key: `jobs/${jobId}`,
+        Url: `https://${cfg.bucket}.ci.${cfg.region}.myqcloud.com/jobs/${jobId}`,
+      }, (err, data) => {
+        if (err) reject(err);
+        else resolve(data);
+      });
+    });
+
+    jobDetail = detailRes.Response.JobsDetail;
+    const progress = jobDetail.Progress || '--';
+
+    process.stdout.write(`\r  ⏳ 处理中... [${elapsed}s] 进度: ${progress}%   `);
+
+    if (jobDetail.State === 'Success') {
+      console.log(`\n✅ 增强完成！耗时: ${Math.floor((Date.now() - startTime) / 1000)}s`);
+      break;
+    }
+    if (jobDetail.State === 'Failed') {
+      console.log(`\n❌ 增强失败`);
+      throw new Error(`enhanceVideo: 任务失败 - ${jobDetail.Message || '未知错误'}`);
+    }
+    if (Date.now() - startTime > opt.pollTimeout) {
+      console.log(`\n⏰ 轮询超时`);
+      throw new Error(`enhanceVideo: 任务超时 (${opt.pollTimeout}ms), JobId: ${jobId}`);
+    }
+  }
+
+  return {
+    jobId,
+    srcKey,
+    enhancedKey,
+    enhancedUrl: `https://${cfg.bucket}.cos.${cfg.region}.myqcloud.com/${enhancedKey}`,
+    state: jobDetail.State,
+    duration: jobDetail.Duration || null,
+  };
+};
+
+
+/**
+ * 去除人声（CI 人声分离 VoiceSeparate）
+ * @param {Object} params
+ * @param {string} params.srcKey - COS 上的 mp3（剪映分离的解说音轨）
+ * @param {Object} [params.options]
+ */
+module.exports.removeVocals = async (params) => {
+  const COS = require('cos-nodejs-sdk-v5');
+  const { cosInstance, cfg } = cos;
+  const { srcKey, options = {} } = params;
+  if (!srcKey) throw new Error('removeVocals: srcKey 不能为空');
+
+  const opt = {
+    audioMode: 'IsBackground',  // 只出背景音（去人声）
+    codec: 'flac',              // 无损编码
+    samplerate: '48000',        // 48kHz 宽频
+    bitrate: '',                // 无损不需要
+    channels: '2',             // 立体声
+    pollInterval: 8000,
+    pollTimeout: 15 * 60 * 1000,
+    ...options,
+  };
+
+  const ext = path.extname(srcKey) || '.mp3';
+  const baseName = path.basename(srcKey, ext);
+  const bgKey  = `badm/novocal_${baseName}${ext}`;   // 去人声后的背景音（击球/欢呼/底噪）
+  const vocKey = `badm/vocal_${baseName}${ext}`;       // 纯人声（解说）
+
+  // ---- json2xml 构建 CI VoiceSeparate 任务 ----
+  const body = COS.util.json2xml({
+    Request: {
+      Tag: 'VoiceSeparate',                 // ✅ 正确 Tag
+      Input: { Object: srcKey },
+      Operation: {
+        VoiceSeparate: {
+          AudioMode: opt.audioMode,         // ✅ IsBackground / AudioAndBackground
+          AudioConfig: {
+            Codec: opt.codec,
+            Samplerate: opt.samplerate,
+            Bitrate: opt.bitrate,
+            Channels: opt.channels,
+          },
+        },
+        Output: {
+          Region: cfg.region,
+          Bucket: cfg.bucket,
+          Object: bgKey,    // 背景音主输出
+          AuObject: vocKey, // 人声输出（AudioAndBackground 时才需要，留着无害）
+        },
+      },
+    },
+  });
+
+  // ---- 提交任务（和你 enhanceVideo 完全一致）----
+  const submitRes = await new Promise((resolve, reject) => {
+    cosInstance.request({
+      Method: 'POST',
+      Key: 'jobs',
+      Url: `https://${cfg.bucket}.ci.${cfg.region}.myqcloud.com/jobs`,
+      Body: body,
+      ContentType: 'application/xml',
+    }, (err, data) => err ? reject(err) : resolve(data));
+  });
+
+  const jobId = submitRes.Response?.JobsDetail?.JobId;
+  if (!jobId) throw new Error('removeVocals: 未返回 JobId -> ' + JSON.stringify(submitRes));
+
+  // ---- 轮询 ----
+  const startTime = Date.now();
+  let jobDetail = null;
+  console.log(`🎤 已提交人声分离, JobId: ${jobId}`);
+  while (true) {
+    await new Promise(r => setTimeout(r, opt.pollInterval));
+    const detailRes = await new Promise((resolve, reject) => {
+      cosInstance.request({
+        Method: 'GET',
+        Key: `jobs/${jobId}`,
+        Url: `https://${cfg.bucket}.ci.${cfg.region}.myqcloud.com/jobs/${jobId}`,
+      }, (err, data) => err ? reject(err) : resolve(data));
+    });
+    jobDetail = detailRes.Response.JobsDetail;
+    process.stdout.write(`\r  ⏳ 人声分离 ${Math.floor((Date.now()-startTime)/1000)}s 进度:${jobDetail.Progress||'--'}% `);
+    if (jobDetail.State === 'Success') { console.log('\n✅ 去人声完成'); break; }
+    if (jobDetail.State === 'Failed') throw new Error('人声分离失败: ' + jobDetail.Message);
+    if (Date.now()-startTime > opt.pollTimeout) throw new Error('人声分离超时');
+  }
+
+  return {
+    jobId, srcKey,
+    bgKey, vocKey,
+    noVocalUrl: `https://${cfg.bucket}.cos.${cfg.region}.myqcloud.com/${bgKey}`,
+    vocalUrl: `https://${cfg.bucket}.cos.${cfg.region}.myqcloud.com/${vocKey}`,
+    state: jobDetail.State,
+  };
+};
+
+
+
+/**
+ * 腾讯云 TTS 文本转语音（羽毛球人物传专用版）
+ * @param {Object} params
+ * @param {string} params.text - 要合成的文本（单次最多3000字）
+ * @param {Object} [params.options] - 可选覆盖参数
+ * @returns {Promise<Object>}
+ */
+module.exports.tts = async (params) => {
+  // ==============================
+  // 🔥 依赖全部放在方法内部
+  // ==============================
+  const COS = require('cos-nodejs-sdk-v5');
+  const { cosInstance, cfg } = cos;
+  const { v20190823: TtsV20190823 } = require('tencentcloud-sdk-nodejs/tencentcloud/services/tts/v20190823');
+  const TtsClient = TtsV20190823.Client;
+
+  const { text, options = {} } = params;
+
+  if (!text) throw new Error('tts: text 不能为空');
+  if (text.length > 3000) {
+    console.warn(`⚠️ tts: 文本长度 ${text.length}，将只合成前3000字`);
+  }
+
+  // ---- 默认值（人物传纪录片风）----
+  // 502001
+  const opt = {
+    voiceType: 502001,        // 沉稳青叔，传记旁白首选
+    speed: 0,                // 稍慢，叙事呼吸感
+    volume: 0,
+    sampleRate: 24000,
+    codec: 'mp3',
+    ...options,
+  };
+
+  // ---- 校验密钥 ----
+  if (!cfg?.secretId || !cfg?.secretKey) {
+    throw new Error('tts: cfg 中缺少 secretId 或 secretKey');
+  }
+
+  // ---- 文件名：文案前20个有效字符 ----
+  const maxNameLen = 10;
+  const safeText = text
+    .replace(/[\r\n\t]+/g, ' ')
+    .replace(/[^\u4e00-\u9fa5a-zA-Z0-9]/g, '')
+    .slice(0, maxNameLen)
+    .trim();
+
+  const timestamp = Date.now();
+  const ext = opt.codec === 'wav' ? 'wav' : 'mp3';
+  const baseName = safeText || `tts_${timestamp}`;
+  // let audioKey = `badm/${opt.voiceType}_${baseName}.${ext}`;
+  let audioKey = `badm/${baseName}.${ext}`;
+
+  // ---- 同名自动加序号，不覆盖 ----
+  let counter = 2;
+  while (true) {
+    const exists = await new Promise(resolve => {
+      cosInstance.headObject({
+        Bucket: cfg.bucket,
+        Region: cfg.region,
+        Key: audioKey,
+      }, err => resolve(!err));
+    });
+    if (!exists) break;
+    audioKey = `badm/${baseName}_${counter}.${ext}`;
+    counter++;
+  }
+
+  // ---- 初始化 TTS Client ----
+  const client = new TtsClient({
+    credential: {
+      secretId: cfg.secretId,
+      secretKey: cfg.secretKey,
+    },
+    region: cfg.region || 'ap-guangzhou',
+  });
+
+  // ---- 调用 TTS ----
+  const preview = text.replace(/\s+/g, ' ').slice(0, 30);
+  console.log(`🎙️ 正在合成语音: "${preview}..." → ${audioKey}`);
+
+  const ttsRes = await client.TextToVoice({
+    Text: text.slice(0, 3000),
+    SessionId: timestamp.toString(),
+    VoiceType: opt.voiceType,
+    Speed: opt.speed,
+    Volume: opt.volume,
+    SampleRate: opt.sampleRate,
+    Codec: opt.codec,
+  });
+
+  if (!ttsRes.Audio) {
+    throw new Error('tts: 未返回音频数据 -> ' + JSON.stringify(ttsRes));
+  }
+
+  // ---- 上传到 COS ----
+  const audioBuffer = Buffer.from(ttsRes.Audio, 'base64');
+  await new Promise((resolve, reject) => {
+    cosInstance.putObject({
+      Bucket: cfg.bucket,
+      Region: cfg.region,
+      Key: audioKey,
+      Body: audioBuffer,
+      ContentType: opt.codec === 'wav' ? 'audio/wav' : 'audio/mpeg',
+    }, (err) => err ? reject(err) : resolve());
+  });
+
+  console.log(`✅ TTS 完成并上传: ${audioKey}`);
+
+  return {
+    taskId: ttsRes.RequestId || timestamp.toString(),
+    textPreview: text.slice(0, 50) + (text.length > 50 ? '...' : ''),
+    audioKey,
+    audioUrl: `https://${cfg.bucket}.cos.${cfg.region}.myqcloud.com/${audioKey}`,
+    duration: ttsRes.Duration || null,
+    voiceType: opt.voiceType,
+    sampleRate: opt.sampleRate,
+  };
+};
+
+
+
 const init = async () => {
-  setTimeout(() => {
+  setTimeout(async () => {
     // this.clearImgs({ showDetails: false, id: {start: 2000, end: 2500}, isExec: false }) // 清理图片
     // this.countNouseFiles()  // 统计多少垃圾图片
     // this.vipExpiredHandle(0, false) // 处理过期会员，会把产品mode 置 1
     // this.resetProductMode(682) // 把产品mode 置 0
     // this.handleLogsToHtml(100) // 统计日志
+    // console.log(1)
+    // try {
+    //   const result = await this.enhanceVideo({srcKey: 'badm/0726_1.mp4', options: {}})
+    //   console.log(result, 'rrr')
+    // } catch(e) {
+    //   console.log(e)
+    // }
+
+    // try {
+    //   const result = await this.removeVocals({srcKey: `badm/0801.MP3`})
+    // } catch(e) {
+    //   console.log(e, 'err')
+    // }
+
+  //   try {
+  //     const result = await this.tts({
+  //       text: `接连遭遇十场国际赛事失利，频频首轮出局。
+  // 那时的他太想证明自己了，可越是渴望赢，手脚就越发僵硬
+  // 这种急于求成的心态，反而把他一步步推向了更惨烈的溃败`,
+  //       // options: {}
+  //     })
+  //   } catch(e) {
+  //     console.log(e)
+  //   }
   }, 0);
 }
+
+
+
 
 init()
