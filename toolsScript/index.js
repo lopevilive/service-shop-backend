@@ -405,8 +405,7 @@ module.exports.resetProductMode = async (shopId) => {
   console.log(`总计: 已将 ${totalUpdated} 个产品的 mode 重置为 0`)
 }
 
-/**
- * 整合后的 VIP 过期处理方法
+/** 整合后的 VIP 过期处理方法
  * 包含：自动查询过期店铺、打印日志、超额产品处理、店铺状态更新
  * @param {number} expiredDays 过期天数阈值（例如过期 7 天后执行处理）
  * @param {boolean} isDel 是否执行产品下架(mode 改为 1)
@@ -459,8 +458,8 @@ module.exports.vipExpiredHandle = async (expiredDays, isDel = false) => {
   }
 };
 
-/**
- * 生成业务统计报表 (弹窗详情倒序 + 全功能版)
+/**  * 生成业务统计报表 (弹窗详情倒序 + 全功能版)
+
  */
 module.exports.handleLogsToHtml = async (days = 7) => {
   const nowTs = Math.floor(Date.now() / 1000); 
@@ -690,182 +689,7 @@ module.exports.handleLogsToHtml = async (days = 7) => {
 
 
 
-
-/** 视频画质增强（超分 + 细节增强 + 色彩增强 + 去噪）
- * 纯工具函数，不依赖任何业务表，只操作 COS/CI
- *
- * @param {Object} params
- * @param {string} params.srcKey - 源视频 COS 路径，如 "raw_123.mp4"
- * @param {Object} [params.options] - 可选参数覆盖
- * @param {string} [params.options.superResVersion='Base'] - 超分版本 Base | Enhance
- * @param {string} [params.options.superResResolution='1080'] - 超分目标分辨率
- * @param {string} [params.options.detailStrength='50'] - 细节增强强度 0-100
- * @param {string} [params.options.colorSaturation='1.1'] - 饱和度
- * @param {string} [params.options.colorContrast='1.05'] - 对比度
- * @param {string} [params.options.denoiseType='Weak'] - 去噪 Weak | Strong
- * @param {string} [params.options.outWidth='1920'] - 输出宽
- * @param {string} [params.options.outHeight='1080'] - 输出高
- * @param {string} [params.options.outFps='30'] - 输出帧率
- * @param {string} [params.options.outBitrate='5000'] - 输出码率 kbps
- * @param {number} [params.options.pollInterval=8000] - 轮询间隔 ms
- * @param {number} [params.options.pollTimeout=1800000] - 轮询超时 ms（默认30分钟）
- * @returns {Promise<Object>} { jobId, srcKey, enhancedKey, enhancedUrl, state, duration }
- */
-module.exports.enhanceVideo = async (params) => {
-  const COS = require('cos-nodejs-sdk-v5');
-  const { cosInstance, cfg } = cos;
-  const {
-    srcKey,
-    options = {},
-  } = params;
-
-  if (!srcKey) throw new Error('enhanceVideo: srcKey 不能为空');
-
-  // ---- 默认值合并 ----
-  const opt = {
-    superResVersion: 'Enhance',
-    superResResolution: '1080',
-    detailStrength: '80',        // 0-100，80=强细节恢复（羽毛球运动模糊改善明显）
-    colorSaturation: '105',     // 0-300，100=不变，105=微提5%，避免色彩过艳
-    colorContrast: '50',        // 0-100，50=不变，不额外拉对比度避免发白
-    denoiseType: 'Weak',        // Weak / Strong
-    outWidth: '1920',           // 输出 1080P
-    outHeight: '1080',
-    outFps: '30',
-    outBitrate: '5000',         // 1080P 给 5Mbps，保证画质
-    pollInterval: 8000,
-    pollTimeout: 30 * 60 * 1000,
-    ...options,
-  };
-
-  // ---- 输出路径：enhanced_ 前缀 ----
-  const ext = path.extname(srcKey) || '.mp4';
-  const baseName = path.basename(srcKey, ext);
-  const enhancedKey = `badm/enhanced_${baseName}${ext}`;
-
-  // ---- 构建 CI 任务 XML ----
-  const body = COS.util.json2xml({
-    Request: {
-      Tag: 'VideoEnhance',
-      Input: { Object: srcKey },
-      Operation: {
-        VideoEnhance: {
-          Transcode: {
-            Container: { Format: 'mp4' },
-            Video: {
-              Codec: 'H.264',
-              Width: opt.outWidth,
-              Height: opt.outHeight,
-              Fps: opt.outFps,
-              Bitrate: opt.outBitrate,
-            },
-            Audio: {
-              Codec: 'AAC',
-              Bitrate: '128',
-              Samplerate: '44100',
-              Channels: '2',
-            },
-          },
-          SuperResolution: {
-            Enable: 'true',
-            Version: opt.superResVersion,
-            Resolution: opt.superResResolution,
-          },
-          DetailEnhance: {
-            Enable: 'true',
-            Strength: opt.detailStrength,
-          },
-          ColorEnhance: {
-            Enable: 'true',
-            Saturation: opt.colorSaturation,
-            Contrast: opt.colorContrast,
-          },
-          Denoise: {
-            Enable: 'true',
-            Type: opt.denoiseType,
-          },
-        },
-        Output: {
-          Region: cfg.region,
-          Bucket: cfg.bucket,
-          Object: enhancedKey,
-        },
-      },
-    },
-  });
-
-  // ---- 提交任务 ----
-  const submitRes = await new Promise((resolve, reject) => {
-    cosInstance.request({
-      Method: 'POST',
-      Key: 'jobs',
-      Url: `https://${cfg.bucket}.ci.${cfg.region}.myqcloud.com/jobs`,
-      Body: body,
-      ContentType: 'application/xml',
-    }, (err, data) => {
-      if (err) reject(err);
-      else resolve(data);
-    });
-  });
-
-  const jobId = submitRes.Response?.JobsDetail?.JobId;
-  if (!jobId) throw new Error('enhanceVideo: 提交任务失败，未返回 JobId');
-
-  // ---- 轮询等待完成 ----
-  const startTime = Date.now();
-  let jobDetail = null;
-  let pollCount = 0;
-
-  console.log(`🎬 已提交增强任务, JobId: ${jobId}, 开始轮询...`);
-
-  while (true) {
-    await new Promise(r => setTimeout(r, opt.pollInterval));
-    pollCount++;
-    const elapsed = Math.floor((Date.now() - startTime) / 1000);
-
-    const detailRes = await new Promise((resolve, reject) => {
-      cosInstance.request({
-        Method: 'GET',
-        Key: `jobs/${jobId}`,
-        Url: `https://${cfg.bucket}.ci.${cfg.region}.myqcloud.com/jobs/${jobId}`,
-      }, (err, data) => {
-        if (err) reject(err);
-        else resolve(data);
-      });
-    });
-
-    jobDetail = detailRes.Response.JobsDetail;
-    const progress = jobDetail.Progress || '--';
-
-    process.stdout.write(`\r  ⏳ 处理中... [${elapsed}s] 进度: ${progress}%   `);
-
-    if (jobDetail.State === 'Success') {
-      console.log(`\n✅ 增强完成！耗时: ${Math.floor((Date.now() - startTime) / 1000)}s`);
-      break;
-    }
-    if (jobDetail.State === 'Failed') {
-      console.log(`\n❌ 增强失败`);
-      throw new Error(`enhanceVideo: 任务失败 - ${jobDetail.Message || '未知错误'}`);
-    }
-    if (Date.now() - startTime > opt.pollTimeout) {
-      console.log(`\n⏰ 轮询超时`);
-      throw new Error(`enhanceVideo: 任务超时 (${opt.pollTimeout}ms), JobId: ${jobId}`);
-    }
-  }
-
-  return {
-    jobId,
-    srcKey,
-    enhancedKey,
-    enhancedUrl: `https://${cfg.bucket}.cos.${cfg.region}.myqcloud.com/${enhancedKey}`,
-    state: jobDetail.State,
-    duration: jobDetail.Duration || null,
-  };
-};
-
-
-/**
- * 去除人声（CI 人声分离 VoiceSeparate）
+/**  * 去除人声（CI 人声分离 VoiceSeparate）
  * @param {Object} params
  * @param {string} params.srcKey - COS 上的 mp3（剪映分离的解说音轨）
  * @param {Object} [params.options]
@@ -917,7 +741,6 @@ module.exports.removeVocals = async (params) => {
     },
   });
 
-  // ---- 提交任务（和你 enhanceVideo 完全一致）----
   const submitRes = await new Promise((resolve, reject) => {
     cosInstance.request({
       Method: 'POST',
@@ -962,8 +785,7 @@ module.exports.removeVocals = async (params) => {
 
 
 
-/**
- * 腾讯云 TTS 文本转语音（羽毛球人物传专用版）
+/**  * 腾讯云 TTS 文本转语音（羽毛球人物传专用版）
  * @param {Object} params
  * @param {string} params.text - 要合成的文本（单次最多3000字）
  * @param {Object} [params.options] - 可选覆盖参数
@@ -1084,20 +906,195 @@ module.exports.tts = async (params) => {
 
 
 
+/**
+ * 腾讯云 TRTC 对话式 TTS（非流式）- 日语文字转语音
+ * 模型: flow_02_turbo（拟人度高）
+ */
+module.exports.ttsJapaneseByTRTC = async function (text, options = {}) {
+  const crypto = require('crypto');
+  const { cosInstance, cfg } = cos;
+
+  // ---- TC3 签名 ----
+  function signTC3(secretKey, date, service, stringToSign) {
+    const kDate = crypto.createHmac('sha256', 'TC3' + secretKey).update(date).digest();
+    const kService = crypto.createHmac('sha256', kDate).update(service).digest();
+    const kSigning = crypto.createHmac('sha256', kService).update('tc3_request').digest();
+    return crypto.createHmac('sha256', kSigning).update(stringToSign).digest('hex');
+  }
+
+  // ---- 非流式调用 TextToSpeech ----
+  async function callTRTCTextToSpeech(body, secretId, secretKey) {
+    const endpoint = 'trtc.tencentcloudapi.com';
+    const action = 'TextToSpeech';
+    const version = '2019-07-22';
+    const service = 'trtc';
+    const region = 'ap-guangzhou';
+
+    const payload = JSON.stringify(body);
+    const timestamp = Math.floor(Date.now() / 1000);
+    const date = new Date(timestamp * 1000).toISOString().slice(0, 10);
+    const hashedPayload = crypto.createHash('sha256').update(payload).digest('hex');
+
+    const canonicalRequest = [
+      'POST', '/', '',
+      `content-type:application/json; charset=utf-8\nhost:${endpoint}\n`,
+      'content-type;host',
+      hashedPayload,
+    ].join('\n');
+
+    const credentialScope = `${date}/${service}/tc3_request`;
+    const hashedCanonical = crypto.createHash('sha256').update(canonicalRequest).digest('hex');
+    const stringToSign = `TC3-HMAC-SHA256\n${timestamp}\n${credentialScope}\n${hashedCanonical}`;
+    const signature = signTC3(secretKey, date, service, stringToSign);
+    const authorization = `TC3-HMAC-SHA256 Credential=${secretId}/${credentialScope}, SignedHeaders=content-type;host, Signature=${signature}`;
+
+    const res = await fetch(`https://${endpoint}`, {
+      method: 'POST',
+      headers: {
+        'Authorization': authorization,
+        'Content-Type': 'application/json; charset=utf-8',
+        'Host': endpoint,
+        'X-TC-Action': action,
+        'X-TC-Version': version,
+        'X-TC-Region': region,
+        'X-TC-Timestamp': timestamp.toString(),
+      },
+      body: payload,
+    });
+
+    const resText = await res.text();
+    if (!res.ok) {
+      console.error('🚨 API 错误原始返回:', resText.slice(0, 500));
+      throw new Error(`API 请求失败: ${res.status} ${resText.slice(0, 200)}`);
+    }
+
+    let json;
+    try {
+      json = JSON.parse(resText);
+    } catch (e) {
+      console.error('🚨 返回非 JSON:', resText.slice(0, 500));
+      throw new Error('接口返回无法解析为 JSON');
+    }
+
+    if (json.Response?.Error) {
+      throw new Error(`TTS 业务错误: ${json.Response.Error.Code} - ${json.Response.Error.Message}`);
+    }
+
+    return json.Response;
+  }
+
+  // ---- 参数校验 ----
+  if (!text) throw new Error('ttsJapaneseByTRTC: text 不能为空');
+  if (text.length > 2000) {
+    console.warn(`⚠️ 文本 ${text.length} 字符，超过 2000 上限，自动截断`);
+    text = text.slice(0, 2000);
+  }
+
+  const opt = {
+    voiceId: 'v-female-R2s4N9qJ',
+    model: 'flow_02_turbo',
+    language: 'ja',
+    speed: 1,
+    volume: 1.0,
+    pitch: 0,
+    ...options,
+  };
+
+  // 文件名
+  const safeText = text
+    .replace(/[\r\n\t]+/g, ' ')
+    .replace(/[\/\\?*:|"<>]/g, '')
+    .trim()
+    .slice(0, 10) || `tts_ja_${Date.now()}`;
+
+  // const preKey = `badm/${safeText}`
+  const preKey = `badm/${opt.voiceId}_${safeText}`
+  let counter = 2;
+  while (true) {
+    const exists = await new Promise(resolve => {
+      cosInstance.headObject({ Bucket: cfg.bucket, Region: cfg.region, Key: `${preKey}.mp3` },
+        err => resolve(!err));
+    });
+    if (!exists) break;
+    preKey = `${preKey}_counter`
+    counter++;
+  }
+  const audioKey = `${preKey}.mp3`
+
+  // 密钥
+  const { SDKAppID } = util.getConfig('default.trtc');
+  const secretId = cfg.secretId;
+  const secretKey = cfg.secretKey;
+
+  if (!secretId || !secretKey) throw new Error('缺少腾讯云主账号 secretId / secretKey');
+  if (!SDKAppID) throw new Error('缺少 TRTC SDKAppID');
+
+  const preview = text.replace(/\s+/g, ' ').slice(0, 30);
+  console.log(`🎙️ [TRTC-JA] 合成中: "${preview}..." → ${audioKey}`);
+  console.log(`   🎯 模型: ${opt.model} | 音色: ${opt.voiceId} | 语速: ${opt.speed}`);
+
+  // ---- 调用接口 ----
+  const response = await callTRTCTextToSpeech({
+    SdkAppId: parseInt(SDKAppID),
+    Text: text,
+    Language: opt.language,
+    Model: opt.model,
+    Voice: {
+      VoiceId: opt.voiceId,
+      Speed: opt.speed,
+      Volume: opt.volume,
+      Pitch: opt.pitch || 0,
+    },
+    AudioFormat: {                    // ✅ 加：指定输出 mp3
+      Format: 'mp3',
+      SampleRate: 24000,
+      Bitrate: 128,
+    },
+  }, secretId, secretKey);
+
+  // ---- 解析响应 ----
+  if (!response.Audio) {
+    console.error('🚨 响应结构:', JSON.stringify(response).slice(0, 500));
+    throw new Error('未找到 Audio 字段');
+  }
+
+  const audioBuffer = Buffer.from(response.Audio, 'base64');
+  if (audioBuffer.length === 0) throw new Error('音频数据为空');
+
+  // ---- 上传 COS ----
+  await new Promise((resolve, reject) => {
+    cosInstance.putObject({
+      Bucket: cfg.bucket,
+      Region: cfg.region,
+      Key: audioKey,
+      Body: audioBuffer,
+      ContentType: 'audio/mpeg',     // ✅ 改：audio/wav → audio/mpeg
+    }, err => err ? reject(err) : resolve());
+  });
+
+  console.log(`✅ 已上传 COS: ${audioKey} (${(audioBuffer.length / 1024).toFixed(1)} KB)`);
+
+  return {
+    audioKey,
+    audioUrl: `https://${cfg.bucket}.cos.${cfg.region}.myqcloud.com/${audioKey}`,
+    sizeBytes: audioBuffer.length,
+    voiceId: opt.voiceId,
+    model: opt.model,
+  };
+};
+
+
+
+
+
 const init = async () => {
   setTimeout(async () => {
     // this.clearImgs({ showDetails: false, id: {start: 2000, end: 2500}, isExec: false }) // 清理图片
     // this.countNouseFiles()  // 统计多少垃圾图片
     // this.vipExpiredHandle(0, false) // 处理过期会员，会把产品mode 置 1
     // this.resetProductMode(682) // 把产品mode 置 0
-    // this.handleLogsToHtml(100) // 统计日志
+    // this.handleLogsToHtml(10) // 统计日志
     // console.log(1)
-    // try {
-    //   const result = await this.enhanceVideo({srcKey: 'badm/0726_1.mp4', options: {}})
-    //   console.log(result, 'rrr')
-    // } catch(e) {
-    //   console.log(e)
-    // }
 
     // try {
     //   const result = await this.removeVocals({srcKey: `badm/0801.MP3`})
@@ -1105,16 +1102,30 @@ const init = async () => {
     //   console.log(e, 'err')
     // }
 
-  //   try {
-  //     const result = await this.tts({
-  //       text: `接连遭遇十场国际赛事失利，频频首轮出局。
-  // 那时的他太想证明自己了，可越是渴望赢，手脚就越发僵硬
-  // 这种急于求成的心态，反而把他一步步推向了更惨烈的溃败`,
-  //       // options: {}
-  //     })
-  //   } catch(e) {
-  //     console.log(e)
-  //   }
+  try {
+  //   await this.tts({
+  //       text: `如果你也喜欢这位台湾新生代羽球一哥，欢迎点赞、转发，让更多人了解俊易的传奇故事
+  // 最后，如果觉得本期视频还不错，不妨点个订阅。
+  // 你们的支持，就是我更新最大的动力，我们下期见！`,
+  //   })
+
+
+
+    // const ret = await this.ttsJapaneseByTRTC(`2026年全英オープン決勝、林俊易対ラクシャ・セン`);
+  //   const ret = await this.ttsJapaneseByTRTC(`面对中国羽球一哥顶级的控制防线，最硬核的破局方式是什么？
+  // 答案是：轰碎它！
+  // 在2023 年泰国大师赛男单半决赛，赛前没人看好林俊易
+  // 所有人都在期待中国队石宇奇挺进决赛
+  // 但比赛一开打，俊易就用极具侵略性的打法颠覆了整场局势
+  // 哪怕是以网前技术著称的石宇奇，面对俊易也占不到便宜，频频被迫起高球
+  // 而俊易见高就杀！一记记无解重炮，把石宇奇直接轰瘫在地
+  // 最终以 2比0 直落两局，横扫中国羽球一哥！`, {
+  //     language: 'zh',
+  //     voiceId: 'v-female-H6p3LxP8'
+  //   });
+  } catch(e) {
+    console.log(e)
+  }
   }, 0);
 }
 
