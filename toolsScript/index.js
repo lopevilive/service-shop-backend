@@ -1007,8 +1007,8 @@ module.exports.ttsJapaneseByTRTC = async function (text, options = {}) {
     .trim()
     .slice(0, 10) || `tts_ja_${Date.now()}`;
 
-  // const preKey = `badm/${safeText}`
-  const preKey = `badm/${opt.voiceId}_${safeText}`
+  const preKey = `badm/${safeText}`
+  // const preKey = `badm/${opt.voiceId}_${safeText}`
   let counter = 2;
   while (true) {
     const exists = await new Promise(resolve => {
@@ -1092,8 +1092,8 @@ const init = async () => {
     // this.clearImgs({ showDetails: false, id: {start: 2000, end: 2500}, isExec: false }) // 清理图片
     // this.countNouseFiles()  // 统计多少垃圾图片
     // this.vipExpiredHandle(0, false) // 处理过期会员，会把产品mode 置 1
-    // this.resetProductMode(682) // 把产品mode 置 0
-    // this.handleLogsToHtml(10) // 统计日志
+    // this.resetProductMode(212) // 把产品mode 置 0
+    // this.handleLogsToHtml(30) // 统计日志
     // console.log(1)
 
     // try {
@@ -1112,17 +1112,15 @@ const init = async () => {
 
 
     // const ret = await this.ttsJapaneseByTRTC(`2026年全英オープン決勝、林俊易対ラクシャ・セン`);
-  //   const ret = await this.ttsJapaneseByTRTC(`面对中国羽球一哥顶级的控制防线，最硬核的破局方式是什么？
-  // 答案是：轰碎它！
-  // 在2023 年泰国大师赛男单半决赛，赛前没人看好林俊易
-  // 所有人都在期待中国队石宇奇挺进决赛
-  // 但比赛一开打，俊易就用极具侵略性的打法颠覆了整场局势
-  // 哪怕是以网前技术著称的石宇奇，面对俊易也占不到便宜，频频被迫起高球
-  // 而俊易见高就杀！一记记无解重炮，把石宇奇直接轰瘫在地
-  // 最终以 2比0 直落两局，横扫中国羽球一哥！`, {
-  //     language: 'zh',
-  //     voiceId: 'v-female-H6p3LxP8'
-  //   });
+    // const ret = await this.ttsJapaneseByTRTC(`面对中国羽球一哥顶级的控制防线`, {
+    //   language: 'zh',
+    //   voiceId: 'v-female-H6p3LxP8'
+    // });
+
+    const ret = await this.ttsJapaneseByTRTC(`山口が韓悦のフォア奥を何度も攻め立て、エラーを誘い出します！`, {
+      language: 'ja',
+      voiceId: 'v-female-W6n8KxL5'
+    });
   } catch(e) {
     console.log(e)
   }
