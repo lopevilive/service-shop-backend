@@ -329,6 +329,64 @@ module.exports.getProduct = async (req ,cb) => {
           }
         }
       }
+
+      const limiter = new util.SmartLimiter({ maxConcurrent: 5, maxPerSecond: 30 });
+      const tasks = data.map(item => {
+        return limiter.run(async () => {
+          let { url } = item;
+          url = url.split(',')[0];
+          const imgKey = url.match(/\/([^/]+)$/)[1];
+          let imgData = await dao.list('AlbumImgInfo', { columns: { imgKey, shopId } });
+
+          if (!imgData.length) {
+            // 需要从 COS 拉取
+            let needRetry = false;
+            try {
+              const imgInfo = await cos.getImageInfo(imgKey);
+              await dao.create('AlbumImgInfo', {
+                imgKey,
+                shopId,
+                add_time: util.getNowTime(),
+                imgInfo: JSON.stringify({
+                  w: imgInfo.width,
+                  h: imgInfo.height,
+                  s: imgInfo.size
+                })
+              });
+              item.imgw = imgInfo.width;
+              item.imgh = imgInfo.height;
+            } catch (e) {
+              item.imgw = 0;
+              item.imgh = 0;
+              if (e.code === 'ER_DUP_ENTRY' || e.code === '23505') {
+                needRetry = true;
+              } else {
+                dao.create('XaCache', {dataType: 52, add_time: util.getNowTime(), content: JSON.stringify({
+                  shopId, msg: e.message || '未知错误'
+                })})
+              }
+            }
+
+            if (needRetry) {
+              try {
+                imgData = await dao.list('AlbumImgInfo', { columns: { imgKey, shopId } });
+              } catch (err) { }
+            }
+          }
+
+          if (imgData.length) {
+            try {
+              const imgDbInfo = JSON.parse(imgData[0].imgInfo);
+              item.imgw = imgDbInfo.w;
+              item.imgh = imgDbInfo.h;
+            } catch (e) {
+              item.imgw = 0;
+              item.imgh = 0;
+            }
+          }
+        });
+      });
+      const results = await Promise.allSettled(tasks);
     }
 
     const ret = {list: data}

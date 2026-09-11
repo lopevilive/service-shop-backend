@@ -26,6 +26,7 @@ class DbManage {
       new EntitySchema(require(path.join(process.cwd(),"entity",'ZaUser'))),
       new EntitySchema(require(path.join(process.cwd(),"entity",'XaCache'))),
       new EntitySchema(require(path.join(process.cwd(),"entity",'AlbumVirtualOrder'))),
+      new EntitySchema(require(path.join(process.cwd(),"entity",'AlbumImgInfo'))),
     ]
     this.connection = this.connectionManager.create({...this.db_config, entities: this.entities})
     this.timer = null

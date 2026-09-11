@@ -530,3 +530,32 @@ module.exports.downloadFile = async (key, localPath) => {
 };
 
 
+module.exports.getImageInfo = function (fileName) {
+  return new Promise((resolve, reject) => {
+    module.exports.cosInstance.request({
+      Bucket: config.bucket,
+      Region: config.region,
+      Method: 'GET',
+      Key: fileName,
+      Action: 'imageInfo',     // 固定值，不是 Query
+      RawBody: true            // 固定值，返回原始 JSON 字符串
+    }, (err, data) => {
+      if (err) return reject(err);
+      try {
+        const info = JSON.parse(data.Body || '{}');
+        resolve({
+          width: parseInt(info.width || 0, 10),
+          height: parseInt(info.height || 0, 10),
+          format: info.format || '',
+          size: parseInt(info.size || 0, 10),
+          md5: info.md5 || '',
+          frame_count: parseInt(info.frame_count || 1, 10)
+        });
+      } catch (e) {
+        reject(e);
+      }
+    });
+  });
+};
+
+

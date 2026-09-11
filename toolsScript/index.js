@@ -1117,10 +1117,10 @@ const init = async () => {
     //   voiceId: 'v-female-H6p3LxP8'
     // });
 
-    const ret = await this.ttsJapaneseByTRTC(`山口が韓悦のフォア奥を何度も攻め立て、エラーを誘い出します！`, {
-      language: 'ja',
-      voiceId: 'v-female-W6n8KxL5'
-    });
+    // const ret = await this.ttsJapaneseByTRTC(`山口が韓悦のフォア奥を何度も攻め立て、エラーを誘い出します！`, {
+    //   language: 'ja',
+    //   voiceId: 'v-female-W6n8KxL5'
+    // });
   } catch(e) {
     console.log(e)
   }

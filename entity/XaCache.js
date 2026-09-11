@@ -49,6 +49,7 @@ module.exports = {
      * 42-图册/批量上传任务重复执行
      * 
      * 51-图册/隐藏价格逻辑报错
+     * 52-图册/获取图片宽高报错
      * 
      */
     dataType: {type: 'int', index: true},
