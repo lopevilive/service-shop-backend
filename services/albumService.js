@@ -108,6 +108,8 @@ module.exports.productMod = async (req ,cb) => {
   const {shopInfo: {status}, userInfo} = req
   const params = req.body
   const { id, shopId } = params
+  delete params.imgw
+  delete params.imgh
 
   if (status === 1) {
     cb(new Error('未知错误，请重启小程序*'))
