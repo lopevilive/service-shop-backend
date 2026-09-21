@@ -174,12 +174,7 @@ module.exports.getProduct = async (req ,cb) => {
   try {
     let shopInfo = null
     let userInfo = null
-    if (shopId) {
-      const res = await dao.list('Shop', {columns:  {id: shopId}, only: [
-        'userId', 'level', 'expiredTime', 'id', 'hidePrice', 'openInH5'
-      ]})
-      shopInfo = res[0]
-    }
+    let isAdmin = false
     const {headers: {authorization}} = req
     if (authorization) {
       try {
@@ -189,6 +184,32 @@ module.exports.getProduct = async (req ,cb) => {
           if (userInfoRet.length === 1) userInfo = userInfoRet[0]
         }
       } catch(e) {}
+    }
+
+    if (shopId) {
+      const res = await dao.list('Shop', {columns:  {id: shopId}, only: [
+        'userId', 'level', 'expiredTime', 'id', 'hidePrice', 'openInH5'
+      ]})
+      shopInfo = res[0]
+      while(true) {
+        if (!userInfo) break
+        if (!userInfo.id) break
+        if (shopInfo.userId === userInfo.id) { // 创建者
+          isAdmin = true
+          break
+        }
+        const staffList = await dao.list('Staff',{ columns: {userId: userInfo.id, shopId, type: 1, status: 4}, only: ['id'] })
+        if (staffList.length) { // 管理员
+          isAdmin = true
+          break
+        }
+        const sups = util.getConfig('album.superAdmin')
+        if (sups.includes(userInfo.id)) {
+          isAdmin = true
+          break
+        }
+        break
+      }
     }
     
     let openInH5 = false
@@ -201,23 +222,8 @@ module.exports.getProduct = async (req ,cb) => {
       'Product.specDetials', 'Product.descUrl', 'Product.isMulType', 'Product.videoUrl', 'Product.videoStatus',
       'Product.videoCover'
     ]
-    if (shopId) {
-      while(true) { // 这里判断是否返回内部参数
-        if (!userInfo) break
-        if (!userInfo.id) break
-        if (shopInfo.userId === userInfo.id) { // 创建者
-          selectFields.push('Product.specs')
-          break
-        }
-        const staffList = await dao.list('Staff',{ columns: {userId: userInfo.id, shopId, type: 1, status: 4}, only: ['id'] })
-        if (staffList.length) { // 管理员
-          selectFields.push('Product.specs')
-          break
-        }
-        const sups = util.getConfig('album.superAdmin')
-        if (sups.includes(userInfo.id)) selectFields.push('Product.specs');
-        break
-      }
+    if (isAdmin) {
+      selectFields.push('Product.specs')
     }
     queryBuild.select(selectFields)
     queryBuild.where('1 = 1')
@@ -244,7 +250,16 @@ module.exports.getProduct = async (req ,cb) => {
     }
     
     if ([0,1].includes(status)) queryBuild.andWhere('Product.status = :status', {status})
-    if (searchStr) queryBuild.andWhere('Product.desc LIKE :searchStr', {searchStr: `%${searchStr}%`})
+    if (searchStr) {
+      if (isAdmin) { // 管理员：desc 或 specs 任一匹配即可
+        queryBuild.andWhere(new Brackets((qb) => {
+          qb.orWhere('Product.desc LIKE :descSearch', {descSearch: `%${searchStr}%`})
+            .orWhere('Product.specs LIKE :specsSearch', {specsSearch: `%${searchStr}%`})
+        }))
+      } else {
+        queryBuild.andWhere('Product.desc LIKE :searchStr', {searchStr: `%${searchStr}%`})
+      }
+    }
     const sizeLimit = pageSize || 100;
     queryBuild.limit(sizeLimit)
     if (currPage > 0) queryBuild.offset(currPage * sizeLimit)
