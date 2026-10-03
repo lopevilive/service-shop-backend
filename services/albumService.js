@@ -1370,13 +1370,10 @@ module.exports.report = async (req, cb) => {
   const {field, shopId, isAdmin} = req.body
   try {
     const ts = util.getTodayTs()
-    const queryBuild = await dao.createQueryBuilder('CusLogs');
-    queryBuild.select("COUNT(*)", "total");
-    queryBuild.where("upd_time = :ts", { ts });
-    const result = await queryBuild.getRawOne();
-    const total = Number(result.total || 0);
-    if (total === 0) { // 插入初始数据
+    try {
       await dao.create('CusLogs', { logType: 4, content: '{}', add_time: util.getNowTime(), upd_time: ts })
+    } catch(e) {
+      if (e.code !== 'ER_DUP_ENTRY') throw e
     }
 
     const manager = await dao.getManager()
