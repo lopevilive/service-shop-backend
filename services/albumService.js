@@ -1400,6 +1400,96 @@ module.exports.report = async (req, cb) => {
   }
 }
 
+/**
+ * body.field = admin.member
+ * 
+ */
+module.exports.reportV2 = async (req, cb) => {
+  const {shopId, field} = req.body
+
+  function increment(obj, key) {
+    const parts = key.split('.')
+    let current = obj
+
+    // 逐层创建嵌套结构（走到倒数第二层）
+    for (let i = 0; i < parts.length - 1; i++) {
+      const part = parts[i]
+      if (current[part] === undefined || current[part] === null || typeof current[part] !== 'object') {
+        current[part] = {}
+      }
+      current = current[part]
+    }
+
+    // 最后一层：+1 或初始化为 1
+    const lastKey = parts[parts.length - 1]
+    if (typeof current[lastKey] !== 'number') {
+      current[lastKey] = 1
+    } else {
+      current[lastKey] += 1
+    }
+
+    return obj
+  }
+
+  try {
+    while(true) {
+      if (!shopId) break
+      if (!field) break
+      let str = field.replace(/\s+/g, '')
+      if (!str) break
+      await dao.create('CusLogs', {logType: 105, content: JSON.stringify({shopId, field: str}), add_time: util.getNowTime()})
+      await dao.withLock('report_lock', 0, async () => {
+        const ts = util.getTodayTs()
+        const dataList = await dao.list('CusLogs', {columns: {logType: 105}, take: 1000})
+        if (!dataList.length) return
+        try {
+          await dao.create('CusLogs', {logType: 4, content: '{}', add_time: util.getNowTime(), logTs: ts})
+        } catch(e) {
+          if (e.code !== 'ER_DUP_ENTRY') throw e
+        }
+        let [todayLogs] = await dao.list('CusLogs', {columns: {logType: 4, logTs: ts}})
+        const content = JSON.parse(todayLogs.content)
+        for (const dataItem of dataList) {
+          const dataItemContent = JSON.parse(dataItem.content)
+          const {shopId, field} = dataItemContent
+          if (!shopId || !field) continue
+          increment(content, `${shopId}.${field}`)
+        }
+        await dao.update('CusLogs', todayLogs.id, {content: JSON.stringify(content), upd_time: util.getNowTime()})
+        let ids = dataList.map((item) => item.id)
+        await dao.delete('CusLogs', ids)
+
+        // 下面处理审核次数记录 --s
+        const countTypeList = [101, 102, 103, 104]
+        const countTypeMap = {101: 1, 102: 2, 103: 3, 104: 6}
+        for (const typeId of countTypeList) {
+          const countList = await dao.list('CusLogs', {columns: {logType: typeId}})
+          if (!countList.length) continue
+          let sum = 0
+          let ids = []
+          for (const {id} of countList) {
+            sum += 1
+            ids.push(id)
+          }
+          const realType = countTypeMap[typeId]
+          const [countInfo] = await dao.list('CusLogs', {columns: {logType: realType}})
+          if (!countInfo) continue
+          let countContent = Number(countInfo.content) + sum
+          await dao.update('CusLogs', countInfo.id, {content: String(countContent), upd_time: util.getNowTime()})
+          await dao.delete('CusLogs', ids)
+        }
+        // 下面处理审核次数记录 --e
+        
+      })
+      break
+    }
+    cb(null)
+  } catch(e) {
+    cb(e)
+  }
+
+}
+
 // 这里处理消息推送配置
 module.exports.wxMsgVerify = async (req, cb) => {
   try {

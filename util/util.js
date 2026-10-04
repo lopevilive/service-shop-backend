@@ -446,20 +446,10 @@ module.exports.SmartLimiter = class SmartLimiter {
 module.exports.secCheckCount = async (logType) => {
   try {
     const dao = require(path.join(process.cwd(),"dao/DAO"));
-    const manager = await dao.getManager()
-    await manager.transaction(async (transactionalEntityManager) => {
-      const instance = await transactionalEntityManager.createQueryBuilder('CusLogs', 'CusLogs');
-      instance.setLock('pessimistic_write');
-      instance.where('CusLogs.logType = :logType', {logType});
-      const data = await instance.getOne()
-      if (!data) {
-        await transactionalEntityManager.save('CusLogs', { logType, add_time: this.getNowTime(), content: '1'})
-      } else {
-        const {id, content} = data
-        let count = Number(content) + 1
-        await transactionalEntityManager.update('CusLogs', {id}, {content: String(count), upd_time: this.getNowTime()})
-      }
-    })
+    const typeMap = {1: 101, 2: 102, 3: 103, 6: 104}
+    const realType = typeMap[logType]
+    if (!realType) return
+    await dao.create('CusLogs', {logType: realType, add_time: this.getNowTime()})
   } catch(e) {
     console.log(e)
   }

@@ -107,3 +107,30 @@ module.exports.getManager = async ()  => {
   return db.connection.manager
 }
 
+
+module.exports.withLock = async function(lockName, timeout = 0, fn) {
+  const connection = db.connection  // 你的 TypeORM 连接
+  const queryRunner = connection.createQueryRunner()
+  try {
+    await queryRunner.connect()
+    // 在同一个连接上拿锁
+    const result = await queryRunner.query(
+      `SELECT GET_LOCK(?, ?) AS locked`,
+      [lockName, timeout]
+    )
+    const locked = Number(result[0].locked)
+    if (locked !== 1) {
+      return false
+    }
+    try {
+      await fn()
+      return true
+    } finally {
+      // 在同一个连接上释放
+      await queryRunner.query(`SELECT RELEASE_LOCK(?)`, [lockName])
+    }
+  } finally {
+    await queryRunner.release() // 归还连接
+  }
+}
+
