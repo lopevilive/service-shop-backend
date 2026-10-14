@@ -1084,6 +1084,49 @@ module.exports.ttsJapaneseByTRTC = async function (text, options = {}) {
 };
 
 
+function mergeAdd(target, source, mutate = false) {
+  const result = mutate ? target : { ...target }
+
+  for (const key in source) {
+    if (source[key] === null || source[key] === undefined) continue
+
+    const sourceVal = source[key]
+    const targetVal = result[key]
+
+    if (typeof sourceVal === 'number' && typeof targetVal === 'number') {
+      // 都是数字 → 相加
+      result[key] = targetVal + sourceVal
+
+    } else if (
+      typeof sourceVal === 'object' && !Array.isArray(sourceVal) &&
+      typeof targetVal === 'object' && !Array.isArray(targetVal)
+    ) {
+      // 都是对象 → 递归合并
+      result[key] = mergeAdd(targetVal, sourceVal, mutate)
+
+    } else if (targetVal === undefined) {
+      // target 没有这个 key → 直接赋值
+      result[key] = sourceVal
+
+    } else {
+      // 类型不一致（比如 target 是字符串 source 是数字）→ 覆盖
+      result[key] = sourceVal
+    }
+  }
+
+  return result
+}
+
+const test = async () => {
+  const [rawData] = await dao.list('CusLogs', {columns: {id: 16833}})
+  const [targetData] = await dao.list('CusLogs', {columns: {id: 16735}})
+  const rawContent = JSON.parse(rawData.content)
+  const targetContent = JSON.parse(targetData.content)
+  const newData = mergeAdd(rawContent, targetContent)
+  await dao.update('CusLogs', targetData.id, {content: JSON.stringify(newData)})
+  console.log(newData, 'asd')
+}
+
 
 
 
@@ -1093,7 +1136,7 @@ const init = async () => {
     // this.countNouseFiles()  // 统计多少垃圾图片
     // this.vipExpiredHandle(0, false) // 处理过期会员，会把产品mode 置 1
     // this.resetProductMode(212) // 把产品mode 置 0
-    // this.handleLogsToHtml(30) // 统计日志
+    // this.handleLogsToHtml(90) // 统计日志
     // console.log(1)
 
     // try {
@@ -1117,10 +1160,12 @@ const init = async () => {
     //   voiceId: 'v-female-H6p3LxP8'
     // });
 
-    // const ret = await this.ttsJapaneseByTRTC(`山口が韓悦のフォア奥を何度も攻め立て、エラーを誘い出します！`, {
-    //   language: 'ja',
-    //   voiceId: 'v-female-W6n8KxL5'
-    // });
+    const ret = await this.ttsJapaneseByTRTC(`この試合を通して、田中湧士はネット前の技術と攻撃力で、より上回るプレーを見せました。
+      日本選手の活躍を応援してくださる方は、ぜひチャンネル登録をお願いします！
+      これからも日本選手の熱戦をお届けします。それでは、また次回！`, {
+      language: 'ja',
+      voiceId: 'v-female-W6n8KxL5'
+    });
   } catch(e) {
     console.log(e)
   }
