@@ -28,7 +28,14 @@ class DbManage {
       new EntitySchema(require(path.join(process.cwd(),"entity",'AlbumVirtualOrder'))),
       new EntitySchema(require(path.join(process.cwd(),"entity",'AlbumImgInfo'))),
     ]
-    this.connection = this.connectionManager.create({...this.db_config, entities: this.entities})
+    this.connection = this.connectionManager.create({
+      ...this.db_config, entities: this.entities,
+      extra: {
+        connectionLimit: 2,
+        waitForConnections: true,
+        queueLimit: 0,
+      }
+    })
     this.timer = null
     this.timeOut = 60 // 超时断开连接 单位秒
   }
