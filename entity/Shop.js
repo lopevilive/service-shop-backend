@@ -35,6 +35,7 @@ module.exports = {
     homePageCfg: {type: 'text', nullable: true}, // 首页装修配置信息
     hidePrice: {type: 'int', default: 0}, // 是否隐藏价格。0-显示、1-隐藏
     openInH5: {type: 'int', default: 0}, // 是否能通过 h5 访问 0-不允许、1-允许
+    downloadVideo: {type: 'int', default: 0}, // 是否允许游客下载视频，0-不允许、1-允许
     add_time: {type: 'int', nullable: true},
     upd_time: {type: 'int', nullable: true},
   }

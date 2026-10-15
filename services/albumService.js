@@ -42,7 +42,8 @@ module.exports.getShop = async (params ,cb) => {
     'id', 'desc', 'url', 'name', 'area', 'address', 'phone', 'qrcodeUrl', 'business',
     'attrs', 'level', 'status', 'encry', 'waterMark', 'auditing', 'addressStatus',
     'inveExportStatus', 'bannerStatus', 'bannerCfg', 'expiredTime', 'requiredType', 'typeStatus',
-    'forwardPermi', 'typeSideMod', 'specsCfg', 'showContact', 'homePageCfg', 'hidePrice', 'openInH5'
+    'forwardPermi', 'typeSideMod', 'specsCfg', 'showContact', 'homePageCfg', 'hidePrice', 'openInH5',
+    'downloadVideo'
   ]
   cond.take = 100 // 限制数量
   try {
@@ -1479,7 +1480,7 @@ module.exports.reportV2 = async (req, cb) => {
           await dao.delete('CusLogs', ids)
         }
         // 下面处理审核次数记录 --e
-        
+
       })
       break
     }
