@@ -43,7 +43,7 @@ module.exports.getShop = async (params ,cb) => {
     'attrs', 'level', 'status', 'encry', 'waterMark', 'auditing', 'addressStatus',
     'inveExportStatus', 'bannerStatus', 'bannerCfg', 'expiredTime', 'requiredType', 'typeStatus',
     'forwardPermi', 'typeSideMod', 'specsCfg', 'showContact', 'homePageCfg', 'hidePrice', 'openInH5',
-    'downloadVideo'
+    'downloadVideo', 'innerParamsType'
   ]
   cond.take = 100 // 限制数量
   try {
@@ -175,7 +175,8 @@ module.exports.getProduct = async (req ,cb) => {
   try {
     let shopInfo = null
     let userInfo = null
-    let isAdmin = false
+    let isAdmin = false // 是否管理员
+    let isSale = false // 是否分销员
     const {headers: {authorization}} = req
     if (authorization) {
       try {
@@ -189,7 +190,7 @@ module.exports.getProduct = async (req ,cb) => {
 
     if (shopId) {
       const res = await dao.list('Shop', {columns:  {id: shopId}, only: [
-        'userId', 'level', 'expiredTime', 'id', 'hidePrice', 'openInH5'
+        'userId', 'level', 'expiredTime', 'id', 'hidePrice', 'openInH5', 'innerParamsType'
       ]})
       shopInfo = res[0]
       while(true) {
@@ -204,6 +205,10 @@ module.exports.getProduct = async (req ,cb) => {
           isAdmin = true
           break
         }
+        const saleList = await dao.list('Staff',{ columns: {userId: userInfo.id, shopId, type: 2, status: 4}, only: ['id'] })
+        if (saleList.length) { // 分销员
+          isSale = true
+        }
         const sups = util.getConfig('album.superAdmin')
         if (sups.includes(userInfo.id)) {
           isAdmin = true
@@ -213,6 +218,7 @@ module.exports.getProduct = async (req ,cb) => {
       }
     }
     
+    console.log(isSale, 'asd')
     let openInH5 = false
     if (shopInfo && shopInfo.openInH5 === 1) openInH5 = true
     if (!openInH5 && !userInfo) throw new Error('系统繁忙，请稍后重试～')
@@ -223,7 +229,10 @@ module.exports.getProduct = async (req ,cb) => {
       'Product.specDetials', 'Product.descUrl', 'Product.isMulType', 'Product.videoUrl', 'Product.videoStatus',
       'Product.videoCover'
     ]
-    if (isAdmin) {
+    let getInnerParams = false // 是否返回内部参数
+    if (isAdmin) getInnerParams = true
+    if (shopInfo.innerParamsType === 1 && isSale) getInnerParams = true
+    if (getInnerParams) {
       selectFields.push('Product.specs')
     }
     queryBuild.select(selectFields)
@@ -284,25 +293,13 @@ module.exports.getProduct = async (req ,cb) => {
       let needHidePrice = false
       while(true) { // 这里判断是否需要隐藏价格
         if (shopInfo.hidePrice === 0) break // 没开启隐藏价格
-        if (!userInfo) {
+        if (!userInfo || !userInfo.id) {
           needHidePrice = true
           break
         }
-        if (!userInfo.id) {
-          needHidePrice = true
-          break
-        }
-        if (shopInfo.userId === userInfo.id) break // 图册创建者
-        const sups = util.getConfig('album.superAdmin')
-        if (sups.includes(userInfo.id)) break // 超级管理员
-        const query = await dao.createQueryBuilder('Staff', 'Staff')
-        query.select(['Staff.id'])
-        query.where('type in (:...types)', {types: [1,2]})
-        query.andWhere('shopId = :shopId', {shopId});
-        query.andWhere('status = 4');
-        query.andWhere('userId = :userId', {userId: userInfo.id})
-        const list = await query.getMany()
-        if (list.length === 0) needHidePrice = true
+        if (isAdmin) break // 管理员
+        if (isSale) break // 分销员
+        needHidePrice = true
         break
       }
 
@@ -1859,6 +1856,63 @@ module.exports.fetchBatchUploadTask = async (req, cb) => {
     if (data.length === 0) throw new Error('任务不存在')
     const content = JSON.parse(data[0].content)
     cb(null, content)
+  } catch(e) {
+    cb(e)
+  }
+}
+
+module.exports.fetchViewRecord = async (req, cb) => {
+  try {
+    const {body: {shopId, recordType = 1}} = req
+    // recordType:1-今天的记录、2-近7天的记录、3-近30天的记录
+    const daysMap = {1: 1, 2: 7, 3: 30}
+    const days = daysMap[recordType] || 1
+    const todayTs = util.getTodayTs() // 今天0点时间戳，单位：秒
+    const oneDay = 24 * 60 * 60 // 一天的秒数
+    const FIRST_FULL_RECORD_TS = 1792339200 // 首次完整记录的时间，早于此时间戳的日期均返回空对象
+
+    // 生成连续 days 天的时间戳（从最早的一天到今天，升序），
+    // 昨天 = 今天0点 - 24小时，以此类推
+    const logTsList = []
+    for (let i = days - 1; i >= 0; i--) {
+      logTsList.push(todayTs - i * oneDay)
+    }
+
+    // 首次完整记录之前的日期无需查库，直接返回空对象
+    const queryTsList = logTsList.filter((logTs) => logTs >= FIRST_FULL_RECORD_TS)
+    let data = []
+    if (queryTsList.length) {
+      const query = await dao.createQueryBuilder('CusLogs', 'CusLogs')
+      query.select(['CusLogs.id', 'CusLogs.content', 'CusLogs.logTs'])
+      query.where('CusLogs.logTs IN (:...queryTsList)', {queryTsList})
+      query.andWhere('CusLogs.logType = 4')
+      data = await query.getMany()
+    }
+
+    // 按 logTs 建立映射，便于按天对齐
+    const recordMap = {}
+    for (const item of data) {
+      recordMap[item.logTs] = item
+    }
+
+    // 按天输出，某天没有数据时 data 返回空对象，保证返回条数与请求天数一致
+    const ret = logTsList.map((logTs) => {
+      let shopLogs = {}
+      // 首次完整记录之前的日期一律返回空对象
+      if (logTs >= FIRST_FULL_RECORD_TS) {
+        const record = recordMap[logTs]
+        if (record) {
+          try {
+            const contentData = JSON.parse(record.content)
+            shopLogs = contentData[shopId] || {}
+          } catch (e) {
+            shopLogs = {}
+          }
+        }
+      }
+      return { data: shopLogs, logTs }
+    })
+    cb(null, ret)
   } catch(e) {
     cb(e)
   }

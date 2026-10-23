@@ -698,7 +698,7 @@ module.exports.removeVocals = async (params) => {
   const COS = require('cos-nodejs-sdk-v5');
   const { cosInstance, cfg } = cos;
   const { srcKey, options = {} } = params;
-  if (!srcKey) throw new Error('removeVocals: srcKey 不能为空');
+  if (!srcKey) throw new Error('srcKey 不能为空');
 
   const opt = {
     audioMode: 'IsBackground',  // 只出背景音（去人声）
@@ -752,7 +752,7 @@ module.exports.removeVocals = async (params) => {
   });
 
   const jobId = submitRes.Response?.JobsDetail?.JobId;
-  if (!jobId) throw new Error('removeVocals: 未返回 JobId -> ' + JSON.stringify(submitRes));
+  if (!jobId) throw new Error(' 未返回 JobId -> ' + JSON.stringify(submitRes));
 
   // ---- 轮询 ----
   const startTime = Date.now();
@@ -1084,47 +1084,55 @@ module.exports.ttsJapaneseByTRTC = async function (text, options = {}) {
 };
 
 
-function mergeAdd(target, source, mutate = false) {
-  const result = mutate ? target : { ...target }
-
-  for (const key in source) {
-    if (source[key] === null || source[key] === undefined) continue
-
-    const sourceVal = source[key]
-    const targetVal = result[key]
-
-    if (typeof sourceVal === 'number' && typeof targetVal === 'number') {
-      // 都是数字 → 相加
-      result[key] = targetVal + sourceVal
-
-    } else if (
-      typeof sourceVal === 'object' && !Array.isArray(sourceVal) &&
-      typeof targetVal === 'object' && !Array.isArray(targetVal)
-    ) {
-      // 都是对象 → 递归合并
-      result[key] = mergeAdd(targetVal, sourceVal, mutate)
-
-    } else if (targetVal === undefined) {
-      // target 没有这个 key → 直接赋值
-      result[key] = sourceVal
-
-    } else {
-      // 类型不一致（比如 target 是字符串 source 是数字）→ 覆盖
-      result[key] = sourceVal
-    }
+/**
+ * 分析字符串占用情况（UTF-8 真实字节，即写入 MySQL TEXT 实际占用的磁盘字节）
+ * @param {any} input
+ * @returns {{
+ *   chars: number,       // JS 字符数（肉眼长度）
+ *   bytes: number,       // UTF-8 真实字节（≈ MySQL TEXT 实际占用）
+ *   size: string         // 可读格式 "1.82 MB"
+ * }}
+ */
+function inspectStrSize(input) {
+  if (typeof input !== 'string') {
+    return { chars: 0, bytes: 0, size: '0 B' };
   }
 
-  return result
+  const chars = input.length;
+  const bytes = new Blob([input]).size;
+
+  if (bytes === 0) {
+    return { chars, bytes: 0, size: '0 B' };
+  }
+
+  const units = ['B', 'KB', 'MB', 'GB'];
+  const k = 1024;
+  const i = Math.min(
+    Math.floor(Math.log(bytes) / Math.log(k)),
+    units.length - 1
+  );
+
+  const value = bytes / Math.pow(k, i);
+  const fixed = i === 0 ? value : Number(value.toFixed(2));
+
+  return {
+    chars,
+    bytes,
+    size: `${fixed} ${units[i]}`,
+  };
 }
 
 const test = async () => {
-  const [rawData] = await dao.list('CusLogs', {columns: {id: 16833}})
-  const [targetData] = await dao.list('CusLogs', {columns: {id: 16735}})
-  const rawContent = JSON.parse(rawData.content)
-  const targetContent = JSON.parse(targetData.content)
-  const newData = mergeAdd(rawContent, targetContent)
-  await dao.update('CusLogs', targetData.id, {content: JSON.stringify(newData)})
-  console.log(newData, 'asd')
+  const query = await dao.createQueryBuilder('CusLogs', 'CusLogs');
+  query.select(['CusLogs.content', 'CusLogs.id']);
+  query.where('logType = 4')
+  query.orderBy('id', 'DESC')
+  query.skip(1)
+  query.take(1)
+  const data = await query.getOne();
+  const ret = inspectStrSize(data.content)
+
+  console.log(ret, 'ddd')
 }
 
 
@@ -1132,12 +1140,12 @@ const test = async () => {
 
 const init = async () => {
   setTimeout(async () => {
+    // test()
     // this.clearImgs({ showDetails: false, id: {start: 2000, end: 2500}, isExec: false }) // 清理图片
     // this.countNouseFiles()  // 统计多少垃圾图片
     // this.vipExpiredHandle(0, false) // 处理过期会员，会把产品mode 置 1
     // this.resetProductMode(212) // 把产品mode 置 0
     // this.handleLogsToHtml(90) // 统计日志
-    // console.log(1)
 
     // try {
     //   const result = await this.removeVocals({srcKey: `badm/0801.MP3`})
@@ -1152,20 +1160,20 @@ const init = async () => {
   // 你们的支持，就是我更新最大的动力，我们下期见！`,
   //   })
 
-
-
-    // const ret = await this.ttsJapaneseByTRTC(`2026年全英オープン決勝、林俊易対ラクシャ・セン`);
     // const ret = await this.ttsJapaneseByTRTC(`面对中国羽球一哥顶级的控制防线`, {
     //   language: 'zh',
     //   voiceId: 'v-female-H6p3LxP8'
     // });
 
-    const ret = await this.ttsJapaneseByTRTC(`この試合を通して、田中湧士はネット前の技術と攻撃力で、より上回るプレーを見せました。
-      日本選手の活躍を応援してくださる方は、ぜひチャンネル登録をお願いします！
-      これからも日本選手の熱戦をお届けします。それでは、また次回！`, {
-      language: 'ja',
-      voiceId: 'v-female-W6n8KxL5'
-    });
+
+    // <sub alias="ともか">ともか</sub>
+    // <sub alias="宮崎友花">みやざきともか</sub>
+
+    // const ret = await this.ttsJapaneseByTRTC(`もしあなたも、山口茜のこの戦いぶりに心を動かされたなら、ぜひチャンネル登録をお願いします。
+    //   これからも日本選手の熱戦をお届けしていきます！それでは、また次回！`, {
+    //   language: 'ja',
+    //   voiceId: 'v-female-W6n8KxL5'
+    // });
   } catch(e) {
     console.log(e)
   }

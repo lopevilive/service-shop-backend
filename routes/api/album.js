@@ -666,6 +666,19 @@ router.post('/FetchBatchUploadTask',
 )
 
 
+router.post('/FetchViewRecord',
+  async (req, res, next) => {
+    albumService.fetchViewRecord(req, (err, data) => {
+      if (err) {
+        res.sendResult(null, CODE_UNKNOWN, err.message)
+      } else {
+        res.sendResult(data, CODE_SUCC, 'succ')
+      }
+    })(req, res, next)
+  }
+)
+
+
 
 
 module.exports = router;
