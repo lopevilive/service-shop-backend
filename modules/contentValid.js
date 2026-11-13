@@ -159,57 +159,73 @@ module.exports.albumValidImg = async (payload) => {
 }
 
 // 视频截贞处理
-const handleVideoCheck = async (transactionalEntityManager, content) => {
-  try {
-    const {req: {jobId, key}, res} = content
-    const instance = await transactionalEntityManager.createQueryBuilder('XaCache', 'XaCache')
-    instance.setLock('pessimistic_write')
-    instance.where('XaCache.dataType = 16')
-    instance.andWhere('XaCache.key2 = :jobId', {jobId})
-    const data = await instance.getOne()
-    if (!data) return
-    const videoCheckContent = JSON.parse(data.content)
-    const {taskList} = videoCheckContent
-    let isPass = true // 判断视频是否已经通过审核
-    for (const checkItem of taskList) {
-      if (checkItem.key === key) {
-        checkItem.checkRes = res
-        checkItem.checkStatus = res.result.suggest
+const handleVideoCheck = async () => {
+  await dao.withLock('handleVideoCheck', 0, async () => {
+    const instance = await dao.createQueryBuilder('XaCache')
+    instance.where('XaCache.dataType = 11')
+    instance.limit(100) // 每次最多处理 100 条
+    const data = await instance.getMany()
+    for (const dataItem of data) {
+      try {
+        const content = JSON.parse(dataItem.content)
+        const {req: {jobId, key}, res, type} = content
+        // 只处理视频截帧图片，其它类型跳过
+        if (!(type && (type & 1<<3))) continue
+        if (!res || !res.result) continue
+
+        // 根据 jobId 找到对应的审核任务（dataType=16，key2=jobId）
+        const taskInstance = await dao.createQueryBuilder('XaCache')
+        taskInstance.where('XaCache.dataType = 16')
+        taskInstance.andWhere('XaCache.key2 = :jobId', {jobId})
+        const taskData = await taskInstance.getOne()
+        if (!taskData) continue
+
+        const videoCheckContent = JSON.parse(taskData.content)
+        const {taskList} = videoCheckContent
+        let isPass = true // 判断视频是否已经通过审核
+        for (const checkItem of taskList) {
+          if (checkItem.key === key) {
+            checkItem.checkRes = res
+            checkItem.checkStatus = res.result.suggest
+          }
+          if (['pending', 'risky'].includes(checkItem.checkStatus)) isPass = false
+        }
+        await dao.update('XaCache', taskData.id, {
+          upd_time: util.getNowTime(), content: JSON.stringify(videoCheckContent)
+        })
+        if (isPass) { // 此处把记录标记为已通过，一般通过后会马上删除
+          const { shopId } = videoCheckContent
+          let shopInfo = await dao.list('Shop', {columns: {id: shopId}})
+          shopInfo = shopInfo[0]
+          let needDel = true
+          if (shopInfo.level === 0 || shopInfo.auditing === 2) { // 需要人工审核
+            needDel = false
+          }
+          if (needDel) {
+            await dao.update('XaCache', taskData.id, {upd_time: util.getNowTime(), dataType: 21})
+            await dao.delete('XaCache', taskData.id)
+          }
+          const keys = taskList.map((item) => item.key)
+          cos.deleteMedia(keys) // 删除视频截贞
+        }
+
+        // 处理完成后直接删除这条 dataType=11 的审核结果
+        await dao.delete('XaCache', dataItem.id)
+      } catch(e) {
+        console.log('update-err', e)
       }
-      if (['pending', 'risky'].includes(checkItem.checkStatus)) isPass = false
     }
-    await transactionalEntityManager.update('XaCache', {id: data.id}, {
-      upd_time: util.getNowTime(), content: JSON.stringify(videoCheckContent)
-    })
-    if (isPass) { // 此处把记录标记为已通过，一般通过后会马上删除
-      const { shopId } = videoCheckContent
-      let shopInfo = await dao.list('shop', {columns: {id: shopId}})
-      shopInfo = shopInfo[0]
-      let needDel = true
-      if (shopInfo.level === 0 || shopInfo.auditing === 2) { // 需要人工审核
-        needDel = false
-      }
-      if (needDel) {
-        await transactionalEntityManager.update('XaCache', {id: data.id}, {upd_time: util.getNowTime(), dataType: 21})
-        await transactionalEntityManager.delete('XaCache', {id: data.id})
-      }
-      const keys = taskList.map((item) => item.key)
-      cos.deleteMedia(keys) // 删除视频截贞
-    }
-  } catch(e) {
-    console.log('update-err', e)
-  }
-  
+  })
 }
 
 
 // 微信异步返回结果后，读取db进行数据处理
 module.exports.albumHandleWxMediaCheck = async () => {
-  const manager = await dao.getManager()
-  await manager.transaction(async (transactionalEntityManager) => {
-    const instance = await transactionalEntityManager.createQueryBuilder('XaCache', 'XaCache');
-    instance.setLock('pessimistic_write');
+  // 用 withLock 替代原来的 pessimistic_write 事务锁
+  await dao.withLock('albumHandleWxMediaCheck', 0, async () => {
+    const instance = await dao.createQueryBuilder('XaCache')
     instance.where('XaCache.dataType = 11')
+    instance.limit(100) // 每次最多处理 100 条
     const data = await instance.getMany()
     for (const dataItem of data) {
       try {
@@ -219,16 +235,16 @@ module.exports.albumHandleWxMediaCheck = async () => {
         if (errcode !== 0) continue
         if (type && (type & 1<<2)) continue // 这个状态用来过滤本地发起的审核，交由本地处理，此处跳过
         if (type && (type & 1<<3)) { // 视频截贞图片
-          await handleVideoCheck(transactionalEntityManager, content)
+          continue
         }
         if (result.suggest === 'pass') { // 无风险字段
-          await transactionalEntityManager.update('XaCache', {id: dataItem.id}, {dataType: 12,upd_time: util.getNowTime()})
+          await dao.update('XaCache', dataItem.id, {dataType: 12,upd_time: util.getNowTime()})
           if (!(type && (type & 1))) {
-            await transactionalEntityManager.delete('XaCache', {id: dataItem.id}) //正常处理完删除，不保留
+            await dao.delete('XaCache', dataItem.id) //正常处理完删除，不保留
           }
         }
         if (result.suggest === 'review') { // 需要复查
-          await transactionalEntityManager.update('XaCache', {id: dataItem.id}, {dataType: 13,upd_time: util.getNowTime()})
+          await dao.update('XaCache', dataItem.id, {dataType: 13,upd_time: util.getNowTime()})
           if (!(type && (type & 1<<1))) {
             if (shopId) {
               await dao.update('Shop', shopId, { auditing: 2})
@@ -236,7 +252,7 @@ module.exports.albumHandleWxMediaCheck = async () => {
           }
         }
         if (result.suggest === 'risky') { // 需要封禁图册
-          await transactionalEntityManager.update('XaCache', {id: dataItem.id}, {dataType: 14,upd_time: util.getNowTime()})
+          await dao.update('XaCache', dataItem.id, {dataType: 14,upd_time: util.getNowTime()})
           if (!(type && (type & 1<<1))) {
             await dao.update('User', userId, {status: 1}) // 用户加入黑名单
             if (shopId) {
@@ -249,6 +265,7 @@ module.exports.albumHandleWxMediaCheck = async () => {
       }
     }
   })
+  handleVideoCheck() // 处理视频截帧
 }
 
 // this.albumHandleWxMediaCheck()
