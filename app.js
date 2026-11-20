@@ -6,6 +6,7 @@ const resextra = require('./modules/resextra')
 const albumRoutes = require('./routes/api/album.js')
 const userRoutes = require('./routes/api/user.js')
 const compression = require('compression');
+const contentValid = require(path.join(process.cwd(), 'modules/contentValid'))
 const {ERR_CODE_MAP: {CODE_SUCC, CODE_PARAMS_ERR, CODE_UNKNOWN, CODE_LOGIN_ERR, CODE_PERMISSION_ERR}} = require(path.join(process.cwd(),"util/errCode"))
 
 // require(path.join(process.cwd(), 'toolsScript/index.js')) // 执行一些脚本
@@ -59,6 +60,27 @@ app.use('/dist',express.static('dist'))
  */
 app.use(bodyParser.json({limit: '6mb'}))
 app.use(bodyParser.urlencoded({ extended: true }))
+
+// SCF 没有常驻定时器，借助高频 API 请求节流触发视频审核任务处理
+// 每个实例最多 60 秒触发一次；多实例之间由 handleVideoCheck 内部的 withLock 保证只有一个在执行
+let lastVideoCheckTs = 0
+const VIDEO_CHECK_INTERVAL = 10 * 1000
+app.use('/api', (req, res, next) => {
+  try {
+    const now = Date.now()
+    if (now - lastVideoCheckTs >= VIDEO_CHECK_INTERVAL) {
+      lastVideoCheckTs = now
+      // 不阻塞当前请求，异常也不影响接口返回
+      contentValid.albumHandleWxMediaCheck().catch((e) => {
+        console.error('albumHandleWxMediaCheck trigger error:', e)
+      })
+    }
+  } catch (e) {
+    console.error('albumHandleWxMediaCheck trigger error:', e)
+  } finally {
+    next()
+  }
+})
 
 
 const setDefaultHeader = (req, res, next) => {

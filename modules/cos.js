@@ -290,7 +290,13 @@ module.exports.ProcessVideo = class ProcessVideo {
 
   async createCheckTask () {
     const {rawKey} = this
-    const content = { taskList: [], shopId: this.shopId }
+    const content = {
+      taskList: [],
+      shopId: this.shopId,
+      status: 'pending',
+      userId: this.userInfo.id,
+      openid: this.userInfo.openid
+    }
     for (const imgKey of this.imgList) {
       content.taskList.push({ key: imgKey, checkRes: {}, trace_id: '', checkStatus: 'pending'})
     }
@@ -415,10 +421,10 @@ module.exports.ProcessVideo = class ProcessVideo {
       await this.transHandle() // 把视频转.mp4 和截首贞
       await this.snapshotList() // 异步截图
       await this.createCheckTask() // 创建审核任务
-      const status = await this.checkSnapStatus()  // 检查异步截图任务是否完成
-      if (status === 1) {
-        await this.startCheckTask()
-      }
+      // const status = await this.checkSnapStatus()  // 检查异步截图任务是否完成
+      // if (status === 1) {
+      //   await this.startCheckTask()
+      // }
     } catch(e) {
       dao.create('XaCache', {dataType: 16, add_time: util.getNowTime(), content: JSON.stringify({
         rawKey: this.rawKey || '-',

@@ -161,6 +161,84 @@ module.exports.albumValidImg = async (payload) => {
 // 视频截贞处理
 const handleVideoCheck = async () => {
   await dao.withLock('handleVideoCheck', 0, async () => {
+    // 1. 处理 pending 的截图任务：检查截图任务是否完成，完成后发起图片审核
+    const pendingInstance = await dao.createQueryBuilder('XaCache')
+    pendingInstance.where('XaCache.dataType = 16')
+    pendingInstance.orderBy('XaCache.id', 'ASC')
+    pendingInstance.limit(100)
+    // dataType=16 的数据量不大，直接全部取出，在内存中过滤 status，避免 JSON 字符串转义/格式问题
+    const pendingList = await pendingInstance.getMany()
+    for (const taskItem of pendingList) {
+      try {
+        const taskContent = JSON.parse(taskItem.content)
+        if (taskContent.status !== 'pending') continue
+        const jobId = taskItem.key2
+        if (!jobId) continue
+
+        // 查询腾讯云截图任务状态
+        const jobDetail = await new Promise((resolve, reject) => {
+          cos.cosInstance.request({
+            Method: 'GET',
+            Key: `jobs/${jobId}`,
+            Url: `https://${cos.cfg.bucket}.ci.${cos.cfg.region}.myqcloud.com/jobs/${jobId}`,
+          }, (err, data) => {
+            if (err) reject(err)
+            else resolve(data.Response.JobsDetail)
+          })
+        })
+
+        if (jobDetail.State === 'Failed') {
+          // 截图任务失败，标记为 failed，避免一直重复检查
+          taskContent.status = 'failed'
+          await dao.update('XaCache', taskItem.id, {
+            upd_time: util.getNowTime(), content: JSON.stringify(taskContent)
+          })
+          await dao.create('XaCache', {
+            dataType: 17,
+            add_time: util.getNowTime(),
+            key1: taskItem.key1,
+            content: JSON.stringify({jobId, msg: jobDetail.Message || '截图任务失败'})
+          })
+          continue
+        }
+        // 截图任务还未完成，保持 pending，下次再检查
+        if (jobDetail.State !== 'Success') continue
+
+        // 截图任务已完成，开始发起图片审核
+        const {taskList, shopId, userId, openid} = taskContent
+        if (!openid) {
+          console.error('handleVideoCheck: 缺少 openid', taskItem.id)
+          continue
+        }
+        const {appid, secret} = util.getConfig('album.appInfo')
+        const {bucket, region} = cos.cfg
+        for (const item of taskList) {
+          if (item.trace_id) continue // 已经发起过审核，避免重复提交
+          const media_url = `https://${bucket}.cos.${region}.myqcloud.com/${item.key}?imageMogr2/quality/70/thumbnail/800x/strip`
+          const trace_id = await wxApi.mediaSecCheck({openid, appid, secret, media_url})
+          util.secCheckCount(6)
+          item.trace_id = trace_id
+          await dao.create('XaCache', {dataType: 10, add_time: util.getNowTime(), key1: trace_id, content: JSON.stringify({
+            type: 1 << 3,
+            req: {key: item.key, jobId, shopId, userId, openid},
+            res: {}
+          })})
+          // 及时保存 trace_id，避免中途中断后重复提交
+          await dao.update('XaCache', taskItem.id, {
+            upd_time: util.getNowTime(), content: JSON.stringify(taskContent)
+          })
+        }
+        // 所有截图都已发起审核，任务状态改为 done
+        taskContent.status = 'done'
+        await dao.update('XaCache', taskItem.id, {
+          upd_time: util.getNowTime(), content: JSON.stringify(taskContent)
+        })
+      } catch(e) {
+        console.error('handleVideoCheck-task-err', e)
+      }
+    }
+
+    // 2. 处理微信异步回包结果（dataType=11），更新对应的截图任务
     const instance = await dao.createQueryBuilder('XaCache')
     instance.where('XaCache.dataType = 11')
     instance.limit(100) // 每次最多处理 100 条

@@ -1520,7 +1520,7 @@ module.exports.wxMsgRec = async (req, cb) => {
     content = JSON.parse(content)
     content.res = req.body
     await dao.update('XaCache', id, {content: JSON.stringify(content), dataType: 11, upd_time: util.getNowTime()})
-    contentValid.albumHandleWxMediaCheck()
+    // 统一由 app.js 的全局节流触发器调用 albumHandleWxMediaCheck，这里只负责落库并快速回复微信
     cb(null) // 直接回复微信
   } catch(e) {
     cb(e)
