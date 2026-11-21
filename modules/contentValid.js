@@ -299,7 +299,6 @@ const handleVideoCheck = async () => {
 
 // 微信异步返回结果后，读取db进行数据处理
 module.exports.albumHandleWxMediaCheck = async () => {
-  // 用 withLock 替代原来的 pessimistic_write 事务锁
   await dao.withLock('albumHandleWxMediaCheck', 0, async () => {
     const instance = await dao.createQueryBuilder('XaCache')
     instance.where('XaCache.dataType = 11')

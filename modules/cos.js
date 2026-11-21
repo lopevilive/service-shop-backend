@@ -304,106 +304,6 @@ module.exports.ProcessVideo = class ProcessVideo {
     dao.create('XaCache', { dataType: 16, add_time: util.getNowTime(), content: JSON.stringify(content), key1: rawKey, key2: jobId })
   }
 
-  // 执行审核任务，主要是调微信的异步审核接口，异步结果处理不在此处
-  async checkSnapStatus () {
-    // 1. 提取 JobId
-    const jobId = this?.snapRet?.Response?.JobsDetail?.JobId;
-    // 2. 轮询配置
-    const maxAttempts = 60; // 最多轮询60次
-    const intervalMs = 1000; // 每1秒轮询一次
-    let attempts = 0;
-    let isCompleted = false;
-    let status = 0; // 0-轮询中、1-任务完成、2-任务失败、3-轮询超时、4-轮询出错
-    // 3. 轮询任务
-    while (attempts < maxAttempts && !isCompleted) {
-      attempts++;
-      try {
-        // 查询任务状态
-        const jobStatus = await new Promise((resolve, reject) => {
-          module.exports.cosInstance.request({
-            Method: 'GET', Key: `jobs/${jobId}`,
-            Url: `https://${config.bucket}.ci.${config.region}.myqcloud.com/jobs/${jobId}`,
-          }, (err, data) => {
-            if (err) reject(err);
-            else resolve(data.Response.JobsDetail);
-          });
-        });
-        // 4. 检查任务状态
-        switch (jobStatus.State) {
-          case 'Success':
-            status = 1;
-            isCompleted = true;
-            break;
-          case 'Failed':
-            status = 2;
-            dao.create('XaCache', {dataType: 17, add_time: util.getNowTime(), key1: rawKey, content: JSON.stringify({
-              jobId, msg: jobStatus?.Message || '未知错误'
-            })})
-            isCompleted = true;
-            break;
-          case 'Submitted':
-          case 'Running':
-            // 等待下次轮询
-            await new Promise(resolve => setTimeout(resolve, intervalMs));
-            break;
-          default:
-            await new Promise(resolve => setTimeout(resolve, intervalMs));
-            break;
-        }
-      } catch (error) {
-        console.error(`轮询出错 (尝试 ${attempts}/${maxAttempts}):`, error);
-        if (attempts >= maxAttempts) {
-          status = 4
-          dao.create('XaCache', {dataType: 18, add_time: util.getNowTime(), key1: rawKey, content: JSON.stringify({
-            jobId, msg: error.message || '未知错误'
-          })})
-          isCompleted = true;
-        } else {
-          // 等待后重试
-          await new Promise(resolve => setTimeout(resolve, intervalMs));
-        }
-      }
-    }
-    // 5. 超时处理
-    if (!isCompleted && attempts >= maxAttempts) {
-      dao.create('XaCache', {dataType: 19, add_time: util.getNowTime(), key1: rawKey, content: JSON.stringify({ jobId, msg: '轮询超时' })})
-      status = 3
-    }
-    return status
-  }
-
-  async startCheckTask () {
-    const jobId = this?.snapRet?.Response?.JobsDetail?.JobId;
-    const manager = await dao.getManager()
-    await manager.transaction(async (transactionalEntityManager) => {
-      const instance = await transactionalEntityManager.createQueryBuilder('XaCache', 'XaCache')
-      instance.setLock('pessimistic_write')
-      instance.where('XaCache.dataType = 16')
-      instance.andWhere('XaCache.key2 = :jobId', {jobId})
-      const data = await instance.getOne()
-      if (!data) throw new Error(`找不到jobId:${jobId}`)
-      const content = JSON.parse(data.content)
-      const {taskList} = content
-      const {appid, secret} = util.getConfig('album.appInfo')
-      const openid = this.userInfo.openid
-      const {bucket, region} = config
-      for (const item of taskList) {
-        const media_url = `https://${bucket}.cos.${region}.myqcloud.com/${item.key}?imageMogr2/quality/70/thumbnail/800x/strip`
-        const trace_id = await wxApi.mediaSecCheck({openid, appid, secret, media_url})
-        util.secCheckCount(6)
-        // const trace_id = '6965ef8b-628096bc-2190c0ef'
-        item.trace_id = trace_id
-        dao.create('XaCache', {dataType: 10, add_time: util.getNowTime(), key1: trace_id, content: JSON.stringify({
-          type: 1 << 3,
-          req: {key: item.key, jobId, shopId: this.shopId, userId: this.userInfo.id, openid: this.userInfo.openid},
-          res: {}
-        })})
-      }
-      await transactionalEntityManager.update('XaCache', {id: data.id}, {
-        upd_time: util.getNowTime(),content: JSON.stringify(content)
-      })
-    })
-  }
 
   // 检测是否需要创建审核任务，比如避免重复创建
   async isNeedCheck() {
@@ -421,10 +321,6 @@ module.exports.ProcessVideo = class ProcessVideo {
       await this.transHandle() // 把视频转.mp4 和截首贞
       await this.snapshotList() // 异步截图
       await this.createCheckTask() // 创建审核任务
-      // const status = await this.checkSnapStatus()  // 检查异步截图任务是否完成
-      // if (status === 1) {
-      //   await this.startCheckTask()
-      // }
     } catch(e) {
       dao.create('XaCache', {dataType: 16, add_time: util.getNowTime(), content: JSON.stringify({
         rawKey: this.rawKey || '-',

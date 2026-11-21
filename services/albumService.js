@@ -1364,40 +1364,6 @@ module.exports.getVipInfo = async (req, cb) => {
   }
 }
 
-module.exports.report = async (req, cb) => {
-  const {field, shopId, isAdmin} = req.body
-  try {
-    const ts = util.getTodayTs()
-    try {
-      await dao.create('CusLogs', { logType: 4, content: '{}', add_time: util.getNowTime(), upd_time: ts })
-    } catch(e) {
-      if (e.code !== 'ER_DUP_ENTRY') throw e
-    }
-
-    const manager = await dao.getManager()
-    await manager.transaction(async (transactionalEntityManager) => {
-      const instance = await transactionalEntityManager.createQueryBuilder('CusLogs', 'CusLogs')
-      instance.setLock('pessimistic_write')
-      instance.where('CusLogs.logType = 4')
-      instance.andWhere('CusLogs.upd_time = :ts', {ts})
-      instance.orderBy('CusLogs.id', 'ASC')
-      const data = await instance.getOne()
-      if (!data) return
-      const content = JSON.parse(data.content)
-      if (!content[shopId])  content[shopId] = {admin: {}, custom: {}}
-      const matchItem = isAdmin ? content[shopId].admin : content[shopId].custom
-      if (!matchItem[field]) matchItem[field] =  0
-      matchItem[field] += 1
-      await transactionalEntityManager.update('CusLogs', {id: data.id}, {
-        content: JSON.stringify(content)
-      })
-    })
-    cb(null)
-  } catch(e) {
-    cb(e)
-  }
-}
-
 /**
  * body.field = admin.member
  * 
