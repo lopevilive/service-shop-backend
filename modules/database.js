@@ -31,9 +31,11 @@ class DbManage {
     this.connection = this.connectionManager.create({
       ...this.db_config, entities: this.entities,
       extra: {
-        connectionLimit: 2,
+        connectionLimit: 10,
         waitForConnections: true,
         queueLimit: 0,
+        maxIdle: 2,
+        idleTimeout: 60000,
       }
     })
     this.timer = null
@@ -80,7 +82,7 @@ class DbManage {
     if (!connection.isInitialized) {
       await this.connectDb()
     }
-    this.refreshTimeOut()
+    // this.refreshTimeOut()
     const model = connection.getRepository(entityName)
     if(!model) return new Error('模型不存在')
     return model

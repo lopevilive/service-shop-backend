@@ -1122,6 +1122,58 @@ function inspectStrSize(input) {
   };
 }
 
+/**
+ * 查询腾讯云 CI 截图任务是否完成
+ * @param {String} jobId - 腾讯云 CI 任务 JobId
+ * @returns {Promise<{
+ *   jobId: String,
+ *   state: String,
+ *   progress: Number|String|null,
+ *   message: String,
+ *   isDone: Boolean,
+ *   isSuccess: Boolean,
+ *   isFailed: Boolean,
+ *   detail: Object
+ * }>}
+ */
+const checkSnapJobStatus = async (jobId) => {
+  // 新增依赖在方法内部引入
+  const path = require('path')
+  const cos = require(path.join(process.cwd(), 'modules/cos'))
+
+  if (!jobId) throw new Error('jobId 不能为空')
+
+  const { cosInstance, cfg } = cos
+
+  const res = await new Promise((resolve, reject) => {
+    cosInstance.request({
+      Method: 'GET',
+      Key: `jobs/${jobId}`,
+      Url: `https://${cfg.bucket}.ci.${cfg.region}.myqcloud.com/jobs/${jobId}`,
+    }, (err, data) => {
+      if (err) reject(err)
+      else resolve(data)
+    })
+  })
+
+  const jobDetail = res?.Response?.JobsDetail
+  if (!jobDetail) {
+    throw new Error(`未获取到任务详情: ${JSON.stringify(res).slice(0, 500)}`)
+  }
+
+  const state = jobDetail.State
+  return {
+    jobId,
+    state,
+    progress: jobDetail.Progress ?? null,
+    message: jobDetail.Message || '',
+    isDone: ['Success', 'Failed'].includes(state),
+    isSuccess: state === 'Success',
+    isFailed: state === 'Failed',
+    detail: jobDetail,
+  }
+}
+
 const test = async () => {
   const query = await dao.createQueryBuilder('CusLogs', 'CusLogs');
   query.select(['CusLogs.content', 'CusLogs.id']);
@@ -1140,6 +1192,8 @@ const test = async () => {
 
 const init = async () => {
   setTimeout(async () => {
+    // const ret = await checkSnapJobStatus('jda8d5f1ae55e11f1b7c70dabeb00f977')
+    // console.log(ret, 'rrr')
     // test()
     // this.clearImgs({ showDetails: false, id: {start: 2000, end: 2500}, isExec: false }) // 清理图片
     // this.countNouseFiles()  // 统计多少垃圾图片
@@ -1168,11 +1222,14 @@ const init = async () => {
 
     // <sub alias="ともか">ともか</sub>
     // <sub alias="宮崎友花">みやざきともか</sub>
+    // <sub alias="田口真彩">タグチ・マヤ</sub>
+    // <sub alias="田口">タグチ</sub>
 
-    // const ret = await this.ttsJapaneseByTRTC(`もしあなたも、山口茜のこの戦いぶりに心を動かされたなら、ぜひチャンネル登録をお願いします。
-    //   これからも日本選手の熱戦をお届けしていきます！それでは、また次回！`, {
+    // const ret = await this.ttsJapaneseByTRTC(`このラリーが終わった後、【ともか】は太ももの痛みを訴え、短時間のメディカルタイムアウトを要求しました。
+    //   処置を受けた後、再びコートに戻り、試合を続けます。`, {
     //   language: 'ja',
-    //   voiceId: 'v-female-W6n8KxL5'
+    //   voiceId: 'v-female-J3k7NxR2'
+    //   // voiceId: 'v-female-W6n8KxL5'
     // });
   } catch(e) {
     console.log(e)

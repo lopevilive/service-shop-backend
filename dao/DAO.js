@@ -109,6 +109,10 @@ module.exports.getManager = async ()  => {
 
 
 module.exports.withLock = async function(lockName, timeout = 0, fn) {
+  // 先确保 TypeORM 连接池已初始化，否则 queryRunner.connect() 会抛
+  // "Connection is not established with mysql database"
+  await module.exports.connect()
+
   const connection = db.connection  // 你的 TypeORM 连接
   const queryRunner = connection.createQueryRunner()
   try {
